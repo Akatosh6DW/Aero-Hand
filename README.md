@@ -7,12 +7,9 @@
 
 ![Aero Hand Overview](assets/banner.png)
 
+
 Aero Hand Open is an open-source, tendon-driven robotic hand designed and developed by TetherIA.
-The project aims to make dexterous manipulation research more accessible by providing a fully documented, modular, and affordable platform that can be reproduced with standard 3D printing and off-the-shelf electronic components.
-Unlike many existing robotic hands that rely on expensive proprietary actuators or complex mechanical assemblies, Aero Hand Open focuses on simplicity, reliability, and transparency.
-Each joint is optimized for mechanical efficiency by using tendon actuation, enabling smooth and natural motion while keeping the overall design lightweight and compact.
-The system integrates open-source firmware (ESP32-based) and control software compatible with ROS2, allowing seamless integration into research and educational environments.
-This repository serves as a complete open hardware and software reference for developers, students, and robotics enthusiasts.
+The project aims to make dexterous manipulation research more accessible by providing a fully documented, modular, and affordable platform that can be reproduced with standard 3D printing and off-the-shelf electronic components. Unlike many existing robotic hands that rely on expensive proprietary actuators or complex mechanical assemblies, Aero Hand Open focuses on simplicity, reliability, and transparency. Each joint is optimized for mechanical efficiency by using tendon actuation, enabling smooth and natural motion while keeping the overall design lightweight and compact. The system integrates open-source firmware (ESP32-based) and control software compatible with ROS2, allowing seamless integration into research and educational environments. This repository serves as a complete open hardware and software reference for developers, students, and robotics enthusiasts.
 
 # Aero Hand Open features:
 - 7 DoFs robotic hand with 5 fingers (15 joints in total)
@@ -25,19 +22,19 @@ This repository serves as a complete open hardware and software reference for de
 
 # Overview:
 
-![Overview1](assets/overview1.PNG)
+![Overview1](assets/overview1.png)
 
-![Overview1](assets/overview2.PNG)
+![Overview1](assets/overview2.png)
 
-![Overview1](assets/overview3.PNG)
+![Overview1](assets/overview3.png)
 
-![Overview1](assets/overview4.PNG)
+![Overview1](assets/overview4.png)
 
-![Overview1](assets/overview5.PNG)
+![Overview1](assets/overview5.png)
 
-![Overview1](assets/overview6.PNG)
+![Overview1](assets/overview6.png)
 
-![Overview1](assets/overview7.PNG)
+![Overview1](assets/overview7.png)
 
 # Table of Contents:
 - Resources
