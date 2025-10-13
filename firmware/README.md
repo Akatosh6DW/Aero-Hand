@@ -1,4 +1,4 @@
-# Aero Hand Lite Firmware
+# Aero Hand Open Firmware
 
 This repository contains the firmware code for the **Aero Hand**, designed for control, homing, calibration, and telemetry of the TetherIA Aero Hand prosthetic.  
 The firmware runs on an **ESP32-S3 (Seeed Studio XIAO ESP32S3)** and communicates with a PC host application via USB serial.
@@ -105,12 +105,10 @@ The firmware uses a **fixed 16-byte frame** for all communication between PC and
 ### 6. Telemetry / GET Modes
 The firmware supports batched telemetry reads via **SyncRead**.
 
-- **GET_POS (`0x22`)** → Responds with `[pos0..pos6]` (7×u16).  The position value from the firmware is sent in the range 0..4096, which represents 0 to 360 degrees of motion.
-
+- **GET_POS (`0x22`)** → Responds with `[pos0..pos6]` (7×u16).
 - **GET_VEL (`0x23`)** → Responds with `[vel0..vel6]` (7×u16).  
 - **GET_CURR (`0x24`)** → Responds with `[cur0..cur6]` (7×u16).  
 - **GET_TEMP (`0x25`)** → Responds with `[tmp0..tmp6]` (7×u16).  
-- **GET_ALL (`0x21`)** → Reserved (to be implemented).  
 
 Each telemetry response is also a **16-byte frame**.
 
