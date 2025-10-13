@@ -180,6 +180,7 @@ A: Any FDM printer with a ≥200×200 mm bed. PLA works best for strength and di
 
 ## Contact
 For questions, feedback, or collaboration inquiries, please reach out to us through the following channels:
+
  🛒 Shop: [Aero Hand Open – TetherIA Store](https://shop.tetheria.ai/products/aero-hand-open?variant=51112290320696) 
 
  📧 Email: support@tetheria.ai
@@ -187,7 +188,7 @@ For questions, feedback, or collaboration inquiries, please reach out to us thro
  🌐 Website: [tetheria.ai](http://tetheria.ai)
 
  🐙 GitHub: [TetherIA](https://github.com/TetherIA)
- 
+
  💬 Discord: [TetherIA Discord Channel](http://discord.gg/eRAzPMCm)
 
 
