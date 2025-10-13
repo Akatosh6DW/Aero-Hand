@@ -25,7 +25,9 @@ from tkinter import ttk, messagebox, simpledialog, filedialog
 
 from serial.tools import list_ports
 
-from aero_hand_open.aero_hand import AeroHand
+from aero_open_sdk.aero_hand import AeroHand
+
+
 # ---- operation codes ------------
 HOMING_MODE = 0x01
 SET_ID_MODE = 0x03
@@ -47,26 +49,37 @@ SLIDER_LABELS = [
     "thumb_abduction",
     "thumb_flex",
     "thumb_tendon",
-    "index",
-    "middle",
-    "ring",
-    "pinky",
+    "index_finger",
+    "middle_finger",
+    "ring_finger",
+    "pinky_finger",
 ]
 
 class App(tk.Tk):
     def __init__(self):
         super().__init__()
-        self.title("TetherIA – Aero Hand")
+        self.title("TetherIA – Aero Hand Open")
         self.geometry("900x620")
         self.minsize(860, 560)
+        if sys.platform.startswith("win"):
+            self.state("zoomed")
+        else:
+            self.attributes("-zoomed", True)
+
+        try:
+            icon_path = os.path.join(os.path.dirname(__file__), "assets", "logo.png")
+            icon_img = tk.PhotoImage(file=icon_path)
+            self.iconphoto(True, icon_img)
+        except Exception as e:
+            print(f"Could not set window icon: {e}")
 
         # runtime state
         self.hand: AeroHand | None = None
         self.tx_thread: threading.Thread | None = None
         self.stop_event = threading.Event()
         self.control_paused = False  # pause streaming during blocking ops
-        self.tx_rate_hz = 40.0       # streaming rate for CTRL_POS
-        self.slider_vars: list[tk.IntVar] = []
+        self.tx_rate_hz = 50.0       # streaming rate for CTRL_POS
+        self.slider_vars: list[tk.DoubleVar] = []  # Use DoubleVar for normalized 0.0-1.0 range
         self.port_var = tk.StringVar()
         self.baud_var = tk.IntVar(value=921600)
 
@@ -101,7 +114,7 @@ class App(tk.Tk):
         ttk.Label(top, text="Rate (Hz):").pack(side=tk.LEFT)
         self.rate_spin = ttk.Spinbox(top, from_=1, to=200, width=6)
         self.rate_spin.delete(0, tk.END)
-        self.rate_spin.insert(0, "40")
+        self.rate_spin.insert(0, "50")
         self.rate_spin.pack(side=tk.LEFT, padx=(4, 0))
 
         # ---- Commands row
@@ -121,7 +134,7 @@ class App(tk.Tk):
         self.btn_flash.pack(side=tk.LEFT, padx=(0, 10))
 
         # Zero All Button
-        self.btn_zero = ttk.Button(cmd, text="Zero All", command=self.on_zero_all, state=tk.DISABLED)
+        self.btn_zero = ttk.Button(cmd, text="Set to Extend", command=self.on_zero_all, state=tk.DISABLED)
         self.btn_zero.pack(side=tk.LEFT, padx=(0, 10))
 
         # GET buttons
@@ -129,28 +142,37 @@ class App(tk.Tk):
         self.btn_get_vel  = ttk.Button(cmd, text="GET_VEL",  command=self.on_get_vel,  state=tk.DISABLED)
         self.btn_get_cur  = ttk.Button(cmd, text="GET_CURR", command=self.on_get_cur,  state=tk.DISABLED)
         self.btn_get_temp = ttk.Button(cmd, text="GET_TEMP", command=self.on_get_temp, state=tk.DISABLED)
+        self.btn_get_all  = ttk.Button(cmd, text="GET_ALL",  command=self.on_get_all,  state=tk.DISABLED)
         self.btn_get_pos.pack(side=tk.LEFT, padx=(20, 6))
         self.btn_get_vel.pack(side=tk.LEFT, padx=6)
         self.btn_get_cur.pack(side=tk.LEFT, padx=6)
         self.btn_get_temp.pack(side=tk.LEFT, padx=6)
+        self.btn_get_all.pack(side=tk.LEFT, padx=6)
 
         # ---- Sliders (7)
-        grp = ttk.LabelFrame(self, text="Sliders (send CTRL_POS payload 0..65535)", padding=10)
+        grp = ttk.LabelFrame(self, text="Sliders (send CTRL_POS payload)", padding=10)
         grp.pack(side=tk.TOP, fill=tk.BOTH, expand=True, padx=10, pady=(6, 10))
 
         for i, name in enumerate(SLIDER_LABELS):
             row = ttk.Frame(grp)
             row.pack(fill=tk.X, pady=5)
 
-            ttk.Label(row, text=f"{i} – {name}", width=18).pack(side=tk.LEFT)
-            var = tk.IntVar(value=0)
+            # Increase width and add padding to name label
+            ttk.Label(row, text=f"{i} – {name}", width=22).pack(side=tk.LEFT, padx=(0, 8))
+
+            # Use monospace font for min/max labels
+            mono_font = ("Consolas", 10)
+            min_lbl = ttk.Label(row, text="0.000", width=8, font=mono_font)
+            min_lbl.pack(side=tk.LEFT)
+
+            var = tk.DoubleVar(value=0.0)
             self.slider_vars.append(var)
-            scale = tk.Scale(row, from_=0, to=65535, orient=tk.HORIZONTAL, length=600,
-                             resolution=1, variable=var, showvalue=True)
+            scale = tk.Scale(row, from_=0.0, to=1.0, orient=tk.HORIZONTAL, length=600,
+                             resolution=0.001, variable=var, showvalue=True)
             scale.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=(6, 6))
-            val_lbl = ttk.Label(row, text="0", width=8)
-            val_lbl.pack(side=tk.LEFT)
-            var.trace_add("write", lambda *_a, v=var, lbl=val_lbl: lbl.config(text=str(v.get())))
+
+            max_lbl = ttk.Label(row, text="1.000", width=8, font=mono_font)
+            max_lbl.pack(side=tk.LEFT)
 
         # ---- RX log
         rx = ttk.LabelFrame(self, text="RX Log", padding=10)
@@ -194,18 +216,18 @@ class App(tk.Tk):
     # ------------- connect/disconnect -------------
     def on_connect(self):
         if self.hand is not None:
-            return
+            return False  # Already connected
         port = self.port_var.get().strip()
         if not port:
             messagebox.showerror("Error", "Select a serial port.")
-            return
+            return False
         try:
             self.tx_rate_hz = float(self.rate_spin.get().strip())
             if self.tx_rate_hz <= 0:
                 raise ValueError
         except Exception:
             messagebox.showerror("Error", "Rate must be a positive number.")
-            return
+            return False
 
         baud = int(self.baud_var.get())
         try:
@@ -218,14 +240,16 @@ class App(tk.Tk):
             self.btn_connect.configure(state=tk.DISABLED)
             self.btn_disc.configure(state=tk.NORMAL)
             for b in (self.btn_zero,self.btn_homing, self.btn_setid, self.btn_trim,
-                      self.btn_get_pos, self.btn_get_vel, self.btn_get_cur, self.btn_get_temp):
+                      self.btn_get_pos, self.btn_get_vel, self.btn_get_cur, self.btn_get_temp, self.btn_get_all):
                 b.configure(state=tk.NORMAL)
 
             self.set_status(f"Connected to {port} @ {baud}")
             self.log(f"[info] Connected {port} @ {baud}")
+            return True  # Success!
         except Exception as e:
             self.hand = None
             messagebox.showerror("Open failed", str(e))
+            return False  # Failure
 
     def on_disconnect(self):
         self._shutdown_serial()
@@ -250,7 +274,7 @@ class App(tk.Tk):
         self.btn_connect.configure(state=tk.NORMAL)
         self.btn_disc.configure(state=tk.DISABLED)
         for b in (self.btn_zero,self.btn_homing, self.btn_setid, self.btn_trim,
-                  self.btn_get_pos, self.btn_get_vel, self.btn_get_cur, self.btn_get_temp):
+                  self.btn_get_pos, self.btn_get_vel, self.btn_get_cur, self.btn_get_temp, self.btn_get_all):
             b.configure(state=tk.DISABLED)
         self.set_status("Disconnected")
         self.log("[info] Disconnected")
@@ -261,9 +285,12 @@ class App(tk.Tk):
         next_t = time.perf_counter()
         while not self.stop_event.is_set():
             if self.hand is not None and not self.control_paused:
-                payload = [int(v.get()) & 0xFFFF for v in self.slider_vars]
+                # ## Unnormalize to joint limits
+                j_ll = self.hand.joint_lower_limits
+                j_ul = self.hand.joint_upper_limits
+                joint_values = [j_ll[i] + (j_ul[i] - j_ll[i]) * self.slider_vars[i].get() for i in range(7)]
                 try:
-                    self.hand._send_data(CTRL_POS, payload)
+                    self.hand.set_joint_positions(joint_values)
                 except Exception as e:
                     self.log(f"[TX error] {e}")
             # pacing
@@ -330,8 +357,8 @@ class App(tk.Tk):
             try:
                 self.control_paused = True
                 for var in self.slider_vars:
-                    var.set(0)
-                joint_pos = list(self.hand.joint_lower_limits)  # 16 values
+                    var.set(0.0)  # Set to 0.0 for normalized slider
+                joint_pos = list(self.hand.joint_lower_limits)
                 self.hand.set_joint_positions(joint_pos)
                 self.log("[TX] ZERO_ALL via CTRL_POS (joint lower limits)")
                 self.set_status("Zeroed (lower limits sent; sliders reset)")
@@ -347,8 +374,8 @@ class App(tk.Tk):
     def on_trim(self):
         if not self.hand:
             return
-        ch = simpledialog.askinteger("Trim Servo", "Servo ID / channel (0..14):",
-                                     minvalue=0, maxvalue=14, parent=self)
+        ch = simpledialog.askinteger("Trim Servo", "Servo ID / channel (0..6):",
+                                     minvalue=0, maxvalue=6, parent=self)
         if ch is None:
             return
         deg = simpledialog.askinteger("Trim Servo", "Degrees (-360..360):",
@@ -377,8 +404,14 @@ class App(tk.Tk):
         if not self.hand:
             return
         try:
-            vals = self.hand.get_motor_positions()
-            self.log(f"[GET_POS] {list(vals)}")
+            vals = self.hand.get_actuations()
+            j_ll = self.hand.actuations_lower_limits
+            j_ul = self.hand.actuations_upper_limits
+            # Convert to normalized 0.0-1.0 range for display
+            norm_vals = [(vals[i] - j_ll[i]) / (j_ul[i] - j_ll[i]) for i in range(len(vals))]
+            ## Format to 3 decimal places
+            norm_vals_fmt = [round(v, 3) for v in norm_vals]
+            self.log(f"[GET_POS] {norm_vals_fmt}")
         except Exception as e:
             self.log(f"[err] GET_POS: {e}")
 
@@ -386,7 +419,7 @@ class App(tk.Tk):
         if not self.hand:
             return
         try:
-            vals = self.hand.get_motor_speed()
+            vals = self.hand.get_actuator_speeds()
             self.log(f"[GET_VEL] {list(vals)}")
         except Exception as e:
             self.log(f"[err] GET_VEL: {e}")
@@ -395,7 +428,7 @@ class App(tk.Tk):
         if not self.hand:
             return
         try:
-            vals = self.hand.get_motor_currents()
+            vals = self.hand.get_actuator_currents()
             self.log(f"[GET_CURR] {list(vals)}")
         except Exception as e:
             self.log(f"[err] GET_CURR: {e}")
@@ -404,10 +437,23 @@ class App(tk.Tk):
         if not self.hand:
             return
         try:
-            vals = self.hand.get_motor_temperatures()
+            vals = self.hand.get_actuator_temperatures()
             self.log(f"[GET_TEMP] {list(vals)}")
         except Exception as e:
             self.log(f"[err] GET_TEMP: {e}")
+    
+    def on_get_all(self):
+        if not self.hand:
+            return
+        try:
+            pos = self.hand.get_actuations()
+            vel = self.hand.get_actuator_speeds()
+            curr = self.hand.get_actuator_currents()
+            temp = self.hand.get_actuator_temperatures()
+            norm_pos = [round(v / 65535, 3) for v in pos]  # Normalize for display
+            self.log(f"[GET_ALL] POS: {norm_pos} | VEL: {list(vel)} | CURR: {list(curr)} | TEMP: {list(temp)}")
+        except Exception as e:
+            self.log(f"[err] GET_ALL: {e}")
 
     # ---- Flashing (esptool) ----
     def on_flash(self):
@@ -422,15 +468,9 @@ class App(tk.Tk):
         if not port:
             return
 
-        # Best effort chip guess; you can hardcode "esp32s3" if you want
         chip = "auto"
+        offset = "0x10000"
 
-        # Decide offset: merged at 0x0, otherwise 0x10000
-        name = os.path.basename(bin_path).lower()
-        merged = ("merged" in name) or ("with_bootloader" in name) or name.endswith(".merged.bin")
-        offset = "0x0" if merged else "0x10000"
-
-        # Close serial if open
         if self.hand:
             self.log("[flash] Closing serial before flashing…")
             self.on_disconnect()
@@ -438,7 +478,7 @@ class App(tk.Tk):
         def worker():
             cmd = [sys.executable, "-m", "esptool",
                    "--chip", chip, "-p", port, "-b", "921600",
-                   "write-flash"] + ([] if merged else ["-z"]) + [offset, bin_path]
+                   "write-flash", offset, bin_path]
             self.log("> " + " ".join(cmd))
             try:
                 proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
@@ -447,22 +487,39 @@ class App(tk.Tk):
                 rc = proc.wait()
                 if rc == 0:
                     self.log("[flash] Flash complete.")
-                    messagebox.showinfo("Success", "Firmware flashed successfully.")
+                    self.after(0, lambda: messagebox.showinfo("Success", "Firmware flashed successfully."))
                 else:
                     self.log(f"[flash] esptool exited with code {rc}")
-                    messagebox.showerror("Flash failed", f"esptool exited with code {rc}")
-            except FileNotFoundError:
-                self.log("[flash] esptool not found. Install with: pip install esptool")
-                messagebox.showerror("Flash failed", "esptool not found. pip install esptool")
+                    self.after(0, lambda rc=rc: messagebox.showerror("Flash failed", f"esptool exited with code {rc}"))
             except Exception as e:
                 self.log(f"[flash] {e}")
-                messagebox.showerror("Flash failed", str(e))
+                self.after(0, lambda e=e: messagebox.showerror("Flash failed", str(e)))
 
-            # try to reconnect using current UI selections
-            try:
-                self.on_connect()
-            except Exception:
-                pass
+            max_attempts = 3
+            for attempt in range(1, max_attempts + 1):
+                time.sleep(1.5) 
+                self.log(f"[flash] Reconnect attempt {attempt}...")
+                result = {'ok': False}
+                done = threading.Event()
+                def _do_connect():
+                    try:
+                        ok = bool(self.on_connect()) 
+                        result['ok'] = ok
+                    except Exception as e:
+                        self.log(f"[flash] on_connect raised: {e}")
+                        result['ok'] = False
+                    finally:
+                        done.set()
+                self.after(0, _do_connect)
+                if not done.wait(3.0): 
+                    self.log("[flash] connect timed out")
+                    continue                   
+                if result['ok']:
+                    self.log("[flash] Reconnected ✅")
+                    break                     
+            else:
+                self.after(0, lambda: self.set_status("Reconnect failed after flashing"))
+                self.after(0, lambda: messagebox.showerror("Flash failed", "Reconnect failed after flashing"))
 
         threading.Thread(target=worker, daemon=True).start()
 

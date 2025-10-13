@@ -1,16 +1,36 @@
 [project]
-name = "aero-hand-open"
-version = "0.1.0"
-description = "Add your description here"
+name = "aero-open-sdk"
+version = "0.1.11"
+description = "This package provides an interface to control the Aero Hand Open robotic hand."
 readme = "README.md"
 requires-python = ">=3.10"
+authors = [
+    { name = "Mohit Yadav", email = "mohityadav@tetheria.ai" },
+]
+maintainers = [
+    { name = "Mohit Yadav", email = "mohityadav@tetheria.ai" },
+]
+license = { text = "Apache License 2.0" }
+
 dependencies = [
-    "esptool>=5.1.0",
-    "pyserial>=3.5",
+    "esptool>=5.0.0",
+    "numpy>=1.24.0",
 ]
 
-[tool.uv]
-package = true
+[project.urls]
+Homepage = "https://tetheria.ai"
+Documentation = "https://docs.tetheria.ai/docs/intro"
+GitHub = "https://github.com/TetherIA/aero-open-sdk"
+
+[build-system]
+requires = ["uv_build>=0.8.18,<0.9.0"]
+build-backend = "uv_build"
 
 [project.scripts]
-aero-hand-gui = "aero_hand_open.gui:main"
+aero-hand-gui = "aero_open_sdk.gui:main"
+
+[[tool.uv.index]]
+name = "testpypi"
+url = "https://test.pypi.org/simple/"
+publish-url = "https://test.pypi.org/legacy/"
+explicit = true
