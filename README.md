@@ -7,9 +7,11 @@
 
 ![Aero Hand Overview](assets/banner.png)
 
+Aero Hand Open is an open-source, tendon-driven robotic hand designed and developed by TetherIA. The project aims to make dexterous manipulation research more accessible by providing a fully documented, modular, and affordable platform that can be reproduced with standard 3D printing and off-the-shelf electronic components. 
 
-Aero Hand Open is an open-source, tendon-driven robotic hand designed and developed by TetherIA.
-The project aims to make dexterous manipulation research more accessible by providing a fully documented, modular, and affordable platform that can be reproduced with standard 3D printing and off-the-shelf electronic components. Unlike many existing robotic hands that rely on expensive proprietary actuators or complex mechanical assemblies, Aero Hand Open focuses on simplicity, reliability, and transparency. Each joint is optimized for mechanical efficiency by using tendon actuation, enabling smooth and natural motion while keeping the overall design lightweight and compact. The system integrates open-source firmware (ESP32-based) and control software compatible with ROS2, allowing seamless integration into research and educational environments. This repository serves as a complete open hardware and software reference for developers, students, and robotics enthusiasts.
+Unlike many existing robotic hands that rely on expensive proprietary actuators or complex mechanical assemblies, Aero Hand Open focuses on simplicity, reliability, and transparency. Each joint is optimized for mechanical efficiency by using tendon actuation, enabling smooth and natural motion while keeping the overall design lightweight and compact. The system integrates open-source firmware (ESP32-based) and control software compatible with ROS2, allowing seamless integration into research and educational environments. 
+
+This repository serves as a complete open hardware and software reference for developers, students, and robotics enthusiasts.
 
 # Aero Hand Open features:
 - 7 DoFs robotic hand with 5 fingers (15 joints in total)
@@ -64,8 +66,8 @@ All CAD and 3D model files of Aero Hand Open are available in the directory.
 
 You can find both STEP and STL files for modification and direct 3D printing.
 
-## CAD Files Notes:
-- The absolute origin of the full assembly is at the MCP joint of middle finger
+> CAD Files Notes:
+> The absolute origin of the full assembly is at the MCP joint of middle finger
 
 For quick setup, we also provide a “One-Click Print Pack”, which contains all parts with pre-oriented build angles optimized for print strength, surface quality, and minimal support usage.
 
@@ -98,7 +100,9 @@ We provide basic introduction and usage here. A detailed introduction to SDK is 
 
 ### Installation: 
 📦 Install via pip
+```bash
 pip install aero-hand-sdk
+```
      
 🧩 Install from source (editable mode)
 Clone the repository to your local machine:
@@ -176,11 +180,11 @@ A: Any FDM printer with a ≥200×200 mm bed. PLA works best for strength and di
 
 ## Contact
 For questions, feedback, or collaboration inquiries, please reach out to us through the following channels:
- 🛒Shop: Aero Hand Open – TetherIA Store 
-📧 Email: support@tetheria.ai
- 🌐 Website: tetheria.ai
- 🐙 GitHub: TetherIA
- 💬 Discord: TetherIA Discord Channel
+ 🛒 Shop: [Aero Hand Open – TetherIA Store](https://shop.tetheria.ai/products/aero-hand-open?variant=51112290320696) 
+ 📧 Email: support@tetheria.ai
+ 🌐 Website: [tetheria.ai](http://tetheria.ai)
+ 🐙 GitHub: [TetherIA](https://github.com/TetherIA)
+ 💬 Discord: [TetherIA Discord Channel](http://discord.gg/eRAzPMCm)
 
 
 We welcome discussions, contributions, and new ideas from the community.
