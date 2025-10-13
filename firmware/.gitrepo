@@ -6,7 +6,7 @@
 [subrepo]
 	remote = https://github.com/TetherIA/aero-open-firmware.git
 	branch = main
-	commit = 238ffc161fda552ccaf6af8ef5e7992d37c66440
-	parent = d038e008ef6043f1c7eeecab3b47a18410d3a6c3
+	commit = 46bc858cf07f8c8858887ff11c5362b4078bc869
+	parent = 2626d11ed3ab2d9bfdd6231b45d3679f86667e57
 	method = merge
 	cmdver = 0.4.9
