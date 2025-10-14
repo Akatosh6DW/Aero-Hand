@@ -97,7 +97,7 @@ This guide covers the entire build process, from mounting the actuators to routi
 ## Software SDK
 We provide basic introduction and usage here. A detailed introduction to SDK is included in the following folder.
 
- 👉 [`sdk/README.md`](https://github.com/TetherIA/aero-hand-open/blob/main/sdk/README.md)
+ 👉 [`sdk/README.md`](sdk/README.md)
 
 ### Installation: 
 📦 Install via pip
@@ -137,7 +137,7 @@ This script enables users to perform complex gestures — such as pinching, open
 
 You can find the example code in the SDK example folder. 
 
-👉 [`sdk/examples/`](https://github.com/TetherIA/aero-hand-open/tree/main/sdk/examples)
+👉 [`sdk/examples/`](sdk/examples)
 
 Once the SDK is installed and the serial port has been configured, you can run any of the example scripts directly using Python as follows:
 
@@ -147,7 +147,7 @@ python run_sequence.py
 [🎥 Watch the demo](assets/sequence_square.mp4)
 
 ## Teleoperation
-The Teleoperation Module enables real-time remote control of Aero Hand Open using data gloves + robotic arms or compatible robotic interfaces. It allows users to map human finger motions to the robotic hand for intuitive grasping and manipulation experiments.
+The Teleoperation Module enables real-time remote control of Aerobotic hand for intuitive grasping and manipulation experiments.
 
 ⚙️ This feature is currently WIP.
 
@@ -175,7 +175,7 @@ Your contributions will help make Aero Hand Open more reliable and versatile for
 
 ## FAQ
 Q1: Can I modify and redistribute the Aero Hand Open design?
- A: Yes, as long as it complies with the CC BY-NC-SA 4.0 license (non-commercial, attribution required, share alike).
+ A: Yes, as long as it complies with the CC BY-NC-SA 4.0 license (ro Hand Open using data gloves + robotic arms or compatible robotic interfaces. It allows users to map human finger motions to the non-commercial, attribution required, share alike).
 
 Q2: What 3D printer and material do you recommend?
 A: Any FDM printer with a ≥200×200 mm bed. PLA works best for strength and dimensional accuracy.
