@@ -147,7 +147,7 @@ python run_sequence.py
 [🎥 Watch the demo](assets/sequence_square.mp4)
 
 ## Teleoperation
-The Teleoperation Module enables real-time remote control of Aerobotic hand for intuitive grasping and manipulation experiments.
+The Teleoperation Module enables real-time remote control of Aero Hand Open using data gloves + robotic arms or compatible robotic interfaces. It allows users to map human finger motions to the robotic hand for intuitive grasping and manipulation experiments.
 
 ⚙️ This feature is currently WIP.
 
@@ -175,7 +175,7 @@ Your contributions will help make Aero Hand Open more reliable and versatile for
 
 ## FAQ
 Q1: Can I modify and redistribute the Aero Hand Open design?
- A: Yes, as long as it complies with the CC BY-NC-SA 4.0 license (ro Hand Open using data gloves + robotic arms or compatible robotic interfaces. It allows users to map human finger motions to the non-commercial, attribution required, share alike).
+ A: Yes, as long as it complies with the CC BY-NC-SA 4.0 license (non-commercial, attribution required, share alike).
 
 Q2: What 3D printer and material do you recommend?
 A: Any FDM printer with a ≥200×200 mm bed. PLA works best for strength and dimensional accuracy.
