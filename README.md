@@ -14,7 +14,7 @@ Unlike many existing robotic hands that rely on expensive proprietary actuators 
 This repository serves as a complete open hardware and software reference for developers, students, and robotics enthusiasts.
 
 # Aero Hand Open features:
-- 7 DoFs robotic hand with 5 fingers (16 joints in total)
+- 7 DoFs robotic hand with 5 fingers (15 joints in total)
 - Tendon-driven architecture for smooth and natural motion
 - Fully 3D-printed structure, modular and easy to assemble
 - Lightweight design — only **375 g**
