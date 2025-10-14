@@ -96,7 +96,8 @@ This guide covers the entire build process, from mounting the actuators to routi
 
 ## Software SDK
 We provide basic introduction and usage here. A detailed introduction to SDK is included in the following folder.
- 👉 Aero Hand Open – SDK README
+
+ 👉 [Aero Hand Open – SDK README](https://github.com/TetherIA/aero-hand-open/blob/main/sdk/README.md)
 
 ### Installation: 
 📦 Install via pip
@@ -135,7 +136,8 @@ The Sequencing Demo demonstrates how different finger motions can be combined in
 This script enables users to perform complex gestures — such as pinching, opening the palm, or making a peace sign — by automatically coordinating joint movements in a timed sequence.
 
 You can find the example code in the SDK example folder. 
-👉 Aero Hand Open SDK - Example Folder
+
+👉 [Aero Hand Open SDK - Example Folder](https://github.com/TetherIA/aero-hand-open/tree/main/sdk/examples)
 
 Once the SDK is installed and the serial port has been configured, you can run any of the example scripts directly using Python as follows:
 
