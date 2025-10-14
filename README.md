@@ -17,7 +17,7 @@ This repository serves as a complete open hardware and software reference for de
 - 7 DoFs robotic hand with 5 fingers (15 joints in total)
 - Tendon-driven architecture for smooth and natural motion
 - Fully 3D-printed structure, modular and easy to assemble
-- Lightweight design — only **375 g**
+- Lightweight design — **<400 g**
 - Affordable — complete kit for **$314 USD**
 - Open-source hardware and firmware
 - Independent Python SDK, and compatible with ESP32 and ROS2 systems
@@ -79,7 +79,6 @@ Printing Notes:
 - Suggested layer height: 0.2 mm (Nozzle Diameter 0.4mm)
 - Support: Autogenerate is fine
 - The hand design is fully modular — individual fingers can be printed and replaced independently
-- For a left-hand version, one easy way is simply mirror the STL files before printing
 - Other information can be found in Assembly Documents
 
 An online Onshape model is also available for quick viewing and part reference:
