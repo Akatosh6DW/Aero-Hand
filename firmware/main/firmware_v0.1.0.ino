@@ -24,7 +24,6 @@ static const uint8_t HOMING    = 0x01;
 static const uint8_t SET_ID    = 0x02;
 static const uint8_t TRIM      = 0x03;
 static const uint8_t CTRL_POS  = 0x11;
-static const uint8_t GET_ALL   = 0x21;
 static const uint8_t GET_POS   = 0x22;
 static const uint8_t GET_VEL   = 0x23;
 static const uint8_t GET_CURR  = 0x24;
