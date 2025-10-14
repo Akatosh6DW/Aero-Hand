@@ -1,1 +1,0 @@
-# aero-open-hardware
