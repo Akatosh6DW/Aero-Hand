@@ -1,5 +1,12 @@
 # Aero Hand Open
 
+<div style={{ display: "flex", justifyContent: "center", gap: "1rem", marginTop: "1rem" }}>
+  <div style={{ textAlign: "center" }}>
+    <img src="/img/banner.jpg" alt="Open Palm Pose" width="700"/>
+    <p><em>Aero Hand Open</em></p>
+  </div>
+</div>
+
 **Aero Hand Open** is a tendon-driven, under-actuated dexterous robotic hand built for research in manipulation, reinforcement learning, and embodied AI.  
 It is designed for reproducibility, transparency, and ease of integration across hardware, firmware, and software layers.
 
