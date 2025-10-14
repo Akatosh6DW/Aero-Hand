@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-from aero_hand_open.aero_hand import AeroHand
+from aero_open_sdk.aero_hand import AeroHand
 
 if __name__ == "__main__":
     hand = AeroHand(

@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
 import time
-from aero_hand_open.aero_hand import AeroHand
+from aero_open_sdk.aero_hand import AeroHand
 
 if __name__ == "__main__":
     hand = AeroHand(
-        "/dev/serial/by-id/usb-Espressif_USB_JTAG_serial_debug_unit_D8:3B:DA:45:CA:08-if00"
+        "/dev/serial/by-id/usb-Espressif_USB_JTAG_serial_debug_unit_D8:3B:DA:45:C8:1C-if00"
     )
 
     i = 0
