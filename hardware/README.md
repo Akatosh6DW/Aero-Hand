@@ -4,7 +4,7 @@ The hand adopts a **tendon-driven actuation architecture**, where each motor dri
 This approach achieves high dexterity with fewer actuators, resulting in a lightweight and compliant design.
 
 **Key characteristics:**
-- 15 Degrees of Freedom (7 active, 8 passive)
+- 16 Degrees of Freedom (7 active, 9 passive)
 - 3 active DoFs for the thumb, enabling real dexterity
 - One-motor-per-finger tendon actuation
 - Passive 1:1 coupling between DIP and PIP joints
