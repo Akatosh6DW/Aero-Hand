@@ -1,7 +1,15 @@
-# License
+[![Commercial integration of purchased units: ALLOWED](https://img.shields.io/badge/Commercial%20integration%20of%20purchased%20units-ALLOWED-brightgreen)](#license--tldr)
 
-- Software (firmware, SDK, and control code) is licensed under the [Apache License 2.0](https://www.apache.org/licenses/LICENSE-2.0).
-- Hardware (mechanical design, CAD models, and assembly files) is licensed under the [Creative Commons Attribution-NonCommercial-ShareAlike 4.0 International License (CC BY-NC-SA 4.0)](https://creativecommons.org/licenses/by-nc-sa/4.0/).
+## License — TL;DR
+
+- You **can** integrate Aero Hand units you purchase from TetherIA into **commercial robots and products** you sell.
+- **Software (firmware & SDK):** Apache-2.0 — commercial use OK (with notices).
+- **Design files (CAD/STEP/STL, drawings, BOM, docs):** CC BY‑NC‑SA 4.0 — **non‑commercial** only; derivatives must use the same license with attribution.
+- Want to **manufacture/print parts** or **make your own hands** from our design files for commercial use (spares, kits, or clones)? → **Commercial manufacturing license required**.
+- **Commercial licensing & volume buys:** see **LICENSE.md** (or email us at contact@tetheria.ai).
+
+See [**LICENSE.md**](LICENSE.md) for definitions, examples, and contact details.
+
   
 © 2025 TetherIA Inc. All rights reserved.
 
@@ -52,7 +60,7 @@ This repository serves as a complete open hardware and software reference for de
   - Contact
 
 # Resources
-## Bill of Materials (BOM)
+## Bill of Materials (BOM) (Releasing soon)
 The complete list of components required to build Aero Hand Open can be found here:
 
  👉 Aero Hand Open – Bill of Materials
@@ -88,7 +96,7 @@ An online Onshape model is also available for quick viewing and part reference:
 ## Assembly Guide
 The step-by-step assembly instructions for Aero Hand Open are provided in the following document:
 
- 👉 Aero Hand Open – Assembly Guide (PDF)
+[👉 Aero Hand Open – Assembly Guide](https://docs.tetheria.ai/docs/assembly)
 
 This guide covers the entire build process, from mounting the actuators to routing the tendons and connecting the electronics. Each finger module can be assembled independently and attached to the palm afterward, allowing easier maintenance and quick replacement.
 
