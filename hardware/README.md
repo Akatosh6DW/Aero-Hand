@@ -1,6 +1,6 @@
 ## Hardware Overview
 
-The hand adopts a **tendon-driven actuation architecture**, where each motor drives multiple joints through cable routing.  
+The hand adopts a **tendon-driven actuation architecture**, where each motor drives multiple joints through tendon routing.  
 This approach achieves high dexterity with fewer actuators, resulting in a lightweight and compliant design.
 
 **Key characteristics:**
@@ -20,9 +20,9 @@ This approach achieves high dexterity with fewer actuators, resulting in a light
 - Material: PLA
 
 **Actuation:**
-- 7 Coreless Serial Bus Servos, cable driven, backdriveable
+- 7 Coreless Serial Bus Servos, tendon driven, backdriveable
 - Finger tip force: ~10 N
-- Open/close speed: ~1 Hz
+- Open/close speed: ~4 Hz
 
 **Joint Configuration:**
 - 7 active DoF, 16 joints (thumb x3, fingers x1 underactuated)
