@@ -1,0 +1,7 @@
+## build files
+build/
+install/
+log/
+
+## VSCode
+.vscode/
