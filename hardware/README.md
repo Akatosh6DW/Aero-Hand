@@ -17,7 +17,7 @@ This approach achieves high dexterity with fewer actuators, resulting in a light
 **Physical:**
 - Weight: <400 grams
 - Size: 198 mm x 95 mm x 53.5 mm
-- Material: Nylon
+- Material: PLA
 
 **Actuation:**
 - 7 Coreless Serial Bus Servos, cable driven, backdriveable
