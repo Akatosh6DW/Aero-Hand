@@ -246,7 +246,7 @@ For questions, feedback, or collaboration inquiries, please reach out to us thro
 
  🐙 GitHub: [TetherIA](https://github.com/TetherIA)
 
- 💬 Discord: [TetherIA Discord Channel](http://discord.gg/CuREEmFz)
+ 💬 Discord: [TetherIA Discord Channel](http://discord.gg/ZQKWK7NebQ)
 
   🐦 X/Twitter: [TetherIA X/Twitter Account](https://x.com/TetherIA_ai)
 
