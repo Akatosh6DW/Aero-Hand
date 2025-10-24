@@ -15,20 +15,24 @@ See [**LICENSE.md**](LICENSE.md) for definitions, examples, and contact details.
 
 ![Aero Hand Overview](assets/banner.png)
 
-Aero Hand Open is an open-source, tendon-driven robotic hand designed and developed by TetherIA. The project aims to make dexterous manipulation research more accessible by providing a fully documented, modular, and affordable platform that can be reproduced with standard 3D printing and off-the-shelf electronic components. 
+Aero Hand Open is an **open-source**, **tendon-driven** robotic hand designed and developed by TetherIA for dexterous manipulation research. Unlike expensive proprietary solutions, this hand focuses on **simplicity**, **reliability**, and **accessibility** by using standard 3D printing and off-the-shelf electronic components.
 
-Unlike many existing robotic hands that rely on expensive proprietary actuators or complex mechanical assemblies, Aero Hand Open focuses on simplicity, reliability, and transparency. Each joint is optimized for mechanical efficiency by using tendon actuation, enabling smooth and natural motion while keeping the overall design lightweight and compact. The system integrates open-source firmware (ESP32-based) and control software compatible with ROS2, allowing seamless integration into research and educational environments. 
+Each joint is optimized for mechanical efficiency through tendon actuation, enabling smooth and natural motion while maintaining a **lightweight** and **compact** design, making it perfect for research labs, educational institutions, and robotics enthusiasts who need an **affordable** yet **capable** manipulation platform.
 
-This repository serves as a complete open hardware and software reference for developers, students, and robotics enthusiasts.
+> **📚 Learn More:** https://docs.tetheria.ai/  
+> **🛒 Shop:** https://shop.tetheria.ai/
+
 
 # Aero Hand Open features:
 - 7 DoFs robotic hand with 5 fingers (16 joints in total)
 - Tendon-driven architecture for smooth and natural motion
 - Fully 3D-printed structure, modular and easy to assemble
-- Lightweight design — **<400 g**
+- Lightweight design — **389 g**
 - Affordable — complete kit for **$314 USD**
 - Open-source hardware and firmware
 - Independent Python SDK, and compatible with ESP32 and ROS2 systems
+
+
 
 # Overview:
 
@@ -50,9 +54,11 @@ This repository serves as a complete open hardware and software reference for de
 - Resources
   - Bill of Materials (BOM)
   - CAD Files and 3D Models
+  - PCB Design
   - Assembly Guide
+  - Hardware Setup
   - SDK
-  - Teleoperation
+  - ROS2 and Teleoperation
 - Disclaimer
 - Project Updates & Community
   - Updates History
@@ -60,17 +66,17 @@ This repository serves as a complete open hardware and software reference for de
   - Contact
 
 # Resources
-## Bill of Materials (BOM) (Releasing soon)
+## Bill of Materials (BOM)
 The complete list of components required to build Aero Hand Open can be found here:
 
- 👉 Aero Hand Open – Bill of Materials
+ [👉 Aero Hand Open – Bill of Materials](./hardware/Assembly/BOM.csv)
 
 This document includes all mechanical, electronic, and printed parts — such as motors, tendons, bearings, fasteners, and 3D-printed components.
 
 Each item is listed with its part number, vendor, quantity, and estimated cost to help you easily source or substitute parts.
 
-CAD Files and 3D Models
-All CAD and 3D model files of Aero Hand Open are available in the directory.
+## CAD Files and 3D Models
+All CAD and 3D model files of Aero Hand Open are available in the [CAD](./hardware/CAD).
 
 You can find both STEP and STL files for modification and direct 3D printing.
 
@@ -91,7 +97,7 @@ Printing Notes:
 
 An online Onshape model is also available for quick viewing and part reference:
 
- 👉 Aero Hand Open – Onshape Document
+[👉 Aero Hand Open – Onshape Document](https://cad.onshape.com/documents/afc7e0ca7eb6d412ec8771f8/w/bc4d7e45e17e23d622d2bad2/e/1e3862db4d4df7d9dca6f286?renderMode=0&uiState=68e5abd64106f26dc459da44)
 
 ## Assembly Guide
 The step-by-step assembly instructions for Aero Hand Open are provided in the following document:
@@ -99,6 +105,37 @@ The step-by-step assembly instructions for Aero Hand Open are provided in the fo
 [👉 Aero Hand Open – Assembly Guide](https://docs.tetheria.ai/docs/assembly)
 
 This guide covers the entire build process, from mounting the actuators to routing the tendons and connecting the electronics. Each finger module can be assembled independently and attached to the palm afterward, allowing easier maintenance and quick replacement.
+
+## PCB Design
+The Aero Hand consists of two custom PCB boards: Board A and Board B. All design files - including Gerber files, KiCad project files, BOM, and CPL - are available in [PCB folder](./hardware/PCB/)
+
+#### Board A
+ - Features 8 Molex connectors for connecting all servos in the hand.
+ - Includes a JST connector P3.96mm for outer wiring and fitting inside the hand enclosure.
+ - Designed for compact integration and reliable servo connectivity.
+#### Board B
+ - Includes a JST connector and one Molex connector for testing individual servos and debugging.
+ - Features a terminal block to connect a regulated 6V, 10A power supply for the servos.
+ - Hosts the ESP32-S3 microcontroller with a USB-C port for:
+      - Powering the ESP32-S3
+      - Communication between PC and ESP32-S3
+      - Interfacing with the hand
+ - Board B is essential for diagnostics and safe power delivery.
+
+## Hardware Setup
+**Buy our custom PCBs** (described above) from our [website](https://shop.tetheria.ai/products/pcbs) for a **plug-and-play solution**. 
+
+✅ **Benefits:**
+- **Zero soldering required** - just plug and play
+- **Professional quality** - tested and verified PCBs
+- **Self-explanatory connections** - cable connections are straightforward
+- **Maximum reliability** - optimized for all motor currents
+- **Time-saving** - get your hand running in minutes, not hours
+
+🔗 **[Order PCBs Now →](https://shop.tetheria.ai/products/pcbs)**
+
+
+For more info please refer to here https://docs.tetheria.ai/docs/hardware_setup
 
 
 ## Software SDK
@@ -153,10 +190,15 @@ python run_sequence.py
 ```
 [🎥 Watch the demo](assets/sequence_square.mp4)
 
-## Teleoperation (Releasing soon!)
-The Teleoperation Module enables real-time remote control of Aero Hand Open using data gloves + robotic arms or compatible robotic interfaces. It allows users to map human finger motions to the robotic hand for intuitive grasping and manipulation experiments.
+## ROS2 and Teleoperation
+The Aero Hand Open integrates seamlessly with ROS2 humble for advanced robotics applications. The ROS2 package includes:
 
-⚙️ This feature is currently WIP.
+- **URDF models** for accurate robot simulation and visualization
+- **Launch files** for easy integration with existing ROS2 workflows  
+- **Teleoperation support** for real-time hand control
+- **RViz configuration** for 3D visualization and debugging
+
+Refer to the [`ros2/`](./ros2/) folder for complete setup instructions and examples.
 
 # Disclaimer
 Aero Hand Open is an open-source research prototype intended for educational and experimental purposes only.
@@ -177,6 +219,8 @@ Your contributions will help make Aero Hand Open more reliable and versatile for
 
 # Project Updates & Community
 ## Updates History
+- 10/24/2025
+  - Release hardware and ROS2 packages
 - 10/13/2025
   - Product launched on all platforms
 
@@ -192,7 +236,9 @@ A: Any FDM printer with a ≥200×200 mm bed. PLA works best for strength and di
 ## Contact
 For questions, feedback, or collaboration inquiries, please reach out to us through the following channels:
 
- 🛒 Shop: [Aero Hand Open – TetherIA Store](https://shop.tetheria.ai/products/aero-hand-open?variant=51112290320696) 
+ 🛒 Shop: [Aero Hand Open – TetherIA Store](https://shop.tetheria.ai/) 
+
+ 📚 Docs: [TetherIA Docs](https://docs.tetheria.ai/)
 
  📧 Email: support@tetheria.ai
 
@@ -202,11 +248,11 @@ For questions, feedback, or collaboration inquiries, please reach out to us thro
 
  💬 Discord: [TetherIA Discord Channel](http://discord.gg/CuREEmFz)
 
-🐦 X/Twitter: [TetherIA X/Twitter Account](https://x.com/TetherIA_ai)
+  🐦 X/Twitter: [TetherIA X/Twitter Account](https://x.com/TetherIA_ai)
 
-📺 YouTube: [TetherIA YouTube Account](https://www.youtube.com/@TetherIA_ai)
+  📺 YouTube: [TetherIA YouTube Account](https://www.youtube.com/@TetherIA_ai)
 
-💼 LinkedIn: [TetherIA LinkedIn Account](https://www.linkedin.com/company/tetheria/)
+  💼 LinkedIn: [TetherIA LinkedIn Account](https://www.linkedin.com/company/tetheria/)
 
 
 We welcome discussions, contributions, and new ideas from the community.
