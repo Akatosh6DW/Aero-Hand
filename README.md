@@ -107,7 +107,7 @@ The step-by-step assembly instructions for Aero Hand Open are provided in the fo
 This guide covers the entire build process, from mounting the actuators to routing the tendons and connecting the electronics. Each finger module can be assembled independently and attached to the palm afterward, allowing easier maintenance and quick replacement.
 
 ## PCB Design
-The Aero Hand consists of two custom PCB boards: Board A and Board B. All design files - including Gerber files, KiCad project files, BOM, and CPL - are available in [PCB folder](./hardware/PCB/)
+The Aero Hand Open consists of two custom PCB boards: Board A and Board B. All design files - including Gerber files, KiCad project files, BOM, and CPL - are available in [PCB folder](./hardware/PCB/)
 
 #### Board A
  - Features 8 Molex connectors for connecting all servos in the hand.
