@@ -1,4 +1,18 @@
 #!/usr/bin/env python3
+# Copyright 2025 TetherIA, Inc.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 """
 firmware_gui.py - Minimal GUI for TetherIA Aero Hand (16-byte serial protocol)
 
@@ -67,7 +81,7 @@ class App(tk.Tk):
             self.attributes("-zoomed", True)
 
         try:
-            icon_path = os.path.join(os.path.dirname(__file__), "assets", "logo.png")
+            icon_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "assets", "logo.png")
             icon_img = tk.PhotoImage(file=icon_path)
             self.iconphoto(True, icon_img)
         except Exception as e:
@@ -134,8 +148,16 @@ class App(tk.Tk):
         self.btn_flash.pack(side=tk.LEFT, padx=(0, 10))
 
         # Zero All Button
-        self.btn_zero = ttk.Button(cmd, text="Set to Extend", command=self.on_zero_all, state=tk.DISABLED)
+        self.btn_zero = ttk.Button(cmd, text="Set to Open Position", command=self.on_zero_all, state=tk.DISABLED)
         self.btn_zero.pack(side=tk.LEFT, padx=(0, 10))
+
+        #Set Speed Button
+        self.btn_set_speed = ttk.Button(cmd, text="Set Speed", command=self.on_set_speed, state=tk.DISABLED)
+        self.btn_set_speed.pack(side=tk.LEFT, padx=(0, 10))
+
+        #Set Torque Button
+        self.btn_set_torque = ttk.Button(cmd, text="Set Torque", command=self.on_set_torque, state=tk.DISABLED)
+        self.btn_set_torque.pack(side=tk.LEFT, padx=(0, 10))
 
         # GET buttons
         self.btn_get_pos  = ttk.Button(cmd, text="GET_POS",  command=self.on_get_pos,  state=tk.DISABLED)
@@ -150,29 +172,41 @@ class App(tk.Tk):
         self.btn_get_all.pack(side=tk.LEFT, padx=6)
 
         # ---- Sliders (7)
-        grp = ttk.LabelFrame(self, text="Sliders (send CTRL_POS payload)", padding=10)
-        grp.pack(side=tk.TOP, fill=tk.BOTH, expand=True, padx=10, pady=(6, 10))
+        self.grp = ttk.LabelFrame(self, text="Sliders (send CTRL_POS payload)", padding=10)
+        self.grp.pack(side=tk.TOP, fill=tk.BOTH, expand=True, padx=10, pady=(6, 10))
 
+        self.slider_vars = []
+        self.slider_widgets = []
+        mono_font = ("Consolas", 10)
         for i, name in enumerate(SLIDER_LABELS):
-            row = ttk.Frame(grp)
+            row = ttk.Frame(self.grp)
             row.pack(fill=tk.X, pady=5)
-
-            # Increase width and add padding to name label
             ttk.Label(row, text=f"{i} – {name}", width=22).pack(side=tk.LEFT, padx=(0, 8))
-
-            # Use monospace font for min/max labels
-            mono_font = ("Consolas", 10)
             min_lbl = ttk.Label(row, text="0.000", width=8, font=mono_font)
             min_lbl.pack(side=tk.LEFT)
-
             var = tk.DoubleVar(value=0.0)
             self.slider_vars.append(var)
             scale = tk.Scale(row, from_=0.0, to=1.0, orient=tk.HORIZONTAL, length=600,
-                             resolution=0.001, variable=var, showvalue=True)
+                              resolution=0.001, variable=var, showvalue=True, font=mono_font)
             scale.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=(6, 6))
-
+            self.slider_widgets.append(scale)
             max_lbl = ttk.Label(row, text="1.000", width=8, font=mono_font)
             max_lbl.pack(side=tk.LEFT)
+
+        # Torque slider (hidden by default)
+        self.torque_frame = ttk.Frame(self)
+        self.torque_slider_var = tk.DoubleVar(value=0.0)
+        self.torque_slider = tk.Scale(self.torque_frame, from_=0.0, to=1.0, orient=tk.HORIZONTAL, length=600,
+                                      resolution=0.001, variable=self.torque_slider_var, showvalue=True,
+                                      label="Torque (0.000 - 1.000)", command=self._on_torque_slider)
+        self.torque_slider.pack(side=tk.LEFT, padx=20, pady=10)
+        self.btn_back_joint = ttk.Button(self.torque_frame, text="Back to Position Control", command=self.disable_torque_control)
+        self.btn_back_joint.pack(side=tk.LEFT, padx=20, pady=10)
+        self.torque_frame.pack_forget()
+
+        # Torque Control Button below sliders
+        self.btn_torque_control = ttk.Button(self, text="Torque Control", command=self.on_torque_control, state=tk.NORMAL)
+        self.btn_torque_control.pack(side=tk.TOP, pady=(0, 10))
 
         # ---- RX log
         rx = ttk.LabelFrame(self, text="RX Log", padding=10)
@@ -213,6 +247,35 @@ class App(tk.Tk):
             else:
                 self.port_var.set("/dev/ttyUSB0")
 
+    def on_torque_control(self):
+        # Stop CTRL_POS streaming and disable joint sliders
+        self.control_paused = True
+        self.set_status("Torque control mode: stopped CTRL_POS streaming")
+        for scale in self.slider_widgets:
+            scale.configure(state=tk.DISABLED)
+        self.grp.configure(text="Sliders (CTRL_POS disabled)")
+        # Show torque slider
+        self.torque_frame.pack(side=tk.TOP, fill=tk.X, padx=10, pady=(6, 10))
+        self.torque_slider.configure(state=tk.NORMAL)
+
+    def _on_torque_slider(self, val):
+        t_val = int(float(val) * 1000)
+        try:
+            self.hand.ctrl_torque([t_val]*7)
+            self.log(f"[TX] CTRL_TOR sent: {t_val}")
+            self.set_status(f"Torque set to {t_val}")
+        except Exception as e:
+            self.log(f"[err] Torque set failed: {e}")
+            self.set_status("Torque set failed")
+
+    def disable_torque_control(self):
+        # Hide torque slider and re-enable joint sliders
+        self.control_paused = False
+        self.torque_frame.pack_forget()
+        for scale in self.slider_widgets:
+            scale.configure(state=tk.NORMAL)
+        self.grp.configure(text="Sliders (send CTRL_POS payload)")
+
     # ------------- connect/disconnect -------------
     def on_connect(self):
         if self.hand is not None:
@@ -239,7 +302,7 @@ class App(tk.Tk):
 
             self.btn_connect.configure(state=tk.DISABLED)
             self.btn_disc.configure(state=tk.NORMAL)
-            for b in (self.btn_zero,self.btn_homing, self.btn_setid, self.btn_trim,
+            for b in (self.btn_zero,self.btn_homing, self.btn_setid, self.btn_trim,self.btn_set_speed,self.btn_set_torque,
                       self.btn_get_pos, self.btn_get_vel, self.btn_get_cur, self.btn_get_temp, self.btn_get_all):
                 b.configure(state=tk.NORMAL)
 
@@ -273,7 +336,7 @@ class App(tk.Tk):
 
         self.btn_connect.configure(state=tk.NORMAL)
         self.btn_disc.configure(state=tk.DISABLED)
-        for b in (self.btn_zero,self.btn_homing, self.btn_setid, self.btn_trim,
+        for b in (self.btn_zero,self.btn_homing, self.btn_setid, self.btn_trim,self.btn_set_speed,self.btn_set_torque,
                   self.btn_get_pos, self.btn_get_vel, self.btn_get_cur, self.btn_get_temp, self.btn_get_all):
             b.configure(state=tk.DISABLED)
         self.set_status("Disconnected")
@@ -310,7 +373,7 @@ class App(tk.Tk):
                 self.control_paused = True
                 self.set_status("Homing in process… waiting for ACK")
                 self.log("[TX] HOMING sent (0x01). Waiting for 16-byte ACK…")
-                ok = self.hand.send_homing(timeout_s=100.0)
+                ok = self.hand.send_homing(timeout_s=175.0)
                 if ok:
                     self.log("[ACK] HOMING complete.")
                     self.set_status("Homing complete")
@@ -344,6 +407,62 @@ class App(tk.Tk):
             except Exception as e:
                 self.log(f"[err] SET_ID failed: {e}")
                 self.set_status("Set ID failed")
+            finally:
+                self.control_paused = False
+
+        threading.Thread(target=worker, daemon=True).start()
+
+    def on_set_speed(self):
+        if not self.hand:
+            return
+        ch = simpledialog.askinteger("Set Speed", "Servo ID / channel (0..6):",
+                                     minvalue=0, maxvalue=6, parent=self)
+        if ch is None:
+            return
+        speed = simpledialog.askinteger("Set Speed", "Speed (0..32766):",
+                                       minvalue=0, maxvalue=32766, initialvalue=32766, parent=self)
+        if speed is None:
+            return
+
+        def worker():
+            try:
+                self.control_paused = True
+                self.set_status("Setting Speed… waiting for ACK")
+                self.log(f"[TX] SET_SPEED sent (ch={ch}, speed={speed})")
+                ack = self.hand.set_speed(ch, speed)  # dict with Servo ID, Speed
+                self.log(f"[ACK] SET_SPEED: id={ack['Servo ID']} speed={ack['Speed']}")
+                self.set_status("Set Speed complete")
+            except Exception as e:
+                self.log(f"[err] SET_SPEED failed: {e}")
+                self.set_status("Set Speed failed")
+            finally:
+                self.control_paused = False
+
+        threading.Thread(target=worker, daemon=True).start()
+
+    def on_set_torque(self):
+        if not self.hand:
+            return
+        ch = simpledialog.askinteger("Set Torque", "Servo ID / channel (0..6):",
+                                     minvalue=0, maxvalue=6, parent=self)
+        if ch is None:
+            return
+        torque = simpledialog.askinteger("Set Torque", "Torque (0..1000):",
+                                        minvalue=0, maxvalue=1000, initialvalue=1023, parent=self)
+        if torque is None:
+            return
+
+        def worker():
+            try:
+                self.control_paused = True
+                self.set_status("Setting Torque… waiting for ACK")
+                self.log(f"[TX] SET_TORQUE sent (ch={ch}, torque={torque})")
+                ack = self.hand.set_torque(ch, torque)  # dict with Servo ID, Torque
+                self.log(f"[ACK] SET_TORQUE: id={ack['Servo ID']} torque={ack['Torque']}")
+                self.set_status("Set Torque complete")
+            except Exception as e:
+                self.log(f"[err] SET_TORQUE failed: {e}")
+                self.set_status("Set Torque failed")
             finally:
                 self.control_paused = False
 
@@ -405,8 +524,8 @@ class App(tk.Tk):
             return
         try:
             vals = self.hand.get_actuations()
-            j_ll = self.hand.actuations_lower_limits
-            j_ul = self.hand.actuations_upper_limits
+            j_ll = self.hand.actuation_lower_limits
+            j_ul = self.hand.actuation_upper_limits
             # Convert to normalized 0.0-1.0 range for display
             norm_vals = [(vals[i] - j_ll[i]) / (j_ul[i] - j_ll[i]) for i in range(len(vals))]
             ## Format to 3 decimal places
