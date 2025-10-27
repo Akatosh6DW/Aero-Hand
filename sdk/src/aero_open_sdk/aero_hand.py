@@ -1,10 +1,26 @@
 #!/usr/bin/env python3
-import time 
-import serial
-import struct
-import numpy as np
+# Copyright 2025 TetherIA, Inc.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
 
+import time 
+import struct
+from serial import Serial, SerialTimeoutException
+from typing import Iterator
+
+from aero_open_sdk.aero_hand_constants import AeroHandConstants
 from aero_open_sdk.joints_to_actuations import MOTOR_PULLEY_RADIUS, JointsToActuationsModel
+from aero_open_sdk.actuations_to_joints import ActuationsToJointsModelCompact
 
 ## Setup Modes
 HOMING_MODE = 0x01
@@ -13,6 +29,7 @@ TRIM_MODE = 0x03
 
 ## Command Modes
 CTRL_POS = 0x11
+CTRL_TOR = 0x12
 
 ## Request Modes
 GET_ALL = 0x21
@@ -21,82 +38,52 @@ GET_VEL = 0x23
 GET_CURR = 0x24
 GET_TEMP = 0x25
 
-
-## Robot Constants
-_JOINT_NAMES = [
-    "thumb_cmc_abd",
-    "thumb_cmc_flex",
-    "thumb_mcp",
-    "thumb_ip",
-    "index_mcp_flex",
-    "index_pip",
-    "index_dip",
-    "middle_mcp_flex",
-    "middle_pip",
-    "middle_dip",
-    "ring_mcp_flex",
-    "ring_pip",
-    "ring_dip",
-    "pinky_mcp_flex",
-    "pinky_pip",
-    "pinky_dip",
-]
-
-_JOINT_LOWER_LIMITS = [0.0] * 16
-_JOINT_UPPER_LIMITS = [100.0, 55.0, 90.0, 90.0] + [90.0] * 12
-
-_ACTUATIONS_NAMES = [
-    "thumb_cmc_abd_act",
-    "thumb_cmc_flex_act",
-    "thumb_tendon_act",
-    "index_tendon_act",
-    "middle_tendon_act",
-    "ring_tendon_act",
-    "pinky_tendon_act",
-]
-
-_ACTUATIONS_LOWER_LIMITS = [0.0, 0.0, -27.7778, 0.0, 0.0, 0.0, 0.0]
-_ACTUATIONS_UPPER_LIMITS = [
-    100.0,
-    131.8906,
-    274.9275,
-    288.1603,
-    288.1603,
-    288.1603,
-    288.1603,
-]
+## Setting Modes
+SET_SPE = 0x31
+SET_TOR = 0x32
 
 _UINT16_MAX = 65535
 
 _RAD_TO_DEG = 180.0 / 3.141592653589793
 _DEG_TO_RAD = 3.141592653589793 / 180.0
 
-
 class AeroHand:
     def __init__(self, port=None, baudrate=921600):
         ## Connect to serial port
-        self.ser = serial.Serial(port, baudrate, timeout=0.01, write_timeout=0.01)
+        self.ser = Serial(port, baudrate, timeout=0.01, write_timeout=0.01)
 
-        self.joint_names = _JOINT_NAMES
-        self.joint_lower_limits = _JOINT_LOWER_LIMITS
-        self.joint_upper_limits = _JOINT_UPPER_LIMITS
+        ## Clean Buffers before starting
+        self.ser.reset_input_buffer()
+        self.ser.reset_output_buffer()
 
-        self.actuations_names = _ACTUATIONS_NAMES
-        self.actuations_lower_limits = _ACTUATIONS_LOWER_LIMITS
-        self.actuations_upper_limits = _ACTUATIONS_UPPER_LIMITS
+        aero_hand_constants = AeroHandConstants()
+
+        self.joint_names = aero_hand_constants.joint_names
+        self.joint_lower_limits = aero_hand_constants.joint_lower_limits
+        self.joint_upper_limits = aero_hand_constants.joint_upper_limits
+
+        self.actuation_names = aero_hand_constants.actuation_names
+        self.actuation_lower_limits = aero_hand_constants.actuation_lower_limits
+        self.actuation_upper_limits = aero_hand_constants.actuation_upper_limits
 
         self.joints_to_actuations_model = JointsToActuationsModel()
+        self.actuations_to_joints_model = ActuationsToJointsModelCompact()
 
-    def create_trajectory(self, trajectory: list[tuple]) -> list:
+    def create_trajectory(self, trajectory: list[tuple[list[float], float]]) -> Iterator[list[float]]:
         rate = 100  # Hz
-        traj = []
-        for i, (keypoint, duration) in enumerate(trajectory):
-            if i == 0: continue
+
+        def _interp_keypoints(start, end, t):
+            return [start[i] + t * (end[i] - start[i]) for i in range(len(start))]
+
+        for i in range(1, len(trajectory)):
+            prev_keypoint, _ = trajectory[i - 1]
+            curr_keypoint, duration = trajectory[i]
+
             num_steps = int(duration * rate)
-            interpolated_vals = np.linspace(trajectory[i-1][0], keypoint, num_steps)
-            traj.extend(interpolated_vals)
-        traj = np.array(traj).tolist()
-        return traj
+
+            for step in range(1, num_steps + 1):
+                t = step / num_steps
+                yield _interp_keypoints(prev_keypoint, curr_keypoint, t)
 
     def run_trajectory(self, trajectory: list):
         ## Linerly interpolate between trajectory points
@@ -139,13 +126,16 @@ class AeroHand:
 
         ## Normalize actuation to uint16 range. (0-65535)
         actuations = [
-            (actuations[i] - self.actuations_lower_limits[i])
-            / (self.actuations_upper_limits[i] - self.actuations_lower_limits[i])
+            (actuations[i] - self.actuation_lower_limits[i])
+            / (self.actuation_upper_limits[i] - self.actuation_lower_limits[i])
             * _UINT16_MAX
             for i in range(7)
         ]
-
-        self._send_data(CTRL_POS, [int(a) for a in actuations])
+        try:
+            self._send_data(CTRL_POS, [int(a) for a in actuations])
+        except SerialTimeoutException as e:
+            print(f"Serial Timeout while sending joint positions: {e}")
+            return
 
     def tendon_to_actuations(self, tendon_extension: float) -> float:
         """
@@ -187,21 +177,25 @@ class AeroHand:
         ## Clamp the actuations to the limits.
         actuations = [
             max(
-                self.actuations_lower_limits[i],
-                min(actuations[i], self.actuations_upper_limits[i]),
+                self.actuation_lower_limits[i],
+                min(actuations[i], self.actuation_upper_limits[i]),
             )
             for i in range(7)
         ]
 
         ## Normalize actuation to uint16 range. (0-65535)
         actuations = [
-            (actuations[i] - self.actuations_lower_limits[i])
-            / (self.actuations_upper_limits[i] - self.actuations_lower_limits[i])
+            (actuations[i] - self.actuation_lower_limits[i])
+            / (self.actuation_upper_limits[i] - self.actuation_lower_limits[i])
             * _UINT16_MAX
             for i in range(7)
         ]
 
-        self._send_data(CTRL_POS, [int(a) for a in actuations])
+        try:
+            self._send_data(CTRL_POS, [int(a) for a in actuations])
+        except SerialTimeoutException as e:
+            print(f"Error while writing to serial port: {e}")
+            return
 
     def _wait_for_ack(self, opcode: int, timeout_s: float) -> bytes:
         deadline = time.monotonic() + timeout_s
@@ -233,10 +227,58 @@ class AeroHand:
         old_id, new_id, cur_limit = struct.unpack_from("<HHH", payload, 0)
         return {"Old_id": old_id, "New_id": new_id, "Current_limit": cur_limit}
     
-    def trim_servo(self, channel: int, degrees: int):
+    def set_speed(self, id: int, speed: int):
+        """ 
+        Set the speed of a specific actuator.This speed setting is max by default when the motor moves.
+        This is different from speed control mode. It only affect the dynamic of motion execution during position control.
+        Args:
+            id (int): Actuator ID (0..6)
+            speed (int): Speed value (0..32766)
+        """
+        if not (0 <= id <= 6):
+            raise ValueError("id must be 0..6")
+        if not (0 <= speed <= 32766):
+            raise ValueError("speed must be in range 0..32766")
+        try:
+            self.ser.reset_input_buffer()
+        except Exception:
+            pass
+        payload = [0] * 7
+        payload[0] = id & 0xFFFF
+        payload[1] = speed & 0xFFFF
+        self._send_data(SET_SPE, payload)
+        payload = self._wait_for_ack(SET_SPE, 2.0)
+        id, speed_val = struct.unpack_from("<HH", payload, 0)
+        return {"Servo ID": id, "Speed": speed_val}
+
+    def set_torque(self, id: int, torque: int):
+        """ 
+         Set the torque of a specific actuator. This torque setting is max by default when the motor moves.
+         This is different from torque control mode. It only affect the dynamic of motion execution during position control.
+         Args:
+            id (int): Actuator ID (0..6)
+            torque (int): Torque value (0..1000)
+        """
+        if not (0 <= id <= 6):
+            raise ValueError("id must be 0..6")
+        if not (0 <= torque <= 1000):
+            raise ValueError("torque must be in range 0..1000")
+        try:
+            self.ser.reset_input_buffer()
+        except Exception:
+            pass
+        payload = [0] * 7
+        payload[0] = id & 0xFFFF
+        payload[1] = torque & 0xFFFF
+        self._send_data(SET_TOR, payload)
+        payload = self._wait_for_ack(SET_TOR, 2.0)
+        id, torque_val = struct.unpack_from("<HH", payload, 0)
+        return {"Servo ID": id, "Torque": torque_val}
+
+    def trim_servo(self, id: int, degrees: int):
         """This fn is used by the GUI to fine tune the actuator positions."""
-        if not (0 <= channel <= 6):
-            raise ValueError("channel must be 0..6")
+        if not (0 <= id <= 6):
+            raise ValueError("id must be 0..6")
         if not (-360 <= degrees <= 360):
             raise ValueError("degrees out of range")
         
@@ -246,12 +288,23 @@ class AeroHand:
             pass
 
         payload = [0] * 7
-        payload[0] = channel & 0xFFFF
+        payload[0] = id & 0xFFFF
         payload[1] = degrees & 0xFFFF  
         self._send_data(TRIM_MODE, payload)
-        payload = self._wait_for_ack(TRIM_MODE, 1.0)
+        payload = self._wait_for_ack(TRIM_MODE, 2.0)
         id, extend = struct.unpack_from("<HH", payload, 0)
         return {"Servo ID": id, "Extend Count": extend}
+    
+    def ctrl_torque(self, torque: list[int]):
+        """
+        Set the same torque value for all 7 servos using the CTRL_TOR command.
+        Args:
+            torque (list[int]): Torque values (0..1000)
+        """
+        if not all(0 <= t <= 1000 for t in torque):
+            raise ValueError("torque must be in range 0..1000")
+        payload = [t & 0xFFFF for t in torque]
+        self._send_data(CTRL_TOR, payload)
 
     def _send_data(self, header: int, payload: list[int] = [0] * 7):
         assert self.ser is not None, "Serial port is not initialized"
@@ -278,6 +331,27 @@ class AeroHand:
 
     def get_joint_positions(self):
         raise NotImplementedError("This method is not yet implemented")
+    
+    def get_joint_positions_compact(self):
+        """
+        Get the joint positions from the hand in the compact 7 joint representation.
+        Returns:
+            list: A list of 7 joint positions. (degrees)
+        """
+        actuations = self.get_actuations()
+        ## If there was an error getting actuations, return None
+        if actuations is None:
+            return None
+        ## Convert to radians
+        actuations = [act * _DEG_TO_RAD for act in actuations]
+
+        ## Get Joint Positions
+        joint_positions = self.actuations_to_joints_model.hand_joints(actuations)
+
+        ## Convert to degrees
+        joint_positions = [pos * _RAD_TO_DEG for pos in joint_positions]
+
+        return joint_positions
 
     def get_actuations(self):
         """
@@ -285,18 +359,31 @@ class AeroHand:
         Returns:
             list: A list of 7 actuations. (degrees)
         """
-        self._send_data(GET_POS)
+        ## Clear input buffer to avoid stale data
+        self.ser.reset_input_buffer()
+
+        try: 
+            self._send_data(GET_POS)
+        except SerialTimeoutException as e:
+            print(f"Error while writing to serial port: {e}")
+            return None
+
         ## Read the response
         resp = self.ser.read(2 + 7 * 2)  # 2
+        if len(resp) != 16:
+            print(f"Timeout while reading actuations. Got {len(resp)} bytes.")
+            return None
         data = struct.unpack("<2B7H", resp)
         if data[0] != GET_POS:
-            raise ValueError("Invalid response from hand")
+            print(f"Invalid response from hand in get_actuations. Expected {GET_POS}, got {data[0]}")
+            self.ser.reset_input_buffer()
+            return None
         positions_uint16 = data[2:]
         ## Convert to degrees
         positions = [
-            self.actuations_lower_limits[i]
+            self.actuation_lower_limits[i]
             + (positions_uint16[i] / _UINT16_MAX)
-            * (self.actuations_upper_limits[i] - self.actuations_lower_limits[i])
+            * (self.actuation_upper_limits[i] - self.actuation_lower_limits[i])
             for i in range(7)
         ]
         return positions
@@ -307,13 +394,28 @@ class AeroHand:
         Returns:
             list: A list of 7 actuator currents. (mA)
         """
-        self._send_data(GET_CURR)
-        ## Read the response
+        ## Clear input buffer to avoid stale data
+        self.ser.reset_input_buffer()
+
+        try: 
+            self._send_data(GET_CURR)
+        except SerialTimeoutException as e:
+            print(f"Error while writing to serial port: {e}")
+            return None
+        
+        ## Read the response, signed values
         resp = self.ser.read(2 + 7 * 2)  # 2
+        if len(resp) != 16:
+            print(f"Timeout while reading currents. Got {len(resp)} bytes.")
+            return None
         data = struct.unpack("<2B7h", resp)
         if data[0] != GET_CURR:
-            raise ValueError("Invalid response from hand")
-        return data[2:]
+            print(f"Invalid response from hand in get_actuator_currents. Expected {GET_CURR}, got {data[0]}")
+            self.ser.reset_input_buffer()
+            return None
+        ## Convert to mA using the conversion factor 1 unit = 6.5 mA as per Feetech documentation
+        currents_mA = [val * 6.5 for val in data[2:]]
+        return currents_mA
 
     def get_actuator_temperatures(self):
         """
@@ -321,13 +423,27 @@ class AeroHand:
         Returns:
             list: A list of 7 actuator temperatures. (Degree Celsius)
         """
-        self._send_data(GET_TEMP)
-        ## Read the response
+        self.ser.reset_input_buffer()
+
+        try: 
+            self._send_data(GET_TEMP)
+        except SerialTimeoutException as e:
+            print(f"Error while writing to serial port: {e}")
+            return None
+        
+        ## Read the response, unsigned values
         resp = self.ser.read(2 + 7 * 2)  # 2
+        if len(resp) != 16:
+            print(f"Timeout while reading temperatures. Got {len(resp)} bytes.")
+            return None
         data = struct.unpack("<2B7H", resp)
         if data[0] != GET_TEMP:
-            raise ValueError("Invalid response from hand")
-        return data[2:]
+            print(f"Invalid response from hand in get_actuator_temperatures. Expected {GET_TEMP}, got {data[0]}")
+            self.ser.reset_input_buffer()
+            return None
+        ## Temperatures are in degree Celsius directly
+        temperatures = [float(val) for val in data[2:]]
+        return temperatures
 
     def get_actuator_speeds(self):
         """
@@ -335,13 +451,27 @@ class AeroHand:
         Returns:
             list: A list of 7 actuator speeds. (RPM)
         """
-        self._send_data(GET_VEL)
-        ## Read the response
+        self.ser.reset_input_buffer()
+
+        try: 
+            self._send_data(GET_VEL)
+        except SerialTimeoutException as e:
+            print(f"Error while writing to serial port: {e}")
+            return None
+        
+        ## Read the response, signed values
         resp = self.ser.read(2 + 7 * 2)  # 2
+        if len(resp) != 16:
+            print(f"Timeout while reading speeds. Got {len(resp)} bytes.")
+            return None
         data = struct.unpack("<2B7h", resp)
         if data[0] != GET_VEL:
-            raise ValueError("Invalid response from hand")
-        return data[2:]
+            print(f"Invalid response from hand in get_actuator_speeds. Expected {GET_VEL}, got {data[0]}")
+            self.ser.reset_input_buffer()
+            return None
+        ## Convert to RPM using the conversion factor 1 unit = 0.732 RPM as per Feetech documentation
+        speeds_rpm = [val * 0.732 for val in data[2:]]
+        return speeds_rpm
 
     def close(self):
         self.ser.close()

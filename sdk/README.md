@@ -1,5 +1,5 @@
 <p align="center">
-  <img alt="Aero Hand Open by TetherIA" src="src/aero_open_sdk/assets/logo.png" width="30%">
+  <img alt="Aero Hand Open by TetherIA" src="assets/logo.png" width="30%">
   <br/><br/>
 </p>
 
@@ -19,7 +19,7 @@
 </h2>
 
 <div align="center">
-  <img src="src/aero_open_sdk/assets/banner.jpg" alt="Aero Hand Demo" title="Aero Hand in action" width="70%"/>
+  <img src="assets/banner.jpg" alt="Aero Hand Demo" title="Aero Hand in action" width="70%"/>
   <p><strong>Aero Hand Open</strong> is a 7-DoF tendon-driven robotic hand for dexterous manipulation and research.</p>
   <p>The SDK enables full control via Python. Perform homing, calibration, and precise motion control with ease.</p>
 </div>
@@ -62,7 +62,7 @@ When setting up your hand for the first time, our setup GUI helps you configure 
 After installation, launch the Setup GUI with:
 
 ```bash
-aero-hand-gui
+aero-open-gui
 ```
 
 This provides an interactive interface to configure your hand.
@@ -138,9 +138,76 @@ To integrate the SDK into your own code, refer to the `examples` folder for samp
 
 ## 🧰 Troubleshooting
 
-For common issues and solutions, please refer to our troubleshooting guide (coming soon).
+### 1. Installation Fails (`pip install` error)
 
----
+If installation fails, try the following steps:
+
+- Check your Python version:
+
+    Make sure you have Python 3.10 or higher installed.
+
+- 🔧 Upgrade pip to the latest version:
+
+    Our package requires an up-to-date version of pip.
+
+    You can upgrade pip with:
+    ```bash
+    pip install --upgrade pip
+    ```
+
+On Windows, if you see error like "pip is not recognized", use the `py` launcher command instead:
+
+    ```bash
+    py -m pip install --upgrade pip
+    ```
+
+### 2. Path Mismatch on Windows
+
+- You may not have the Python Scripts path added to your system PATH environment variable.
+
+- To fix this, you can either:
+
+  1. Add the Python Scripts directory (e.g., `C:\Users\<YourName>\AppData\Local\Programs\Python\Python310\Scripts`) to your system PATH.
+  2. Or use the `py` launcher command to launch the GUI after installation:
+      ```bash
+      py -m aero_open_sdk
+      ```
+  3. Create a virtual environment and install the package there.
+      ```bash
+      python -m venv venv
+      .\venv\Scripts\activate
+      pip install aero-open-sdk
+      aero-open-gui
+      ```
+
+### 3. Linux Troubleshooting: Serial Port Permission
+
+If you see a permission error when connecting to the serial port (e.g., `/dev/ttyACM0`), do the following:
+
+1. Find your username:
+   ```sh
+   whoami
+   ```
+2. Add your user to the `dialout` group (replace `yourusername` with the output from `whoami`):
+   ```sh
+   sudo usermod -a -G dialout yourusername
+   ```
+3. **Restart your system** (or log out and log back in).
+4. After restart, open a terminal and run:
+   ```sh
+   groups
+   ```
+   You should see your username and `dialout` listed.
+5. Try connecting to the serial port again in the GUI.
+
+If you still see permission errors, check device permissions with:
+```sh
+ls -l /dev/ttyACM0
+```
+You may need to temporarily set permissions:
+```sh
+sudo chmod 666 /dev/ttyACM0
+```
 
 ## 💬 Support
 

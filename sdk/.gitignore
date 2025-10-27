@@ -8,3 +8,5 @@ __pycache__
 ## Test folders
 firmware
 esp32-hand-controller
+
+uvconfig.toml

@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 # Copyright 2025 TetherIA, Inc.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -13,12 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from aero_open_sdk.aero_hand import AeroHand
+from .gui import main
 
 if __name__ == "__main__":
-    hand = AeroHand(
-        "/dev/serial/by-id/usb-Espressif_USB_JTAG_serial_debug_unit_D8:3B:DA:45:CA:08-if00"
-    )
-
-    ack = hand.trim_servo(channel=3, degrees=200)
-    print("Trim Acknowledgement:", ack)
+    main()
