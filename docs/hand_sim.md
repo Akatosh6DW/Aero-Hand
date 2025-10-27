@@ -153,4 +153,10 @@ This will:
 ## 🧩 Acknowledgements
 
 Dependency:  
-- [**MuJoCo Playground**](https://github.com/google-deepmind/mujoco_playground).  
+- [**MuJoCo Playground**](https://github.com/google-deepmind/mujoco_playground). 
+
+<div align="center">
+
+Made with ❤️ by **TetherIA Robotics**
+
+</div>

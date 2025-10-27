@@ -1,10 +1,39 @@
-# First - Time Setup
+# First-Time Setup
+## ⚙️ Installation
+
+The SDK is currently tested for Python 3.10 and above.
+
+### 📦 Install via pip
+
+```bash
+pip install aero-hand-sdk
+```
+
+### 🧩 Install from source (editable mode)
+
+1. Clone the repository to your local machine:
+   ```bash
+   git clone https://github.com/TetherIA/aero-open-sdk.git
+   ```
+
+2. Navigate to the cloned repository directory:
+   ```bash
+   cd aero-open-sdk
+   ```
+
+3. Install the package in editable mode:
+   ```bash
+   pip install -e .
+   ```
+
+---
+
 ## 🖥️ GUI — Aero Hand Open Control App
 
 Launch the GUI from a terminal after installation:
 
 ```bash
-aero-hand-gui
+aero-open-gui
 ```
 
 > If your system can’t find the command, ensure your Python environment’s scripts directory is on PATH and that the package was installed into the active environment.
@@ -38,7 +67,7 @@ To upload firmware to your Aero Hand device:
 
 Next step is to set the servo IDs, see the next section below.
 
-### Setting Servo -IDs
+#### Setting Servo -IDs
 
 1. **Power** the board with the 6V and connect USB.
 2. **Connect exactly one servo** to the bus.
@@ -58,7 +87,7 @@ Next step is to set the servo IDs, see the next section below.
 
 ![Setting Servo - IDs](imgs/set-id.PNG)
 
-### Notes & Troubleshooting
+##### Notes & Troubleshooting
 
 1. Make sure that the board has power and exactly one servo is connected before setting the ID.
 2. We recommend setting IDs for all servos in sequence (0–6). Any value apart from 0–6 will not be accepted.
@@ -67,12 +96,12 @@ Next step is to set the servo IDs, see the next section below.
 5. If you receive 65535 in old ID, new ID, and current limit, this indicates that two or more servos are present and the Set ID mode will not proceed.
 6. Once all IDs are Set, We recommend not to use this function once you are playing and training with the hand.
 
-### Trim Servo
+#### Trim Servo
 
 When using Trim Servo:
 First, you will be asked to enter the servo channel (0–6), which represents the sequence: thumb abduction, thumb flexion, thumb tendon, and the four fingers. Next, enter the degrees offset. We recommend making adjustments in steps of 10–20 degrees, then observe the effect using the sliders. If something unusual happens, you may need to perform the homing procedure again to reset the extend count to the baseline.
 
-#### Left Hand Actuator Table
+##### Left Hand Actuator Table
 | Channel | Actuator Name          | Extend Count | Grasp Count | Motion (°) | Direction | 
 |---------|------------------------|--------------|-------------|------------|-----------|
 | 0       | Thumb Abduction        | 2048         | 3186        | 100        | +1        | 
@@ -83,7 +112,7 @@ First, you will be asked to enter the servo channel (0–6), which represents th
 | 5       | Ring Finger            | 817          | 4095        | 288        | -1        |
 | 6       | Pinky Finger           | 817          | 4095        | 288        | -1        |
 
-#### Right Hand Actuator Table
+##### Right Hand Actuator Table
 
 | Channel | Actuator Name          | Extend Count | Grasp Count | Motion (°) | Direction | 
 |---------|------------------------|--------------|-------------|------------|-----------|
@@ -115,7 +144,7 @@ This means the servo will now move through 2867 counts instead of the original 2
 
 ![Trim Servo](imgs/trim-servo.png)
 
-#### Notes & Troubleshooting
+##### Notes & Troubleshooting
 1. Do not enter values like 360 or -360 degrees, as this may completely change your control direction—please avoid this.
 2. If the servo becomes too tight, try loosening it by entering degrees in the opposite direction to your last adjustment.
 3. Use this function only when you want fine control over the servo's range of motion.
@@ -143,6 +172,8 @@ This means the servo will now move through 2867 counts instead of the original 2
 * **GET_CURR** 🔌: Requests currents in **mA**, **signed** — the **sign reflects motor direction** relative to the channel’s servo direction (use magnitude to gauge load).
 * **GET_TEMP** 🌡️: Requests temperatures (°C) from each servo.
 * **GET_ALL** 📦: Convenience burst that triggers **POS + VEL + CURR + TEMP** reads in one go and prints results to the log.
+* **Set Speed** 🚀: Sets the speed limit for a selected servo ID (opcode `0x31`). This sets the maximum speed for that servo; by default, the speed is max and resets after reboot. The speed set here affects the max speed the motor moves during the position control mode, which is different from the speed control mode.
+* **Set Torque** 💪: Sets the maximum torque limit for a selected servo ID (opcode `0x32`). This limits the maximum torque; by default, torque is max and resets after reboot. The torque set here affects the max torque the motor can apply during the position control mode, which is different from the torque control mode.
 
 ### 🧷 Sliders Panel (Center)
 
@@ -173,3 +204,9 @@ Prefer scripting or automation? Use the Python SDK to send the same 16‑byte fr
 
 * Import the high‑level class (e.g., `AeroHand`) and browse **examples** in this repo’s `examples/` folder.
 * The GUI and SDK speak the **same protocol**, so your scripts and the app can be used interchangeably during development.
+
+<div align="center">
+
+Made with ❤️ by **TetherIA Robotics**
+
+</div>

@@ -21,6 +21,11 @@ If the embedded viewer doesn't work in your browser, you can [download the PDF f
 ---
 
 :::tip
-If you have any questions during assembly, please reach out to our community on [Discord](https://discord.gg/eRAzPMCm).
+If you have any questions during assembly, please reach out to our community on [Discord](https://discord.gg/ZQKWK7NebQ).
 :::
 
+<div align="center">
+
+Made with ❤️ by **TetherIA Robotics**
+
+</div>

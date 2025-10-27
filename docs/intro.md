@@ -18,7 +18,7 @@ The hand adopts a **tendon-driven actuation architecture**, where each motor dri
 This approach achieves high dexterity with fewer actuators, resulting in a lightweight and compliant design.
 
 **Key characteristics:**
-- 15 Degrees of Freedom (7 active, 8 passive)
+- 16 Degrees of Freedom (7 active, 9 passive)
 - 3 active DoFs for the thumb, enabling real dexterity
 - One-motor-per-finger tendon actuation
 - Passive 1:1 coupling between DIP and PIP joints
@@ -28,7 +28,7 @@ This approach achieves high dexterity with fewer actuators, resulting in a light
 - 6 V DC power input and USB communication
 - Fully open-source CAD and PCB design
 
-All mechanical and electrical design files are available in the [`aero-open-hardware`](https://github.com/TetherIA/aero-open-hardware) repository.
+All mechanical and electrical design files are available in the [`hardware`](https://github.com/TetherIA/aero-hand-open/tree/main/hardware) folder.
 
 ---
 
@@ -37,10 +37,10 @@ All mechanical and electrical design files are available in the [`aero-open-hard
 The onboard controller runs custom firmware supporting:
 - Position, velocity, and torque control modes
 - High-frequency communication over USB
-- Real-time command streaming via ROS 2 and Python SDK
+- Real-time command streaming via Python SDK
 - Built-in calibration and diagnostics utilities
 
-Firmware source code is hosted in [`aero-open-firmware`](https://github.com/TetherIA/aero-open-firmware).
+Firmware source code is hosted in the [`firmware`](https://github.com/TetherIA/aero-hand-open/tree/main/firmware) folder.
 
 ---
 
@@ -48,10 +48,12 @@ Firmware source code is hosted in [`aero-open-firmware`](https://github.com/Teth
 
 Developers can interface with the hand through:
 - A **Python SDK** for joint, tendon, and sensor interfaces
-- **ROS 2 packages** exposing scripting, teleoperation, and logging
+- **ROS 2 packages** exposing communication, teleoperation, and and RL policy deployment, etc.
 - Example nodes for control, data collection, and policy playback
 
-Software API is maintained in [`aero-open-sdk`](https://github.com/TetherIA/aero-open-sdk).
+Software API is maintained in the [`sdk`](https://github.com/TetherIA/aero-hand-open/tree/main/sdk) folder.
+
+ROS2 packages is maintained in the [`ros2`](https://github.com/TetherIA/aero-hand-open/tree/main/ros2) folder.
 
 ---
 
@@ -68,25 +70,33 @@ Use simulation to train control policies, benchmark algorithms, and prototype ma
 
 | Component | Repository | Description |
 |------------|-------------|-------------|
-| Hardware | [`aero-open-hardware`](https://github.com/TetherIA/aero-open-hardware) | CAD models, assembly, and tendon routing |
-| Firmware | [`aero-open-firmware`](https://github.com/TetherIA/aero-open-firmware) | Embedded control software |
-| SDK / GUI | [`aero-open-sdk`](https://github.com/TetherIA/aero-open-sdk) | Python SDK and GUI |
-| Documentation | [`aero-open-docs`](https://github.com/TetherIA/aero-open-docs) | Documentation source |
 | Monorepo | [`aero-hand-open`](https://github.com/TetherIA/aero-hand-open) | Consolidated repository for community contributions |
+| Hardware | [`hardware folder`](https://github.com/TetherIA/aero-hand-open/tree/main/hardware) | CAD models, assembly, and PCB design|
+| Firmware | [`firmware folder`](https://github.com/TetherIA/aero-hand-open/tree/main/firmware) | Embedded control software |
+| SDK / GUI | [`sdk folder`](https://github.com/TetherIA/aero-hand-open/tree/main/sdk) | Python SDK and GUI |
+| ROS2 | [`ros2 folder`](https://github.com/TetherIA/aero-hand-open/tree/main/ros2) | ROS2 packages for URDF, TeleOp, RL policy deployment, etc. |
+| Documentation | [`docs folder`](https://github.com/TetherIA/aero-hand-open/tree/main/docs) | Documentation source |
 
 ---
 
 ## Getting Started
 
 - [Build and assemble the hand →](./assembly.md)  
-- [Flash and verify firmware →](./firmware.md)  
-- [Connect via ROS 2 or Python SDK →](./sdk.md)
-- [Getting Started with GUI of SDK →](./getting_started.md)  
+- [Set up hardware→](./hardware_setup.md) 
+- [Flash and verify firmware →](./getting_started.md) 
+- [Getting Started with GUI or SDK →](./sdk.md)   
 - [Run simulation in MuJoCo →](./hand_sim.md)
+- [Understand and modify firmware →](./firmware.md)
 
 ---
 
 ## License
 
 All components of Aero Hand Open are released under permissive open-source licenses.  
-Please refer to individual repositories for license details.
+Please refer to the [LICENSE FILE](https://github.com/TetherIA/aero-hand-open/blob/main/LICENSE.md) for license details.
+
+<div align="center">
+
+Made with ❤️ by **TetherIA Robotics**
+
+</div>

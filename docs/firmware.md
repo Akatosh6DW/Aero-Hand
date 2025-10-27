@@ -96,15 +96,21 @@ The protocol is **always 16 bytes** per frame, both **to** and **from** the devi
 | `0x02` | **SET_ID**   |   PC→Dev  | `u16 new_id`, `u16 current_limit` | Scans bus for the single attached servo, sets its ID and current limit; returns an ACK with old/new ID and limit. |
 | `0x03` | **TRIM**     |   PC→Dev  | `u16 channel`, `s16 degrees_off`  | Adjusts stored **extend_count** for a channel; persists in NVS; returns an ACK with the resulting extend count.   |
 | `0x11` | **CTRL_POS** |   PC→Dev  | 7×`u16` (ch0..ch6)                | Position write for all channels. 0..65535 spans each channel’s **extend ↔ grasp**. No ACK (fire‑and‑go).          |
-| `0x12` | **CTRL_TOR** |   PC→Dev  | TBD                               | Reserved/To‑be‑implemented torque/effort mode.                                                                    |
+| `0x12` | **CTRL_TOR** |   PC→Dev  | 7x`u16` (ch0..ch6)                | Torque write for all channels. 0..1000 is the limit for setting torque to each servo in direction **extend ↔ grasp** . No ACK (fire-and-go)                                                                     |
 | `0x22` | **GET_POS**  |   PC→Dev  | none                              | Device replies with 7×`u16` raw positions.                                                                        |
 | `0x23` | **GET_VEL**  |   PC→Dev  | none                              | Device replies with 7×`u16` velocities.                                                                           |
 | `0x24` | **GET_CURR** |   PC→Dev  | none                              | Device replies with 7×`u16` currents.                                                                             |
 | `0x25` | **GET_TEMP** |   PC→Dev  | none                              | Device replies with 7×`u16` temperatures.                                                                         |
+| `0x31` | **SET_SPE**  |   PC→Dev  | `u16 id`, `u16 speed_limit`        | Sets the speed limit for the specified servo ID.                                                                  |
+| `0x32` | **SET_TOR**  |   PC→Dev  | `u16 id`, `u16 torque_limit`       | Sets the maximum torque for the specified servo ID (different from torque control; this is a limit, not a command).|
 
 #### Position Mapping (CTRL_POS)
 
 For each channel *i*, the firmware maps host value `u16[i]∈[0,65535]` linearly to the servo’s raw count using the per‑channel `extend_count` (open) and `grasp_count` (closed), clamped to `[0,4095]`. Direction is handled via `servo_direction`.
+
+#### Torque Control (CTRL_TOR)
+
+For each channel, the firmware maps the incoming torque value in the range 0..1000 linearly to the raw torque sent to the servo, applying it only in the direction from extend to grasp.
 
 #### Example Sequences
 
@@ -242,10 +248,7 @@ If you would like to improve the [Firmware](https://github.com/TetherIA/aero-ope
 * Email: **[contact@tetheria.ai](mailto:contact@tetheria.ai)**
 
 <div align="center">
-  <br/>
-    <b>Happy building!</b><br/>
-    Try something new, Break things safely, Share what you learn.<br/>
-    If this helps, please ⭐ the repo and share it with others!<br/>
-  <br/><br/>
-  Built with ❤️ by TetherIA.ai
+
+Made with ❤️ by **TetherIA Robotics**
+
 </div>
