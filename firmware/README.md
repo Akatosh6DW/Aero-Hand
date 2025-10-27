@@ -7,7 +7,7 @@
 
 A reference guide for building, flashing, using, and extending the **Aero Hand Open** firmware that runs on an ESP32‑S3 (Seeed Studio XIAO ESP32S3) and drives Feetech smart servos - Feetech HLS3606M.
 
-**Note:** If you do not need advanced control over the actuator, you only need the `.bin` file from this repository. You can download the bin files from the `main/bin` folder , and use the GUI to upload them to your device. We recommend using the [aero-open-sdk](https://github.com/TetherIA/aero-open-sdk) to upload the firmware by running the aero-hand-gui.
+**Note:** If you do not need advanced control over the actuator, you only need the `.bin` file from this repository. You can download the bin files from the `main/bin` folder , and use the GUI to upload them to your device. We recommend using the [aero-open-sdk](https://github.com/TetherIA/aero-open-sdk) to upload the firmware by running the `aero-open-gui`.
 
 ---
 
@@ -84,7 +84,29 @@ In `HandConfig.h`, **define exactly one** of the following macros, or pass a bui
 The choice selects the correct baseline calibration table at build time.
 
 ### B. Build & Flash
-- **PlatformIO**: open the project, pick `seeed_xiao_esp32s3`, then **Upload**.
+- **PlatformIO**: On your Visual Studio Code, Once you install the platformIO, Restart your Visual studio Code. You will now see a icon on the left for PlatformIO as below.
+![alt text](./main/assets/platformio.png)
+
+
+Once You Reach here, You can press on create a new project . Once you click , It will ask you to enter the Project name and settings, Feel free to choose your desired location and project name,But keep Framework as Arduino and Board as Seeed Studio XIAO ESP32S3.
+
+![alt text](./main/assets/platformioproject.png)
+
+
+Now it will open the folder with a `platformio.ini` file. You might need to add a location where you have the FTServo library.  You can use build_flags to build it for the right or left hand. You need to copy paste over the ``firmware_v0.1.0.ino`` file in the ``main.cpp`` and you also need the header and cpp files under src directory as in the below given image.
+
+
+![alt text](./main/assets/platformioini.png)
+
+
+Now, You again need to go back to that build and upload page by pressing the PlatformIO icon. Here you can see an upload , Once you press the upload button, It should compile your files and upload it.
+![alt text](./main/assets/platformioupload.png)
+
+
+On successful upload, You will see some logs in your terminal window like in the image below.
+![alt text](./main/assets/platformiologs.png)
+
+
 - **Arduino IDE**: open `firmware_v0.1.0.ino`, set Board to *XIAO ESP32S3*, then **Upload**.  
   **Note:** If you are using the Arduino IDE for the first time, you may need to install the ESP32 board support. Go to the Board Manager by pressing Ctrl+Shift+B, then search for "esp32". Find "esp32 by Espressif Systems" and install it. After installation, change the board under the Tools menu and select "XIAO_ESP32S3" from the list.
 
@@ -123,12 +145,16 @@ The main loop performs:
 You can switch hands either by editing `HandConfig.h` **or** using build flags.
 
 - **PlatformIO** (`platformio.ini`):
+- lib_extra_dirs point to the location where you might need the [FTServo_libraries](https://github.com/ftservo/FTServo_Arduino/tree/main).
+- You need to comment both macros of #define LEFT_HAND and #define RIGHT_HAND in ``HandConfig.h``.
+- build_flags will help you to build it for the right hand.
   ```ini
   [env:seeed_xiao_esp32s3]
   platform = espressif32
   board = seeed_xiao_esp32s3
   framework = arduino
-  build_flags = -DRIGHT_HAND      ; or -DLEFT_HAND
+  lib_extra_dirs = ~/Documents/Arduino/libraries
+  build_flags= -DRIGHT_HAND
   ```
 
 - **Arduino IDE**: temporarily uncomment the macro in `HandConfig.h`.
@@ -157,13 +183,17 @@ You can switch hands either by editing `HandConfig.h` **or** using build flags.
 | `0x02` | `SET_ID`   | H→D       | `new_id(u16)`, `current_limit(u16)`, rest zeros                                           | `[0x02,0x00, oldId(u16), newId(u16), curLim(u16), rest 0]` |
 | `0x03` | `TRIM`     | H→D       | `channel(u16:0..6)`, `degrees(i16: ±360)`, rest zeros                                     | `[0x03,0x00, channel(u16), extendCount(u16), rest 0]`      |
 | `0x11` | `CTRL_POS` | H→D       | **7×** `u16` (channels 0..6). Range `0..65535` maps to **extend→grasp** span per channel. | *(none)*                                                   |
-| `0x12` | `CTRL_TOR` | H→D       | **Reserved / TBD**                                                                        | *(none)*                                                   |
+| `0x12` | `CTRL_TOR` | H→D       | Set torque for all servos (7×u16)                                                     | *(none)*                                                   |
 | `0x22` | `GET_POS`  | H↔D       | 14×`0x00`                                                                                 | **7×** `u16` raw positions (counts 0..4095)                |
 | `0x23` | `GET_VEL`  | H↔D       | 14×`0x00`                                                                                 | **7×** `u16` raw velocities                                |
 | `0x24` | `GET_CURR` | H↔D       | 14×`0x00`                                                                                 | **7×** `u16` currents                                      |
 | `0x25` | `GET_TEMP` | H↔D       | 14×`0x00`                                                                                 | **7×** `u16` temperatures (°C or raw, per build)           |
+| `0x31` | `SET_SPE`  | H→D       | `id(u16)`, `speed(u16)`, rest zeros                                                       | ACK: id, speed                                             |
+| `0x32` | `SET_TOR`  | H→D       | `id(u16)`, `torque(u16)`, rest zeros                                                      | ACK: id, torque                                            |
 
-Version note: If your build used older experimental opcodes for SET_ID/TRIM, update those constants or adjust this table to match your firmware.
+Control Modes Note: 
+> **Recommendation:** We recommend using position control for typical grasping tasks. Advanced users may use torque control mode, but only when the hand is in a position to grab an object. At higher torque values, if any servo exceeds an internal temperature of 80°C, it may temporarily ignore commands as a safety measure until it cools down.
+> **Note:** Torque control is currently implemented in one direction only: from fully open to fully close.
 
 **7.2 Channel Map (0..6)**
 
