@@ -6,7 +6,7 @@
 [subrepo]
 	remote = https://github.com/TetherIA/aero-open-ros2.git
 	branch = public_release
-	commit = 91b25ab2f21fe13be80a2c6dce746bf1d17b751c
-	parent = ef3f1b55e3c68e51a39b5ca59fcabe29d813f1f3
+	commit = 73d07a50a240ae56d62fc4e7ba5522375eb0511e
+	parent = 19dff7a81ab62b2f92e8f59a629e21eabf4e5e4f
 	method = merge
 	cmdver = 0.4.9

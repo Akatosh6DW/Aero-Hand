@@ -37,9 +37,9 @@ setup(
     tests_require=["pytest"],
     entry_points={
         'console_scripts': [
-            'manus_joint_states_retargetting = aero_hand_open_teleop.manus_joint_states_retargeting:main',
+            'manus_joint_states_retargeting = aero_hand_open_teleop.manus_joint_states_retargeting:main',
             'mediapipe_mocap = aero_hand_open_teleop.mediapipe_mocap:main',
-            'mediapipe_retargetting = aero_hand_open_teleop.mediapipe_retargeting:main',
+            'mediapipe_retargeting = aero_hand_open_teleop.mediapipe_retargeting:main',
         ],
     },
 )
