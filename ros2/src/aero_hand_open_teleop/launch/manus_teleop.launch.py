@@ -38,8 +38,8 @@ def generate_launch_description():
 
     manus_joint_states_retargetting_node = Node(
         package="aero_hand_open_teleop",
-        executable="manus_joint_states_retargetting",
-        name="manus_joint_states_retargetting",
+        executable="manus_joint_states_retargeting",
+        name="manus_joint_states_retargeting",
         output="screen",
         emulate_tty=True,
     )
@@ -63,7 +63,7 @@ def generate_launch_description():
     return LaunchDescription(
         [
             manus_data_publisher,
-            manus_joint_states_retargetting_node,
+            manus_joint_states_retargeting_node,
             aero_hand_node,
         ]
     )
