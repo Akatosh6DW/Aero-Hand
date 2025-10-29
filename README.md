@@ -1,19 +1,16 @@
-[![Commercial integration of purchased units: ALLOWED](https://img.shields.io/badge/Commercial%20integration%20of%20purchased%20units-ALLOWED-brightgreen)](#license--tldr)
-
-## License — TL;DR
-
-- You **can** integrate Aero Hand units you purchase from TetherIA into **commercial robots and products** you sell.
-- **Software (firmware & SDK):** Apache-2.0 — commercial use OK (with notices).
-- **Design files (CAD/STEP/STL, drawings, BOM, docs):** CC BY‑NC‑SA 4.0 — **non‑commercial** only; derivatives must use the same license with attribution.
-- Want to **manufacture/print parts** or **make your own hands** from our design files for commercial use (spares, kits, or clones)? → **Commercial manufacturing license required**.
-- **Commercial licensing & volume buys:** see **LICENSE.md** (or email us at contact@tetheria.ai).
-
-See [**LICENSE.md**](LICENSE.md) for definitions, examples, and contact details.
-
-  
-© 2025 TetherIA Inc. All rights reserved.
-
 ![Aero Hand Overview](assets/banner.png)
+
+<p align="center">
+  <a href="https://tetheria.github.io/aero-hand-open/"><img src="https://img.shields.io/badge/project-page-brightgreen" alt="Project Page"></a>
+  <a href="https://docs.tetheria.ai/"><img src="https://img.shields.io/badge/doc-page-orange" alt="Documentation"></a>
+  <!-- <a href="https://github.com/TetherIA/aero-hand-open/issues"><img src="https://img.shields.io/github/issues/RoboVerseOrg/RoboVerse?color=yellow" alt="Issues"></a> -->
+  <a href="https://github.com/TetherIA/aero-hand-open/discussions"><img src="https://img.shields.io/github/discussions/RoboVerseOrg/RoboVerse?color=blueviolet" alt="Discussions"></a>
+  <a href="http://discord.gg/ZQKWK7NebQ"><img src="https://img.shields.io/discord/1356345436927168552?logo=discord&color=blue" alt="Discord"></a>
+  <a href="https://shop.tetheria.ai/"><img src="https://img.shields.io/badge/Shop-shopping-purple?logo=shopify" alt="Shop"></a>
+  <a href="https://www.linkedin.com/company/tetheria/"><img src="https://img.shields.io/badge/LinkedIn-Follow-blue?logo=linkedin" alt="LinkedIn"></a>
+  <a href="https://x.com/TetherIA_ai"><img src="https://img.shields.io/badge/X-Follow-black?logo=x" alt="X"></a>
+  <a href="https://www.youtube.com/@TetherIA_ai"><img src="https://img.shields.io/badge/YouTube-Subscribe-red?logo=youtube" alt="YouTube"></a>
+</p>
 
 Aero Hand Open is an **open-source**, **tendon-driven** robotic hand designed and developed by TetherIA for dexterous manipulation research. Unlike expensive proprietary solutions, this hand focuses on **simplicity**, **reliability**, and **accessibility** by using standard 3D printing and off-the-shelf electronic components.
 
@@ -23,7 +20,7 @@ Each joint is optimized for mechanical efficiency through tendon actuation, enab
 > **🛒 Shop:** https://shop.tetheria.ai/
 
 
-# Aero Hand Open features:
+# Aero Hand Open features
 - 7 DoFs robotic hand with 5 fingers (16 joints in total)
 - Tendon-driven architecture for smooth and natural motion
 - Fully 3D-printed structure, modular and easy to assemble
@@ -32,9 +29,26 @@ Each joint is optimized for mechanical efficiency through tendon actuation, enab
 - Open-source hardware and firmware
 - Independent Python SDK, and compatible with ESP32 and ROS2 systems
 
+# Table of Contents
+- [Aero Hand Open features](#aero-hand-open-features)
+- [Overview](#overview)
+- [Resources](#resources)
+  - [Bill of Materials (BOM)](#bill-of-materials-bom)
+  - [CAD Files and 3D Models](#cad-files-and-3d-models)
+  - [Assembly Guide](#assembly-guide)
+  - [PCB Design](#pcb-design)
+  - [Hardware Setup](#hardware-setup)
+  - [Software SDK](#software-sdk)
+  - [ROS2 and Teleoperation](#ros2-and-teleoperation)
+- [License — TL;DR](#license--tldr)
+- [Disclaimer](#disclaimer)
+- [Project Updates & Community](#project-updates--community)
+  - [Updates History](#updates-history)
+  - [FAQ](#faq)
+  - [Contact](#contact)
 
 
-# Overview:
+# Overview
 
 ![Overview1](assets/overview1.png)
 
@@ -50,20 +64,6 @@ Each joint is optimized for mechanical efficiency through tendon actuation, enab
 
 ![Overview1](assets/overview7.png)
 
-# Table of Contents:
-- Resources
-  - Bill of Materials (BOM)
-  - CAD Files and 3D Models
-  - PCB Design
-  - Assembly Guide
-  - Hardware Setup
-  - SDK
-  - ROS2 and Teleoperation
-- Disclaimer
-- Project Updates & Community
-  - Updates History
-  - FAQ
-  - Contact
 
 # Resources
 ## Bill of Materials (BOM)
@@ -199,6 +199,22 @@ The Aero Hand Open integrates seamlessly with ROS2 humble for advanced robotics 
 - **RViz configuration** for 3D visualization and debugging
 
 Refer to the [`ros2/`](./ros2/) folder for complete setup instructions and examples.
+
+
+# License — TL;DR
+
+[![Commercial integration of purchased units: ALLOWED](https://img.shields.io/badge/Commercial%20integration%20of%20purchased%20units-ALLOWED-brightgreen)](#license--tldr)
+
+- You **can** integrate Aero Hand units you purchase from TetherIA into **commercial robots and products** you sell.
+- **Software (firmware & SDK):** Apache-2.0 — commercial use OK (with notices).
+- **Design files (CAD/STEP/STL, drawings, BOM, docs):** CC BY‑NC‑SA 4.0 — **non‑commercial** only; derivatives must use the same license with attribution.
+- Want to **manufacture/print parts** or **make your own hands** from our design files for commercial use (spares, kits, or clones)? → **Commercial manufacturing license required**.
+- **Commercial licensing & volume buys:** see **LICENSE.md** (or email us at contact@tetheria.ai).
+
+See [**LICENSE.md**](LICENSE.md) for definitions, examples, and contact details.
+
+  
+© 2025 TetherIA Inc. All rights reserved.
 
 # Disclaimer
 Aero Hand Open is an open-source research prototype intended for educational and experimental purposes only.
