@@ -76,28 +76,10 @@ This document includes all mechanical, electronic, and printed parts — such as
 Each item is listed with its part number, vendor, quantity, and estimated cost to help you easily source or substitute parts.
 
 ## CAD Files and 3D Models
-All CAD and 3D model files of Aero Hand Open are available in the [CAD](./hardware/CAD).
+CAD files for the Aero Hand Open mechanical components are currently being prepared for release. These files will include STEP and STL formats for 3D printing and CAD integration.
 
-You can find both STEP and STL files for modification and direct 3D printing.
+For early access to CAD files, please contact us at **support@tetheria.ai**.
 
-> CAD Files Notes:
-> The absolute origin of the full assembly is at the MCP joint of middle finger
-
-For quick setup, we also provide a “One-Click Print Pack”, which contains all parts with pre-oriented build angles optimized for print strength, surface quality, and minimal support usage.
-
-Simply load the files into your slicer and start printing — no additional rotation or manual adjustment is required.
-
-Printing Notes:
-- Suggested Printer: Bambau Lab X1C/P1S
-- Recommended material: PLA (for stiffness and dimensional accuracy)
-- Suggested layer height: 0.2 mm (Nozzle Diameter 0.4mm)
-- Support: Autogenerate is fine
-- The hand design is fully modular — individual fingers can be printed and replaced independently
-- Other information can be found in Assembly Documents
-
-An online Onshape model is also available for quick viewing and part reference:
-
-[👉 Aero Hand Open – Onshape Document](https://cad.onshape.com/documents/afc7e0ca7eb6d412ec8771f8/w/bc4d7e45e17e23d622d2bad2/e/1e3862db4d4df7d9dca6f286?renderMode=0&uiState=68e5abd64106f26dc459da44)
 
 ## Assembly Guide
 The step-by-step assembly instructions for Aero Hand Open are provided in the following document:
