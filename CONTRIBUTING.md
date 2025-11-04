@@ -19,7 +19,6 @@ Thanks for helping us push affordable, tendon-driven manipulation forward. This 
 - `firmware/` – ESP32-S3 Arduino sketch, headers, and assets.
 - `ros2/` – ROS 2 packages for messages, teleoperation, and RL experiments.
 - `hardware/` – CAD files, printable STLs, BOM, and assembly resources.
-- `docs/` – Reference documentation that backs https://docs.tetheria.ai/.
 
 ## Contribution Workflow
 1. Fork the repository and work in a feature branch (`feature/topic-short-description`).
