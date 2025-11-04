@@ -7,7 +7,7 @@
 
 A reference guide for building, flashing, using, and extending the **Aero Hand Open** firmware that runs on an ESP32‑S3 (Seeed Studio XIAO ESP32S3) and drives Feetech smart servos - Feetech HLS3606M.
 
-**Note:** If you do not need advanced control over the actuator, you only need the `.bin` file from this repository. You can download the bin files from the `main/bin` folder , and use the GUI to upload them to your device. We recommend using the [aero-open-sdk](https://github.com/TetherIA/aero-open-sdk) to upload the firmware by running the `aero-open-gui`.
+**Note:** If you do not need advanced control over the actuator, you only need the `.bin` file from this repository. You can download the bin files from the `main/bin` folder , and use the GUI to upload them to your device. We recommend using the [aero-open-sdk](https://github.com/TetherIA/aero-hand-open/tree/main/sdk) to upload the firmware by running the `aero-open-gui`.
 
 ---
 
@@ -405,7 +405,7 @@ This project is licensed under **Apache License 2.0**
 
 ## 15) Support 
 If you encounter issues or have feature requests:
-- Open a [GitHub Issue](https://github.com/TetherIA/aero-open-sdk/issues)
+- Open a [GitHub Issue](https://github.com/TetherIA/aero-hand-open/issues)
 - Contact us at **contact@tetheria.ai**
 
 ---
