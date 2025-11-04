@@ -154,7 +154,7 @@ body {
 
 /* Inline video carousel sizing */
 .video-carousel {
-  max-width: 1500px;
+  max-width: 960px;
   margin: 0 auto;
 }
 
@@ -165,7 +165,7 @@ body {
 
 .video-carousel .video-gallery-item {
   width: 100%;
-  max-width: 1500px;
+  max-width: 960px;
   margin: 0 auto;
 }
 
