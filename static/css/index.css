@@ -152,6 +152,38 @@ body {
   margin: 0 !important;
 }
 
+/* Inline video carousel sizing */
+.video-carousel {
+  max-width: 1500px;
+  margin: 0 auto;
+}
+
+.video-carousel .item {
+  display: flex;
+  justify-content: center;
+}
+
+.video-carousel .video-gallery-item {
+  width: 100%;
+  max-width: 1500px;
+  margin: 0 auto;
+}
+
+.video-carousel video {
+  width: 100%;
+  height: auto;
+  aspect-ratio: 16 / 9;
+  border-radius: var(--border-radius-lg);
+  box-shadow: var(--shadow-md);
+  background: #000;
+}
+
+.video-carousel figcaption {
+  margin-top: 0.75rem;
+  color: var(--text-secondary);
+  font-weight: 500;
+}
+
 /* Tendon Architecture Section */
 .architecture-section {
   background: var(--background-secondary);
