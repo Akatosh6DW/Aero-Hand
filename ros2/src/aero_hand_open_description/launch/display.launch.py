@@ -70,8 +70,10 @@ def generate_launch_description():
 
     ## Nodes
     left_robot_state_publisher_node = Node(
+        namespace="left",
         package="robot_state_publisher",
         executable="robot_state_publisher",
+        name="robot_state_publisher",
         parameters=[
             {
                 "robot_description": left_robot_description,
@@ -92,14 +94,19 @@ def generate_launch_description():
     )
 
     left_joint_state_publisher_node = Node(
+        namespace="left",
         package="joint_state_publisher",
         executable="joint_state_publisher",
+        name="joint_state_publisher",
+        parameters=[{"robot_description": left_robot_description}],
         condition=UnlessCondition(LaunchConfiguration("gui")),
     )
 
     left_joint_state_publisher_gui_node = Node(
+        namespace="left",
         package="joint_state_publisher_gui",
         executable="joint_state_publisher_gui",
+        name="joint_state_publisher_gui",
         parameters=[{"robot_description": left_robot_description}],
         condition=IfCondition(LaunchConfiguration("gui")),
     )
@@ -109,6 +116,7 @@ def generate_launch_description():
         package="joint_state_publisher",
         executable="joint_state_publisher",
         name="joint_state_publisher",
+        parameters=[{"robot_description": right_robot_description}],
         condition=UnlessCondition(LaunchConfiguration("gui")),
     )
 
@@ -147,14 +155,14 @@ def generate_launch_description():
         package="tf2_ros",
         executable="static_transform_publisher",
         name="left_world_tf",
-        arguments=["0", "-0.10", "0", "-1.57079632679", "0", "0", "world", "left_base_link"],
+        arguments=["-0.10", "0", "0", "0", "0", "0", "world", "left_base_link"],
     )
 
     right_world_tf = Node(
         package="tf2_ros",
         executable="static_transform_publisher",
         name="right_world_tf",
-        arguments=["0", "0.10", "0", "1.57079632679", "0", "0", "world", "right_base_link"],
+        arguments=["0.10", "0", "0", "0", "0", "0", "world", "right_base_link"],
     )
 
     return LaunchDescription(

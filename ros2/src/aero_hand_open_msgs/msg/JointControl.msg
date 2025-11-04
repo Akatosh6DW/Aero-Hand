@@ -1,6 +1,6 @@
 std_msgs/Header header
 
-float32[] target_positions  # degrees
+float32[] target_positions  # radian
 
 ###### Joint Indices ######
 # 0 - thumb_cmc_abd
