@@ -539,68 +539,60 @@
   </section>
 
   <!-- Section 5: On-Device Video Gallery -->
-  <section class="section is-light">
+  <section class="section">
     <div class="container is-max-desktop">
-      <h2 class="title is-3 section-title">Video Gallery</h2>
-      <p class="has-text-centered">
-        Watch raw clips captured with Aero Hand Open performing a range of everyday manipulation tasks.
-      </p>
-      <div id="video-carousel" class="carousel video-carousel">
-        <div class="item">
-          <figure class="video-gallery-item">
-            <video controls preload="metadata" autoplay muted playsinline style="width: 100%; height: auto;">
+      <div class="columns is-centered has-text-centered">
+        <div class="column is-four-fifths">
+          <h2 class="title is-3">On-Device Manipulation Gallery</h2>
+          <div class="content has-text-justified">
+            <p>
+              Watch Aero Hand Open perform everyday manipulation tasks directly from the onboard camera perspective. All clips run at <strong>1×</strong> speed.
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="hero is-light is-small video-gallery-hero">
+    <div class="hero-body">
+      <div class="container">
+        <div id="manipulation-carousel" class="carousel results-carousel video-results-carousel">
+          <div class="item item-cash-register">
+            <video poster="" id="cash-register" autoplay muted loop playsinline height="100%">
               <source src="static/videos/cash_register.mp4" type="video/mp4">
             </video>
-            <figcaption class="has-text-centered">Cash Register Demo</figcaption>
-          </figure>
-        </div>
-        <div class="item">
-          <figure class="video-gallery-item">
-            <video controls preload="metadata" autoplay muted playsinline style="width: 100%; height: auto;">
+          </div>
+          <div class="item item-fruit">
+            <video poster="" id="fruit" autoplay muted loop playsinline height="100%">
               <source src="static/videos/fruit.mp4" type="video/mp4">
             </video>
-            <figcaption class="has-text-centered">Delicate Fruit Pickup</figcaption>
-          </figure>
-        </div>
-        <div class="item">
-          <figure class="video-gallery-item">
-            <video controls preload="metadata" autoplay muted playsinline style="width: 100%; height: auto;">
+          </div>
+          <div class="item item-m5-screw">
+            <video poster="" id="m5-screw" autoplay muted loop playsinline height="100%">
               <source src="static/videos/m5_screw.mp4" type="video/mp4">
             </video>
-            <figcaption class="has-text-centered">M5 Screw Manipulation</figcaption>
-          </figure>
-        </div>
-        <div class="item">
-          <figure class="video-gallery-item">
-            <video controls preload="metadata" autoplay muted playsinline style="width: 100%; height: auto;">
+          </div>
+          <div class="item item-iphone">
+            <video poster="" id="iphone" autoplay muted loop playsinline height="100%">
               <source src="static/videos/pickup_iphone.mp4" type="video/mp4">
             </video>
-            <figcaption class="has-text-centered">iPhone Pickup</figcaption>
-          </figure>
-        </div>
-        <div class="item">
-          <figure class="video-gallery-item">
-            <video controls preload="metadata" autoplay muted playsinline style="width: 100%; height: auto;">
+          </div>
+          <div class="item item-pipette">
+            <video poster="" id="pipette" autoplay muted loop playsinline height="100%">
               <source src="static/videos/pipette.mp4" type="video/mp4">
             </video>
-            <figcaption class="has-text-centered">Pipette Handling</figcaption>
-          </figure>
-        </div>
-        <div class="item">
-          <figure class="video-gallery-item">
-            <video controls preload="metadata" autoplay muted playsinline style="width: 100%; height: auto;">
+          </div>
+          <div class="item item-screwdriver">
+            <video poster="" id="screwdriver" autoplay muted loop playsinline height="100%">
               <source src="static/videos/scredriver.mp4" type="video/mp4">
             </video>
-            <figcaption class="has-text-centered">Trigger Screwdriver</figcaption>
-          </figure>
-        </div>
-        <div class="item">
-          <figure class="video-gallery-item">
-            <video controls preload="metadata" autoplay muted playsinline style="width: 100%; height: auto;">
+          </div>
+          <div class="item item-soda">
+            <video poster="" id="soda" autoplay muted loop playsinline height="100%">
               <source src="static/videos/soda_can.mp4" type="video/mp4">
             </video>
-            <figcaption class="has-text-centered">Soda Can Opening</figcaption>
-          </figure>
+          </div>
         </div>
       </div>
     </div>
