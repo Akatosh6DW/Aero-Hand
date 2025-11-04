@@ -1,6 +1,6 @@
 # 🤖 Aero Hand Open ROS 2 Node
 
-The **Aero Hand Open Node** provides a ROS 2 interface for controlling TetherIA’s [Aero Hand](https://github.com/TetherIA/aero-open-sdk) via the **Aero Hand SDK**.  
+The **Aero Hand Open Node** provides a ROS 2 interface for controlling TetherIA’s [Aero Hand](https://github.com/TetherIA/aero-hand-open/tree/main/sdk) via the **Aero Hand SDK**.  
 It allows controlling one or both hands simultaneously, exposing ROS 2 topics for both **joint-space** and **actuator-space** control.
 
 ## 🧩 Overview
