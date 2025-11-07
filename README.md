@@ -16,7 +16,7 @@ Aero Hand Open is an **open-source**, **tendon-driven** robotic hand designed an
 
 Each joint is optimized for mechanical efficiency through tendon actuation, enabling smooth and natural motion while maintaining a **lightweight** and **compact** design, making it perfect for research labs, educational institutions, and robotics enthusiasts who need an **affordable** yet **capable** manipulation platform.
 
-> **📚 Learn More:** https://docs.tetheria.ai/  
+> **📚 Learn More:** https://tetheria.github.io/aero-hand-open/   
 > **🛒 Shop:** https://shop.tetheria.ai/
 
 
@@ -89,72 +89,19 @@ The step-by-step assembly instructions for Aero Hand Open are provided in the fo
 This guide covers the entire build process, from mounting the actuators to routing the tendons and connecting the electronics. Each finger module can be assembled independently and attached to the palm afterward, allowing easier maintenance and quick replacement.
 
 ## PCB Design
-The Aero Hand Open consists of two custom PCB boards: Board A and Board B. All design files - including Gerber files, KiCad project files, BOM, and CPL - are available in [PCB folder](./hardware/PCB/)
+All design files - including Gerber files, KiCad project files, BOM, and CPL - are available in [PCB folder](./hardware/PCB/).
 
-#### Board A
- - Features 8 Molex connectors for connecting all servos in the hand.
- - Includes a JST connector P3.96mm for outer wiring and fitting inside the hand enclosure.
- - Designed for compact integration and reliable servo connectivity.
-#### Board B
- - Includes a JST connector and one Molex connector for testing individual servos and debugging.
- - Features a terminal block to connect a regulated 6V, 10A power supply for the servos.
- - Hosts the ESP32-S3 microcontroller with a USB-C port for:
-      - Powering the ESP32-S3
-      - Communication between PC and ESP32-S3
-      - Interfacing with the hand
- - Board B is essential for diagnostics and safe power delivery.
+Referring to [PCB doc](https://docs.tetheria.ai/docs/pcb) for more technical details.
+
+
 
 ## Hardware Setup
-**Buy our custom PCBs** (described above) from our [website](https://shop.tetheria.ai/products/pcbs) for a **plug-and-play solution**. 
 
-✅ **Benefits:**
-- **Zero soldering required** - just plug and play
-- **Professional quality** - tested and verified PCBs
-- **Self-explanatory connections** - cable connections are straightforward
-- **Maximum reliability** - optimized for all motor currents
-- **Time-saving** - get your hand running in minutes, not hours
-
-🔗 **[Order PCBs Now →](https://shop.tetheria.ai/products/pcbs)**
-
-
-For more info please refer to here https://docs.tetheria.ai/docs/hardware_setup
+Please refer to [hardware_setup](https://docs.tetheria.ai/docs/hardware_setup) doc 
 
 
 ## Software SDK
-We provide basic introduction and usage here. A detailed introduction to SDK is included in the following folder.
-
- 👉 [`sdk/README.md`](sdk/README.md)
-
-### Installation: 
-📦 Install via pip
-```bash
-pip install aero-hand-sdk
-```
-     
-🧩 Install from source (editable mode)
-Clone the repository to your local machine:
-```bash
-git clone https://github.com/TetherIA/aero-open-sdk.git
-```
-     
-Navigate to the cloned repository directory:
-```bash
-cd aero-open-sdk
-```
-
-Install the package in editable mode:
-```bash
-pip install -e .
-```
-
-### One-Time Setup
-When setting up your hand for the first time, our setup GUI helps you configure motor IDs and test motor connections.
-After installation, launch the Setup GUI with:
-```bash
-aero-hand-gui
-```
-
-This provides an interactive interface to configure your hand.
+Please refer to [`sdk/README.md`](sdk/README.md) and [sdk](https://docs.tetheria.ai/docs/sdk) doc
 
 ### Sequencing Demo
 The Sequencing Demo demonstrates how different finger motions can be combined into continuous, pre-defined sequences.
@@ -173,14 +120,9 @@ python run_sequence.py
 [🎥 Watch the demo](assets/sequence_square.mp4)
 
 ## ROS2 and Teleoperation
-The Aero Hand Open integrates seamlessly with ROS2 humble for advanced robotics applications. The ROS2 package includes:
+The Aero Hand Open integrates seamlessly with ROS2 **humble** for advanced robotics applications.
 
-- **URDF models** for accurate robot simulation and visualization
-- **Launch files** for easy integration with existing ROS2 workflows  
-- **Teleoperation support** for real-time hand control
-- **RViz configuration** for 3D visualization and debugging
-
-Refer to the [`ros2/`](./ros2/) folder for complete setup instructions and examples.
+Refer to the [ROS2](https://docs.tetheria.ai/docs/ros2) doc and [`ros2/`](./ros2/) folder for complete setup instructions and source code.
 
 
 # License — TL;DR
@@ -217,6 +159,8 @@ Your contributions will help make Aero Hand Open more reliable and versatile for
 
 # Project Updates & Community
 ## Updates History
+- 11/7/2025
+  - Version 1.0.0 release
 - 10/24/2025
   - Release hardware and ROS2 packages
 - 10/13/2025
