@@ -76,7 +76,7 @@ This document includes all mechanical, electronic, and printed parts — such as
 Each item is listed with its part number, vendor, quantity, and estimated cost to help you easily source or substitute parts.
 
 ## CAD Files and 3D Models
-Step files and one click print files can be found here:
+STEP files and one click print files can be found here:
 
 [👉 Aero Hand Open – CAD](./hardware/CAD/).
 
