@@ -76,9 +76,13 @@ This document includes all mechanical, electronic, and printed parts — such as
 Each item is listed with its part number, vendor, quantity, and estimated cost to help you easily source or substitute parts.
 
 ## CAD Files and 3D Models
-CAD files for the Aero Hand Open mechanical components are currently being prepared for release. These files will include STEP and STL formats for 3D printing and CAD integration.
+Step files and one click print files can be found here:
 
-For early access to CAD files, please contact us at **support@tetheria.ai**.
+[👉 Aero Hand Open – CAD](./hardware/CAD/).
+
+[👉 Aero Hand Open – Onshape Link](https://cad.onshape.com/documents/afc7e0ca7eb6d412ec8771f8/w/bc4d7e45e17e23d622d2bad2/e/c711982b7882da925263fb55?renderMode=0&uiState=6914cef580110c73012e8166)
+
+All parts are printed on a Bambu X1C, 0.4mm nozzle, 0.2mm layer height, tree support, check on build plate only. We recommend keeping the same print oriention and settings. The print orientation has been optimized to minimize supports and optimize surface tolernaces/smoothness for interfacing components.
 
 
 ## Assembly Guide
