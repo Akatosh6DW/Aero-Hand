@@ -54,6 +54,7 @@ To make integration easy and unambiguous:
 | You modify our CAD for a class project and share the files | **✅ Yes** | Non‑commercial + attribution + **ShareAlike** |
 | You use our **SDK/firmware** in your commercial product | **✅ Yes** | Allowed under **Apache‑2.0** (with notices) |
 | A third party manufactures complete hands from our files and sells them | **🚫 No** | Needs **Commercial Manufacturing License** |
+| You base your design on our CAD, make small changes, create a new hand, and commercialize it | **🚫 No** | Commercial use of derivatives of CC BY‑NC‑SA files → **license required** |
 
 ---
 
