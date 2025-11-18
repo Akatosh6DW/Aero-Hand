@@ -138,13 +138,13 @@ We provide high-fidelity simulation models for the **Tetheria Aero Hand Open**.
 - **MuJoCo**
 
 Support for additional simulation platforms is under active development and will be released in future updates.  
-Refer to the [RL and Sim](https://docs.tetheria.ai/docs/hand_sim) documentation and the [`simulation/`](./simulation/) directory for detailed explanations and model files.
+Refer to the [RL and Sim](https://docs.tetheria.ai/docs/hand_sim) documentation and the [`simulation/`](./sim_rl/simulation/) directory for detailed explanations and model files.
 
 ## Reinforcement Learning Tools
 
 We offer reinforcement learning tools built on top of state-of-the-art frameworks such as **mujoco_playground**, enabling users to train custom policies for the Aero Hand Open with minimal effort.
 
-Refer to the [RL and Sim](https://docs.tetheria.ai/docs/hand_sim) documentation and the [`mujoco_playground/`](./mujoco_playground/) directory for full setup instructions and training procedures.  
+Refer to the [RL and Sim](https://docs.tetheria.ai/docs/hand_sim) documentation and the [`mujoco_playground/`](./sim_rl/mujoco_playground/) directory for full setup instructions and training procedures.  
 An example of deploying trained policies in ROS is also provided in the [`ros2/`](./ros2/) directory.
 
 # License — TL;DR
