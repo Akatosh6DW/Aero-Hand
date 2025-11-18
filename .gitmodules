@@ -1,6 +1,6 @@
 [submodule "mujoco_playground"]
-	path = mujoco_playground
+	path = sim_rl/mujoco_playground
 	url = git@github.com:TetherIA/mujoco_playground_pr.git
 [submodule "simulation"]
-	path = simulation
+	path = sim_rl/simulation
 	url = git@github.com:TetherIA/aero-hand-open-sim.git
