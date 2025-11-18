@@ -3,4 +3,4 @@
 	url = git@github.com:TetherIA/mujoco_playground_pr.git
 [submodule "simulation"]
 	path = sim_rl/simulation
-	url = git@github.com:TetherIA/aero-hand-open-sim.git
+	url = git@github.com:TetherIA/aero-open-sim.git
