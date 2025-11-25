@@ -39,8 +39,22 @@ Thanks for helping us push affordable, tendon-driven manipulation forward. This 
 - Include migration notes or upgrade steps when you impact existing users.
 
 ## Getting Help
-- GitHub Discussions: https://github.com/TetherIA/aero-hand-open/discussions
-- Discord: http://discord.gg/ZQKWK7NebQ
-- For sensitive issues (security, safety, licensing), reach out via support@tetheria.ai or the maintainer emails listed in the SDK metadata.
+
+**GitHub Issues** – Bugs + feature requests only.
+- [Open an issue](https://github.com/TetherIA/aero-hand-open/issues)
+
+**GitHub Discussions** –
+- Build / electronics / mechanical help
+- SDK / ROS2 / sim/RL "how do I…"
+- Design proposals and feedback
+- [Join discussions](https://github.com/TetherIA/aero-hand-open/discussions)
+
+**Discord** –
+- Quick questions, live debugging, voice/screen‑share
+- Social chat, lab intros, "I printed my first hand!"
+- Live events and office hours
+- [Join Discord](http://discord.gg/ZQKWK7NebQ)
+
+**Email** – For sensitive issues (security, safety, licensing), reach out via support@tetheria.ai or the maintainer emails listed in the SDK metadata.
 
 We are excited to collaborate. Thanks for making Aero Hand Open better!

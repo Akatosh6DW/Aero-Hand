@@ -42,6 +42,7 @@ Each joint is optimized for mechanical efficiency through tendon actuation, enab
   - [ROS2 and Teleoperation](#ros2-and-teleoperation)
   - [Simulation](#simulation)
   - [Reinforcement Learning](#reinforcement-learning-tools)
+- [Getting help](#Getting-help)
 - [License — TL;DR](#license--tldr)
 - [Disclaimer](#disclaimer)
 - [Project Updates & Community](#project-updates--community)
@@ -146,6 +147,21 @@ We offer reinforcement learning tools built on top of state-of-the-art framework
 
 Refer to the [RL and Sim](https://docs.tetheria.ai/docs/hand_sim) documentation and the [`sim_rl/mujoco_playground/`](./sim_rl/mujoco_playground/) directory for full setup instructions and training procedures.  
 An example of deploying trained policies in ROS is also provided in the [`ros2/`](./ros2/) directory.
+
+
+# Getting help
+
+**GitHub Issues** – Bugs + feature requests only.
+
+**GitHub Discussions** –
+- Build / electronics / mechanical help
+- SDK / ROS2 / sim/RL "how do I…"
+- Design proposals and feedback
+
+**Discord** –
+- Quick questions, live debugging, voice/screen‑share
+- Social chat, lab intros, "I printed my first hand!"
+- Live events and office hours
 
 # License — TL;DR
 
