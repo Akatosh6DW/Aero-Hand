@@ -36,6 +36,10 @@ static const uint8_t SET_TOR   = 0x32;
 static uint16_t g_speed[7]  = {32766,32766,32766,32766,32766,32766,32766};
 static uint8_t  g_accel[7]  = {0,0,0,0,0,0,0};     // 0..255
 static uint16_t g_torque[7] = {1023,1023,1023,1023,1023,1023,1023};
+static const uint16_t HOLD_MAG = 5;       // the minimal torque actually commanded to the motors during the torque mode. Any torque below that will not be used.
+
+// Last commanded torque per servo (signed)
+static int16_t g_lastTorqueCmd[7] = {0};
 
 // ----- Registers / constants (Mapped as per Feetech Servo HLS3606M) -----
 #define REG_ID                 0x05       // ID register
@@ -120,28 +124,68 @@ static void sendSetIdAck(uint8_t oldId, uint8_t newId, uint16_t curLimitWord) {
 static void loadManualExtendsFromNVS() {
   prefs.begin("hand", true);  // read-only
   for (uint8_t i = 0; i < 7; ++i) {
-    uint8_t ch = SERVO_IDS[i];
-    String key = "ext" + String(ch);
+    // Store extends per logical channel index, not servo bus ID.
+    String key = "ext" + String(i);
     int v = prefs.getInt(key.c_str(), -1);
     if (v >= 0 && v <= 4095) {
-      sd[ch].extend_count = v;
+      sd[i].extend_count = v;
     }
   }
 }
+
 static void saveExtendsToNVS() {
   prefs.begin("hand", false);  // RW
   for (uint8_t i = 0; i < 7; ++i) {
-    uint8_t ch = SERVO_IDS[i];
-    String kext = "ext" + String(ch);
-    prefs.putInt(kext.c_str(), (int)sd[ch].extend_count);
+    // Store extends per logical channel index, not servo bus ID.
+    String kext = "ext" + String(i);
+    prefs.putInt(kext.c_str(), (int)sd[i].extend_count);
   }
   prefs.end();
 }
 
+// -------- Soft-Limit Safety for Servo motors
+static void checkAndEnforceSoftLimits()
+{
+  static bool torqueLimited[7] = {false};
+  static uint32_t lastCheckMs = 0;
+  uint32_t now = millis();
+  if (now - lastCheckMs < 20) return;
+  lastCheckMs = now;
+
+  if (g_currentMode != MODE_TORQUE) {
+    // Only apply soft limits during torque control.
+    for (int i = 0; i < 7; ++i) torqueLimited[i] = false;
+    return;
+  }
+
+  if (gBusMux) xSemaphoreTake(gBusMux, portMAX_DELAY);
+  for (uint8_t i = 0; i < 7; ++i) {
+    uint8_t id = SERVO_IDS[i];
+    int pos = hlscl.ReadPos(id);
+    if (pos < 0) pos += 32768;
+    uint16_t raw = pos % 4096;
+    uint16_t ext = sd[i].extend_count;
+    uint16_t gra = sd[i].grasp_count;
+    uint16_t rawMin = min(ext, gra);
+    uint16_t rawMax = max(ext, gra);
+    bool inRange = (raw >= rawMin && raw <= rawMax);
+    if (!inRange && !torqueLimited[i]) {
+      int16_t limitedTorque = (g_lastTorqueCmd[i] >= 0) ? 200 : -200;
+      hlscl.WriteEle(id, limitedTorque);
+      torqueLimited[i] = true;
+    } else if (inRange && torqueLimited[i]) {
+      hlscl.WriteEle(id, g_lastTorqueCmd[i]);
+      torqueLimited[i] = false;
+    }
+  }
+  if (gBusMux) xSemaphoreGive(gBusMux);
+}
+
+
 // ---- Helper function  for raw to U16 and U16 to raw ----
-static inline uint16_t mapRawToU16(uint8_t servoId, uint16_t raw) {
-  int32_t ext  = sd[servoId].extend_count;
-  int32_t gra  = sd[servoId].grasp_count;
+static inline uint16_t mapRawToU16(uint8_t ch, uint16_t raw) {
+  int32_t ext  = sd[ch].extend_count;
+  int32_t gra  = sd[ch].grasp_count;
   int32_t span = gra - ext;
   if (span == 0) return 0;  // avoid divide-by-zero
   int32_t val = ((int32_t)(raw - ext) * 65535L) / span;
@@ -150,9 +194,9 @@ static inline uint16_t mapRawToU16(uint8_t servoId, uint16_t raw) {
   if (val > 65535) val = 65535;
   return (uint16_t)val;
 }
-static inline uint16_t mapU16ToRaw(uint8_t servoId, uint16_t u16) {
-  int32_t ext = sd[servoId].extend_count;
-  int32_t gra = sd[servoId].grasp_count;
+static inline uint16_t mapU16ToRaw(uint8_t ch, uint16_t u16) {
+  int32_t ext = sd[ch].extend_count;
+  int32_t gra = sd[ch].grasp_count;
   int32_t raw32;
   if (ext == 0 && gra == 0) {
     raw32 = ((uint64_t)u16 * 4095u) / 65535u;
@@ -248,7 +292,7 @@ static void TaskSyncRead_Core1(void *arg) {
     for (uint8_t i = 0; i < 7; ++i) {
       if (!hlscl.syncReadPacketRx(SERVO_IDS[i], rx)) { ok = false; break; }
       uint16_t raw = leu_u16(&rx[0]);
-      pos[i] = mapRawToU16(SERVO_IDS[i],raw);                     // Position (unsigned)
+      pos[i] = mapRawToU16(i,raw);                     // Position (unsigned)
       vel[i] = decode_signmag15(rx[2], rx[3]);                  // velocity (signed)
       tmp[i] = rx[7];                                           // temperature (unsigned, 1 byte)
       cur[i] = decode_signmag15(rx[13], rx[14]);                // current (signed)
@@ -411,7 +455,7 @@ static bool handleHostFrame(uint8_t op) {
       int16_t pos[7];
       for (int i = 0; i < 7; ++i) {
         uint16_t u16 = (uint16_t)payload[2*i] | ((uint16_t)payload[2*i+1] << 8);
-        uint8_t  ch  = SERVO_IDS[i];
+        uint8_t  ch  = i;
         pos[i] = mapU16ToRaw(ch, u16);
       }
       if (gBusMux) xSemaphoreTake(gBusMux, portMAX_DELAY);
@@ -427,30 +471,39 @@ static bool handleHostFrame(uint8_t op) {
       return true;
     }
 
-    case CTRL_TOR: {
-      int16_t torque_cmd[7];
+    case CTRL_TOR: 
+    {   
+      int16_t torque_cmd[7]; 
+      for (int i = 0; i < 7; ++i) 
+      {
+        uint16_t mag = (uint16_t)payload[2*i] | ((uint16_t)payload[2*i + 1] << 8); 
+        if (mag > 1000) mag = 1000; 
+        if (mag < HOLD_MAG) mag = HOLD_MAG;
+        int grasp_sign = (sd[i].extend_count > sd[i].grasp_count) ? +1 : -1;
+        torque_cmd[i] = (int16_t)(grasp_sign * (int)mag);
+      } 
       for (int i = 0; i < 7; ++i) {
-        uint16_t mag = (uint16_t)payload[2*i] | ((uint16_t)payload[2*i + 1] << 8);
-        if (mag > 1000) mag = 1000;
-        uint8_t ch = SERVO_IDS[i];
-        int sgn = (sd[ch].extend_count > sd[ch].grasp_count) ? +1 : -1;
-        if (sd[ch].extend_count == sd[ch].grasp_count) sgn = +1;
-        torque_cmd[i] = (int16_t)(sgn * (int)mag);
+        g_lastTorqueCmd[i] = torque_cmd[i];
       }
+
       if (gBusMux) xSemaphoreTake(gBusMux, portMAX_DELAY);
-      if (g_currentMode != MODE_TORQUE) {
-        for (int i = 0; i < 7; ++i) {
-          uint8_t id = SERVO_IDS[i];
-          hlscl.EleMode(id);
-        }
+
+      if (g_currentMode != MODE_TORQUE) 
+      { 
+        for (int i = 0; i < 7; ++i) 
+        { 
+          uint8_t id = SERVO_IDS[i]; 
+          hlscl.EleMode(id); 
+        } 
         g_currentMode = MODE_TORQUE;
-      }
-      for (int i = 0; i < 7; ++i) {
-        uint8_t id = SERVO_IDS[i];
-        hlscl.WriteEle(id, torque_cmd[i]);
-      }
-      if (gBusMux) xSemaphoreGive(gBusMux);
-      return true;
+      } 
+      for (int i = 0; i < 7; ++i) 
+      { 
+        uint8_t id = SERVO_IDS[i]; 
+        hlscl.WriteEle(id, torque_cmd[i]); 
+      } 
+      if (gBusMux) xSemaphoreGive(gBusMux); 
+      return true; 
     }
 
     case SET_TOR: {
@@ -552,6 +605,9 @@ void loop() {
     vTaskDelay(pdMS_TO_TICKS(5));
     return;
   }
+
+  // ------ Soft Limit Check -------
+  checkAndEnforceSoftLimits();
 
   // Process exactly one complete 16-byte frame when available
   if (Serial.available() >= 16) {
