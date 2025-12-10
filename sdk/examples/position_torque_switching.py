@@ -17,9 +17,7 @@ import time
 from aero_open_sdk.aero_hand import AeroHand
 
 if __name__ == "__main__":
-    hand = AeroHand(
-        "/dev/serial/by-id/usb-Espressif_USB_JTAG_serial_debug_unit_D8:3B:DA:45:C8:1C-if00"
-    ) 
+    hand = AeroHand() 
 
     # Note: This example combines both position and torque control modes. The hand will switch between position control and torque control every 10 seconds.
     # In position control mode, the fingers will move back and forth keeping the thumb at open position, while in torque control mode, the hand will simulate a handshake by varying torque values.

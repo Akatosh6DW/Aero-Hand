@@ -16,9 +16,7 @@
 from aero_open_sdk.aero_hand import AeroHand
 
 if __name__ == "__main__":
-    hand = AeroHand(
-        "/dev/serial/by-id/usb-Espressif_USB_JTAG_serial_debug_unit_D8:3B:DA:45:C8:1C-if00"
-    )
+    hand = AeroHand()
 
     ## Create a trajectory for the hand to follow
     trajectory = [

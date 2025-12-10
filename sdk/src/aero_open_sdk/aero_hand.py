@@ -13,6 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import os
 import time 
 import struct
 from serial import Serial, SerialTimeoutException
@@ -50,6 +51,9 @@ _DEG_TO_RAD = 3.141592653589793 / 180.0
 class AeroHand:
     def __init__(self, port=None, baudrate=921600):
         ## Connect to serial port
+        if port is None:
+            print("No port specified. Attempting to auto-detect Aero Hand serial port...")
+            port = self._detect_port()
         self.ser = Serial(port, baudrate, timeout=0.01, write_timeout=0.01)
 
         ## Clean Buffers before starting
@@ -68,6 +72,28 @@ class AeroHand:
 
         self.joints_to_actuations_model = JointsToActuationsModel()
         self.actuations_to_joints_model = ActuationsToJointsModelCompact()
+
+    def _detect_port(self):
+
+        base_path = '/dev/serial/by-id/'
+        esp_32_prefix = 'usb-Espressif_USB_JTAG_serial_debug_unit_'
+        
+        if not os.path.exists(base_path):
+            raise RuntimeError(
+                "Could not find /dev/serial/by-id/.\n"
+                "  → No serial-by-id symlinks found.\n"
+                "  → Is this running on Linux? Is the Aero Hand connected?"
+                "If running on Windows, please refer to the documentation to specify the port manually."
+            )
+        
+        detected_ports = [d for d in os.listdir(base_path) if esp_32_prefix in d]
+
+        if len(detected_ports) == 0:
+            raise RuntimeError("No Aero Hand serial port detected. Check connection and try again.")
+        elif len(detected_ports) > 1:
+            raise RuntimeError("Multiple Aero Hand serial ports detected. Please specify the port manually.")
+        else:
+            return os.path.join(base_path, detected_ports[0])
 
     def create_trajectory(self, trajectory: list[tuple[list[float], float]]) -> Iterator[list[float]]:
         rate = 100  # Hz

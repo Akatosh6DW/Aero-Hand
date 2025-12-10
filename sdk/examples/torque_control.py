@@ -17,9 +17,7 @@ import time
 from aero_open_sdk.aero_hand import AeroHand
 
 if __name__ == "__main__":
-    hand = AeroHand(
-        "/dev/serial/by-id/usb-Espressif_USB_JTAG_serial_debug_unit_D8:3B:DA:45:C8:1C-if00"
-    )
+    hand = AeroHand()
 
     # Note : This example demonstrates torque control for a robotic hand where you can try to grasp objects by applying varying torque values to the actuators 
     # or you can simply feel the effect of torque control on the hand's movement by doing a handshake with the robotic hand.
