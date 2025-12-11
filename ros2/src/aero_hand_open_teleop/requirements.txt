@@ -1,0 +1,9 @@
+numpy==1.26.4
+mediapipe>=0.10,<0.11
+opencv-python<4.10
+pyserial
+dex_retargeting
+
+# --- PyTorch (CUDA 12.1 build) ---
+torch==2.4.1
+torchvision==0.19.1

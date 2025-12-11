@@ -8,7 +8,7 @@ This guide describes how to **deploy a trained Z-rotation policy** using reinfor
 
 The following repositories are required:
 
-1. **[Aero-Hand-Open SDK](https://github.com/TetherIA/aero-open-sdk)**
+1. **[Aero-Hand-Open SDK](https://github.com/TetherIA/aero-hand-open/tree/main/sdk)**
 2. **[Aero-Open-Firmware](https://github.com/TetherIA/aero-open-firmware)**
 3. **[MuJoCo Playground (fork)](https://github.com/TetherIA/mujoco_playground_pr)**
 

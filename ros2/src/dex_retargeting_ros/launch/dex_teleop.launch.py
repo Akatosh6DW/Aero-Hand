@@ -28,18 +28,18 @@ def generate_launch_description():
     feedback_frequency = 100.0  # Hz
 
     ## Nodes
-    manus_data_publisher = Node(
-        package="manus_ros2",
-        executable="manus_data_publisher",
-        name="manus_data_publisher",
+    mediapipe_mocap = Node(
+        package="aero_hand_open_teleop",
+        executable="mediapipe_mocap",
+        name="mediapipe_mocap",
         output="screen",
         emulate_tty=True,
     )
 
-    manus_joint_states_retargeting_node = Node(
-        package="aero_hand_open_teleop",
-        executable="manus_joint_states_retargeting",
-        name="manus_joint_states_retargeting",
+    dex_retargeting_node = Node(
+        package="dex_retargeting_ros",
+        executable="dex_retargeting_node",
+        name="dex_retargeting_node",
         output="screen",
         emulate_tty=True,
     )
@@ -62,8 +62,8 @@ def generate_launch_description():
 
     return LaunchDescription(
         [
-            manus_data_publisher,
-            manus_joint_states_retargeting_node,
+            mediapipe_mocap,
+            dex_retargeting_node,
             aero_hand_node,
         ]
     )

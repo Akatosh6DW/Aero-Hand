@@ -1,5 +1,5 @@
 <p align="center">
-  <img alt="Aero Hand Open by TetherIA" src="https://github.com/TetherIA/aero-hand-open/tree/main/sdk/assets/logo.png" width="30%">
+  <img alt="Aero Hand Open by TetherIA" src="https://raw.githubusercontent.com/TetherIA/aero-hand-open/main/sdk/assets/logo.png" width="30%">
   <br/><br/>
 </p>
  
@@ -15,7 +15,7 @@
 </h2>
 
 <div align="center">
-  <img src="https://github.com/TetherIA/aero-hand-open/tree/main/sdk/assets/banner.jpg" alt="Aero Hand Demo" title="Aero Hand in action" width="70%"/>
+  <img src="https://raw.githubusercontent.com/TetherIA/aero-hand-open/main/sdk/assets/banner.jpg" alt="Aero Hand Demo" title="Aero Hand in action" width="70%"/>
   <p><strong>Aero Hand Open</strong> is a 7-DoF tendon-driven robotic hand for dexterous manipulation and research.</p>
 </div>
 
