@@ -30,7 +30,7 @@ ros2 launch aero_hand_open_description display.launch.py
 2. Move sliders in the **joint_state_publisher_gui** window to manipulate finger joints.
 3. Observe the live visualization in RViz.
 
-You can also remap the topic `/joint_states` or connect it to a live controller node (e.g., from `aero_hand_open` or `aero_hand_open_teleop`).
+You can also remap the topic `/joint_states` or connect it to a live controller node (e.g., from `aero_hand_open` or `aero_hand_open_retargeting`).
 
 ---
 
