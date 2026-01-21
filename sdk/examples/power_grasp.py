@@ -61,6 +61,17 @@ def main():
     grip_pose = [100.0, 55.0, 30.0, 60.0, 60.0, 60.0, 60.0]
 
     controller = KeyboardController()
+    speed = 80  # from 0 to 32766
+    torque = 400  # from 0 to 1000
+    for i in range(7):
+        # Manual setting of speed and torque is optional. 
+        # When not set, the speed and torque are what was set last time.
+        # When you reboot the hand (power off and on), the speed and torque are reset back to the default values.
+        # The default speed is 32766 and the default torque is 1000.
+        hand.set_speed(i, speed)
+        time.sleep(0.01)
+        hand.set_torque(i, torque)
+        time.sleep(0.01)
 
     try:
         while True:
@@ -71,6 +82,10 @@ def main():
             time.sleep(0.01)
     except KeyboardInterrupt:
         controller.listener.stop()
+        # Set the joint positions to 0 when the program is interrupted.
+        hand.set_joint_positions([0.0] * 16)
+        hand.close()
+        print("Joint positions set to 0")
 
 
 if __name__ == "__main__":

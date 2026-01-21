@@ -13,29 +13,23 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import time
 from aero_open_sdk.aero_hand import AeroHand
 
 if __name__ == "__main__":
     hand = AeroHand()
 
-    # Note : This example demonstrates torque control for a robotic hand where you can try to grasp objects by applying varying torque values to the actuators 
-    # or you can simply feel the effect of torque control on the hand's movement by doing a handshake with the robotic hand.
-    # Adjust the time.sleep() values to change the speed of torque variation and hold and release durations.
-    # Sweep torque value for all 7 actuators from 0 to 1000 and back, then pause at each end
-    torque = 0
-    dir = 1
-    while True:
-        torque_list = [torque] * 7
-        hand.ctrl_torque(torque_list)
-        if dir == 1:
-            torque += 1
-            if torque >= 1000:
-                dir = -1
-                time.sleep(3)  # Pause at max torque - Handshake Position
-        else:
-            torque -= 1
-            if torque <= 0:
-                dir = 1
-                time.sleep(3)  # Release Torque for 3 seconds - Handshake Release
-        time.sleep(0.002)  # 0.002*1000 = 2 seconds for full sweep
+    # Try to move the fingers after executing this program. 
+    # The fingers will move if you apply torque to them.
+    # without applying torque, the fingers move back to the half closed position.
+    torque = 100  # from 0 to 1000
+    torque_list = [torque] * 7
+    print("Torque set to 100")
+    try:
+        while True:
+            hand.ctrl_torque(torque_list)
+    except KeyboardInterrupt:
+        pass
+    # Set the joint positions to 0 when the program is interrupted.
+    hand.set_joint_positions([0.0] * 16)
+    hand.close()
+    print("Joint positions set back to 0")
