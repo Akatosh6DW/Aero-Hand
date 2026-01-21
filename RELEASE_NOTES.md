@@ -1,46 +1,67 @@
-# 20260120
-ros2 release:
- - apple vision pro based teleop
- - code refactoring, better launch files and fold structure
- - auto port support
- - fix left hand urdf bug
+# Release Notes
 
-sdk release:
- - improved examples for power_grasp and torque_control
+## 2026-01-20
 
-firmware v0.1.2:
- - add overheating protection ([learn more](https://docs.tetheria.ai/docs/hardware_faq#motor-torque-and-temperature-protection-beahvior))
+### ROS2 Release
+- Apple Vision Pro based teleoperation support
+- Code refactoring with improved launch files and folder structure
+- Automatic port detection and support
+- Fixed left hand URDF bug
 
+### SDK Release
+- Improved examples for `power_grasp` and `torque_control`
 
-hardware releases:
- - CAD files for adapters, like piper arm and tripod mount
+### Firmware v0.1.2
+- Added overheating protection ([learn more](https://docs.tetheria.ai/docs/hardware_faq#motor-torque-and-temperature-protection-behavior))
 
+### Hardware Releases
+- CAD files for mount adapters, including Piper arm and tripod mount adapters
 
-# 20251210
-ros2 release:
- - webcam based teleop
- - auto port recognition
+---
 
-sdk release:
- - auto port recognition
+## 2025-12-10
 
-firmware v0.1.1
- - fix the derail problem during torque mode
- - some other bug fixes
+### ROS2 Release
+- Webcam-based teleoperation support
+- Automatic port recognition
 
+### SDK Release
+- Automatic port recognition
 
-# 20251125
-Release the simulation and RL (under `sim_rl` folder), officially merged into [deepmind mujoco-playground repo](https://github.com/google-deepmind/mujoco_playground/tree/main/mujoco_playground/_src/manipulation/aero_hand)
+### Firmware v0.1.1
+- Fixed derailment issue during torque mode
+- Various bug fixes and stability improvements
 
+---
 
-# 20251112
-hardware releases, including the hand design CAD releases
+## 2025-11-25
 
+### Simulation & Reinforcement Learning
+- Released simulation and RL tools (under `sim_rl` folder)
+- Officially merged into [DeepMind MuJoCo Playground repository](https://github.com/google-deepmind/mujoco_playground/tree/main/mujoco_playground/_src/manipulation/aero_hand)
 
-# 20251027
-Initial ros2 releases, supporting manus glove teleop and hand urdf, etc.
-sdk, firmware updates, the offical v0.1.0 release
+---
 
+## 2025-11-12
 
-# 20251013
-The initial release, sdk, firmware, and documentations
+### Hardware Releases
+- Hand design CAD files released
+
+---
+
+## 2025-10-27
+
+### ROS2 Release
+- Initial ROS2 support with Manus glove teleoperation
+- Hand URDF models for visualization and simulation
+- AI policy deployment nodes
+
+### SDK & Firmware Updates
+- Official SDK and firmware v0.1.0 release
+
+---
+
+## 2025-10-13
+
+### Initial Release
+- Initial release of SDK, firmware, and documentation
