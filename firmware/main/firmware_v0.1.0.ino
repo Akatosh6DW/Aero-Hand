@@ -35,11 +35,15 @@ static const uint8_t SET_TOR   = 0x32;
 // ---- Defaults for SyncWritePosEx ----
 static uint16_t g_speed[7]  = {32766,32766,32766,32766,32766,32766,32766};
 static uint8_t  g_accel[7]  = {0,0,0,0,0,0,0};     // 0..255
-static uint16_t g_torque[7] = {1023,1023,1023,1023,1023,1023,1023};
+static uint16_t g_torque[7] = {700,700,700,700,700,700,700}; // 0....1000
 static const uint16_t HOLD_MAG = 5;       // the minimal torque actually commanded to the motors during the torque mode. Any torque below that will not be used.
 
 // Last commanded torque per servo (signed)
 static int16_t g_lastTorqueCmd[7] = {0};
+
+// ---- Thermal torque limiting (GLOBAL PARAMETERS) ----
+static uint8_t  TEMP_CUTOFF_C    = 50;    // °C cutoff
+static uint16_t HOT_TORQUE_LIMIT = 200;   // clamp torque when motor exceeds TEMP_CUTOFF_C 
 
 // ----- Registers / constants (Mapped as per Feetech Servo HLS3606M) -----
 #define REG_ID                 0x05       // ID register
@@ -73,6 +77,21 @@ SemaphoreHandle_t gBusMux = nullptr;
 // ----- Homing module API Calls (provided below as .h/.cpp) --------
 bool HOMING_isBusy();
 void HOMING_start();
+
+// ---- Helper function to read latest temp from servo
+static inline uint8_t getTempC(uint8_t ch) {
+  uint8_t t = 0;
+  if (gMetricsMux) xSemaphoreTake(gMetricsMux, portMAX_DELAY);
+  t = (uint8_t)gMetrics.tmp[ch];
+  if (gMetricsMux) xSemaphoreGive(gMetricsMux);
+  return t;
+}
+
+static inline bool isHot(uint8_t ch) {
+  return getTempC(ch) >= TEMP_CUTOFF_C;
+}
+
+static inline uint16_t u16_min(uint16_t a, uint16_t b) { return (a < b) ? a : b; }
 
 // ---- Set-ID helpers for setting ID ---
 extern void runReIdScanAndSet(uint8_t Id, uint16_t currentLimit);
@@ -458,6 +477,17 @@ static bool handleHostFrame(uint8_t op) {
         uint8_t  ch  = i;
         pos[i] = mapU16ToRaw(ch, u16);
       }
+
+      // Torque Servo limit - If motor crosses the TEMP_CUTOFF_C, then keep HOT_TORQUE_LIMIT as the torque
+      uint16_t torque_eff[7];
+      for (int i = 0; i < 7; ++i) {
+        uint16_t base = g_torque[i]; // 0..1023
+        if (isHot((uint8_t)i)) {
+          base = u16_min(base, HOT_TORQUE_LIMIT);
+        }
+        torque_eff[i] = base;
+      }
+
       if (gBusMux) xSemaphoreTake(gBusMux, portMAX_DELAY);
       if (g_currentMode != MODE_POS) {
         for (int i = 0; i < 7; ++i) {
@@ -466,7 +496,7 @@ static bool handleHostFrame(uint8_t op) {
         }
         g_currentMode = MODE_POS;
       }
-      hlscl.SyncWritePosEx((uint8_t*)SERVO_IDS, 7, pos, g_speed, g_accel, g_torque);
+      hlscl.SyncWritePosEx((uint8_t*)SERVO_IDS, 7, pos, g_speed, g_accel, torque_eff);
       if (gBusMux) xSemaphoreGive(gBusMux);
       return true;
     }
@@ -479,6 +509,9 @@ static bool handleHostFrame(uint8_t op) {
         uint16_t mag = (uint16_t)payload[2*i] | ((uint16_t)payload[2*i + 1] << 8); 
         if (mag > 1000) mag = 1000; 
         if (mag < HOLD_MAG) mag = HOLD_MAG;
+        if (isHot((uint8_t)i)) {
+          mag = u16_min(mag, HOT_TORQUE_LIMIT);
+        }
         int grasp_sign = (sd[i].extend_count > sd[i].grasp_count) ? +1 : -1;
         torque_cmd[i] = (int16_t)(grasp_sign * (int)mag);
       } 
