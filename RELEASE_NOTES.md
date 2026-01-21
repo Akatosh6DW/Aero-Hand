@@ -2,6 +2,11 @@
 ros2 release:
  - apple vision pro based teleop
  - code refactoring, better launch files and fold structure
+ - auto port support
+ - fix left hand urdf bug
+
+sdk release:
+ - improved examples for power_grasp and torque_control
 
 firmware v0.1.2:
  - add overheating protection ([learn more](https://docs.tetheria.ai/docs/hardware_faq#motor-torque-and-temperature-protection-beahvior))
@@ -34,7 +39,7 @@ hardware releases, including the hand design CAD releases
 
 # 20251027
 Initial ros2 releases, supporting manus glove teleop and hand urdf, etc.
-sdk, firmware updates, the offical v0.1.0.0 release
+sdk, firmware updates, the offical v0.1.0 release
 
 
 # 20251013

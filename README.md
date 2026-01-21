@@ -197,12 +197,7 @@ Your contributions will help make Aero Hand Open more reliable and versatile for
 
 # Project Updates & Community
 ## Updates History
-- 11/7/2025
-  - Version 1.0.0 release
-- 10/24/2025
-  - Release hardware and ROS2 packages
-- 10/13/2025
-  - Product launched on all platforms
+See [RELEASE_NOTES.md](RELEASE_NOTES.md) for details.
 
 ## FAQ
 Q1: Can I modify and redistribute the Aero Hand Open design?
@@ -212,6 +207,8 @@ A: Yes, as long as it complies with the CC BY-NC-SA 4.0 license (non-commercial,
 Q2: What 3D printer and material do you recommend?
 
 A: Any FDM printer with a ≥200×200 mm bed. PLA works best for strength and dimensional accuracy.
+
+More questions please refer to our [online documentation](https://docs.tetheria.ai/docs/hardware_faq) 
 
 ## Contact
 For questions, feedback, or collaboration inquiries, please reach out to us through the following channels:
