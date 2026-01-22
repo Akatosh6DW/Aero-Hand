@@ -607,6 +607,10 @@ void setup() {
   #else
     Serial.println("[BOOT] Hand Type: UNKNOWN");
   #endif
+  Serial.println("[BOOT] Auto Homing…");
+  HOMING_start();
+  saveExtendsToNVS();
+  Serial.println("[BOOT] Homing Complete");
   // ---- Presence Check on Every Boot -----
   Serial.println("\n[Init] Pinging servos...");
   for (uint8_t i = 0; i < 7; ++i) {
