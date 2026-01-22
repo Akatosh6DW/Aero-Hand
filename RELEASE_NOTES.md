@@ -14,6 +14,10 @@
 ### Firmware v0.1.2
 - Added overheating protection ([learn more](https://docs.tetheria.ai/docs/hardware_faq#motor-torque-and-temperature-protection-behavior))
 
+### Firmware v0.1.3
+- Reduced homing time to 4 seconds
+- Automatic homing on USB connection
+
 ### Hardware Releases
 - CAD files for mount adapters, including Piper arm and tripod mount adapters
 
