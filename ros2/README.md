@@ -11,7 +11,7 @@
 </div>
 
 <h2 align="center">
-  <p>Aero Hand ROS2 — ROS2 package for for TetherIA's Robotic Hand</p>
+  <p>Aero Hand Open ROS2 — ROS2 package for for TetherIA's Robotic Hand</p>
 </h2>
 
 <div align="center">
@@ -25,49 +25,24 @@
 
 We currently have tested the ROS2 package on **Ubuntu 22.04** with **ROS2 Humble Hawksbill**.
 
-### Prerequisites
-
-Before installing this package, ensure you have:
-- ROS2 Humble installed. Follow the official guide [here](https://docs.ros.org/en/humble/Installation/Ubuntu-Install-Debians.html).
-- `colcon` build tool installed. You can install it via:
-  ```bash
-  sudo apt install python3-colcon-common-extensions
-  ```
-- The [Aero Hand SDK](https://github.com/TetherIA/aero-hand-open/tree/main/sdk) installed, follow the installation instructions in its README.
-
-### Installation Steps
-
-To install the `aero-open-ros2` package, follow these steps:
-
-1. Clone the repository to your local machine:
-   ```bash
-   git clone https://github.com/TetherIA/aero-open-ros2.git
-   ```
-
-2. Navigate to the cloned repository directory:
-   ```bash
-   cd aero-open-ros2
-   ```
-
-3. Build the packages with colcon:
-   ```bash
-   colcon build
-   ```
-
-4. Source the workspace:
-   ```bash
-   source install/setup.bash
-   ```
+Follow the instructions in [INSTALL.md](INSTALL.md).
 
 ---
 
-## 🚀 Next Steps
+## 🚀 Next steps
 
-Take a look at the [Aero Hand Open README](src/aero_hand_open/README.md) next to get started with using the Aero Hand Open ROS2 package.
+- Start here: [Launch files overview](src/launch_files/readme.md)
+- URDF/RViz visualization: `ros2 launch src/launch_files/display_launch/display.launch.py`
+- Teleop launches:
+  - Webcam: `src/launch_files/webcam_teleop_launch/readme.md`
+  - Apple Vision Pro: `src/launch_files/vision_pro_teleop_launch/readme.md`
+  - Manus glove: `src/launch_files/manus_teleop_launch/readme.md`
 
 ## 🧰 Troubleshooting
+If something isn’t working, check:
 
-Coming soon — common setup and runtime issues will be documented here.
+- `INSTALL.md` for dependency setup
+- `src/launch_files/*/readme.md` for per-launch requirements and arguments
 
 ## 💬 Support
 

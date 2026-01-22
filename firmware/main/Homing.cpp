@@ -56,68 +56,123 @@ static void zero_with_current(uint8_t index, int direction, int current_limit) {
   hlscl.FeedBack(servoID);
   uint32_t t0 = millis();
   while (abs(current) < current_limit) {
-    hlscl.WritePosEx(servoID, 50000 * direction, 10, 10, current_limit);
+    hlscl.WritePosEx(servoID, 50000 * direction, 2400, 0, current_limit);
     current  = hlscl.ReadCurrent(servoID);
     position = hlscl.ReadPos(servoID);
-    if (millis() - t0 > 25000) break; 
+    if (millis() - t0 > 10000) break; 
     vTaskDelay(pdMS_TO_TICKS(1));
   }
   // Primary calibration at contact
-  hlscl.WritePosEx(servoID, position, 60, 50, 1000);
+  hlscl.WritePosEx(servoID, position, 2400, 0, 1000);
   delay(30);
   hlscl.CalibrationOfs(servoID);
-  delay(50);
+  delay(30);
   position = hlscl.ReadPos(servoID);
 
   if (servoID == 0) {
     // Thumb abduction: hold grasp posture for a moment
-    hlscl.WritePosEx(servoID, sd[index].grasp_count, 60, 50, 500);
-    delay(2000);
+    hlscl.WritePosEx(servoID, sd[index].grasp_count, 2400, 0, 1000);
+    delay(250);
   } else if (servoID == 1) {
     // Thumb flexion: go to extend
-    hlscl.WritePosEx(servoID, sd[index].extend_count, 60, 50, 500);
-    delay(1000);
+    hlscl.WritePosEx(servoID, sd[index].extend_count, 2400, 0, 1000);
+    delay(250);
   } else if (servoID == 2) {
     // Thumb tendon: nudge and recalibrate, then extend
-    hlscl.WritePosEx(servoID, position + (direction * 2048), 60, 50, 500);
-    delay(1500);
+    hlscl.WritePosEx(servoID, position + (direction * 2048), 2400, 0, 1000);
+    delay(250);
     hlscl.CalibrationOfs(servoID);
-    delay(500);
-    hlscl.WritePosEx(servoID, sd[index].extend_count - (direction * 625), 60, 50, 500);
-    delay(1000);
+    delay(30);
+    hlscl.WritePosEx(servoID, sd[index].extend_count - (direction * 625), 2400, 0, 1000);
+    delay(30);
   } else {
-    // Fingers: nudge and recalibrate, then extend
-    hlscl.WritePosEx(servoID, position + (direction * 2048), 60, 50, 500);
-    delay(1500);
-    hlscl.CalibrationOfs(servoID);
-    delay(500);
-    hlscl.WritePosEx(servoID, sd[index].extend_count, 60, 50, 500);
-    delay(1000);
+    // No -Operation 
+    //Wrong Servo IDs
   }
-  // After homing, store persistent min/max from sd.
-  // Numerically order them so servo accepts the window.
-  uint16_t ext = sd[index].extend_count;
-  uint16_t gr  = sd[index].grasp_count;
-  uint16_t rawMin = (ext < gr) ? ext : gr;
-  uint16_t rawMax = (ext < gr) ? gr  : ext;
+}
 
-  //Apply the additional 10 degrees buffer
-  uint16_t minLim = (rawMin > BUF_CNT) ? (rawMin - BUF_CNT) : 0;
-  uint16_t maxLim = (rawMax + BUF_CNT <= 4095) ? (rawMax + BUF_CNT) : 4095;
-
-  set_servo_limits(servoID, minLim, maxLim);
+// Home the four finger servos (logical channels 3..6) together.
+static void zero_fingers_parallel_with_current(uint8_t firstIdx, uint8_t count, int current_limit) {
+  if (count == 0) return;
+  if (firstIdx > 6) return;
+  if (firstIdx + count > 7) count = 7 - firstIdx;
+  const uint32_t TIMEOUT_MS = 10000;
+  // Use static storage to avoid per-call stack usage for all 7 servos.
+  static bool done[7];
+  static int  contactPos[7];
+  static int  cur[7];
+  static int  pos[7];
+  // Reset arrays to per-call defaults (was previously done by initializers).
+  for (uint8_t i = 0; i < 7; ++i) {
+    done[i] = false;
+    contactPos[i] = 0;
+    cur[i] = 0;
+    pos[i] = 0;
+  }
+  for (uint8_t i = 0; i < count; ++i) {
+    uint8_t idx = firstIdx + i;
+    uint8_t servoID = SERVO_IDS[idx];
+    set_servo_limits(servoID, 0, 0);
+    hlscl.ServoMode(servoID);
+    hlscl.FeedBack(servoID);
+  }
+  uint32_t t0 = millis();
+  while (true) {
+    bool allDone = true;
+    for (uint8_t i = 0; i < count; ++i) {
+      uint8_t idx = firstIdx + i;
+      if (!done[idx]) { allDone = false; break; }
+    }
+    if (allDone) break;
+    if (millis() - t0 > TIMEOUT_MS) break;
+    for (uint8_t i = 0; i < count; ++i) {
+      uint8_t idx = firstIdx + i;
+      if (done[idx]) continue;
+      uint8_t servoID = SERVO_IDS[idx];
+      int dir = sd[idx].servo_direction;
+      hlscl.WritePosEx(servoID, 50000 * dir, 2400, 0, current_limit);
+    }
+    for (uint8_t i = 0; i < count; ++i) {
+      uint8_t idx = firstIdx + i;
+      if (done[idx]) continue;
+      uint8_t servoID = SERVO_IDS[idx];
+      cur[idx] = hlscl.ReadCurrent(servoID);
+      pos[idx] = hlscl.ReadPos(servoID);
+      if (abs(cur[idx]) >= current_limit) {
+        done[idx] = true;
+        contactPos[idx] = pos[idx];
+        hlscl.WritePosEx(servoID, contactPos[idx], 60, 50, 1000);
+      }
+    }
+    vTaskDelay(pdMS_TO_TICKS(1));
+  }
+  for (uint8_t i = 0; i < count; ++i) {
+    uint8_t idx = firstIdx + i;
+    uint8_t servoID = SERVO_IDS[idx];
+    int dir = sd[idx].servo_direction;
+    // If we timed out before reaching threshold, fall back to last read pos.
+    int p = done[idx] ? contactPos[idx] : pos[idx];
+    // Primary calibration at contact
+    hlscl.WritePosEx(servoID, p, 2400, 0, 1000);
+    delay(30);
+    hlscl.CalibrationOfs(servoID);
+    delay(30);
+    p = hlscl.ReadPos(servoID);
+    hlscl.WritePosEx(servoID, p + (dir * 2048), 2400, 0, 1000);
+    delay(300);
+    hlscl.CalibrationOfs(servoID);
+    delay(30);
+    hlscl.WritePosEx(servoID, sd[idx].extend_count, 2400, 0, 1000);
+  }
 }
 
 void zero_all_motors() {
   resetSdToBaseline();
   if (gBusMux) xSemaphoreTake(gBusMux, portMAX_DELAY);
-  zero_with_current(0,  sd[0].servo_direction, 750);   // Thumb Abduction
+  zero_with_current(0,  sd[0].servo_direction, 950);   // Thumb Abduction
   zero_with_current(1,  sd[1].servo_direction, 950);   // Thumb Flex
   zero_with_current(2,  sd[2].servo_direction, 950);   // Thumb Tendon
-  zero_with_current(3,  sd[3].servo_direction, 950);   // Index
-  zero_with_current(4,  sd[4].servo_direction, 950);   // Middle
-  zero_with_current(5,  sd[5].servo_direction, 950);  // Ring
-  zero_with_current(6,  sd[6].servo_direction, 950);  // Pinky
+  zero_fingers_parallel_with_current(3, 4, 950);       // Fingers together
   // Post-homing settling moves
   hlscl.WritePosEx(SERVO_IDS[0], sd[0].extend_count, 2400, 0, 1023);   // Thumb Abduction to extend
   hlscl.WritePosEx(SERVO_IDS[1], sd[1].extend_count, 2400, 0, 1023);   // Thumb Flexion to extend
@@ -126,6 +181,7 @@ void zero_all_motors() {
   hlscl.WritePosEx(SERVO_IDS[4], sd[4].extend_count, 2400, 0, 1023);   // Middle to extend
   hlscl.WritePosEx(SERVO_IDS[5], sd[5].extend_count, 2400, 0, 1023);   // Ring to extend
   hlscl.WritePosEx(SERVO_IDS[6], sd[6].extend_count, 2400, 0, 1023);   // Pinky to extend
+  
   if (gBusMux) xSemaphoreGive(gBusMux);
 }
 

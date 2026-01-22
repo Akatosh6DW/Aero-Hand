@@ -18,7 +18,7 @@ These are a simplified subset of the official Manus documentation.
 
 2. **Grant USB permissions** for the Manus gloves by installing the provided `udev` rule:
    ```bash
-   sudo cp <path/to/manus_glove_pkg>/99-manus-glove.rules /etc/udev/rules.d/
+   sudo cp <path/to/manus_glove_pkg>/70-manus-hid.rules /etc/udev/rules.d/
    ```
 
 3. **Reload the udev rules**:

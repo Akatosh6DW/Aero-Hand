@@ -33,17 +33,26 @@ class AeroHandNode(Node):
         self.declare_parameter("baudrate", 921600)
         self.declare_parameter("feedback_frequency", 100.0)
         self.declare_parameter("control_space", "joint")
+        self.declare_parameter("speed", 32766) # from 0 to 32766
+        self.declare_parameter("torque", 1000) # from 0 to 1000
 
         right_port = self.get_parameter("right_port").value
         left_port = self.get_parameter("left_port").value
         baudrate = self.get_parameter("baudrate").value
         feedback_frequency = self.get_parameter("feedback_frequency").value
         control_space = self.get_parameter("control_space").value
-
+        speed = self.get_parameter("speed").value
+        torque = self.get_parameter("torque").value
+        
         ## Initialize hands and subscribers/publishers based on provided ports
         if right_port != "":
             try:
+                if right_port == "auto":
+                    right_port = None  # auto detect port
                 self.right_hand = AeroHand(port=right_port, baudrate=baudrate)
+                for i in range(7):
+                    self.right_hand.set_speed(i, speed)
+                    self.right_hand.set_torque(i, torque)
             except Exception as e:
                 self.get_logger().error(
                     f"Failed to initialize Right hand on port {right_port}: {e}"
@@ -75,7 +84,12 @@ class AeroHandNode(Node):
 
         if left_port != "":
             try:
+                if left_port == "auto":
+                    left_port = None  # auto detect port
                 self.left_hand = AeroHand(port=left_port, baudrate=baudrate)
+                for i in range(7):
+                    self.left_hand.set_speed(i, speed)
+                    self.left_hand.set_torque(i, torque)
             except Exception as e:
                 self.get_logger().error(
                     f"Failed to initialize Left hand on port {left_port}: {e}"
