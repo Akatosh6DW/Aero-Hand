@@ -1,5 +1,26 @@
 # Release Notes
 
+## 2026-02-25
+
+### ROS2 Release
+- Fixed the left hand URDF model to correctly move the joints.
+- Default torque value for motors, when intilizing the Aero Hand Node is now set to 700.
+- Bug fix in port declaration that prevented the port initialization from command line.
+
+### Firmware 0.2.0 release
+- Apply 10 degrees offset for thumb cmd abd and thumb cmd flex joints during homing. This change improves the linearity of the joint position control and avoid motor stall around joint limits, but it also breaks the backward compatibity.
+
+## 2026-02-12
+
+### Firmware v0.1.5
+- If the motors are not configured correctly during assembly by accident, e.g. if the toruqe limit is incorrectly set as 800, fix it during homing.
+
+## 2026-02-06
+
+### Firmware v0.1.4
+- Update the overheat protection to be 70 degreee and 500 torque
+- Remove auto-homing when serial is closed
+
 ## 2026-01-20
 
 ### ROS2 Release
