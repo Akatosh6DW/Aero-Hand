@@ -1,6 +1,22 @@
-# Ignore typical build artifacts
+# === 虚拟环境 ===
+env/
+venv/
+.conda/
+.venv/
+
+# === Python 编译缓存 ===
 __pycache__/
-*.pyc
-build/
-.colcon/
-.DS_Store
+*.py[cod]
+*$py.class
+*.so
+
+# === 强化学习训练产生的日志和大模型权重 ===
+logs/
+checkpoints/
+*.pt
+*.pth
+*.onnx
+
+# === IDE 配置 (VS Code / PyCharm) ===
+.vscode/
+.idea/
