@@ -116,7 +116,7 @@ sys.path.append(os.path.join(project_root, "sdk", "src"))
 from aero_open_sdk.joints_to_actuations import JointsToActuationsModel
 
 converter = JointsToActuationsModel()
-xml_path  = os.path.join("sim_rl", "simulation", "mujoco", "scene_right.xml")
+xml_path  = os.path.join("sim_rl", "simulation", "mujoco", "scene_right2.xml")
 model     = mujoco.MjModel.from_xml_path(xml_path)
 data      = mujoco.MjData(model)
 
