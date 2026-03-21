@@ -9,7 +9,7 @@ XML_PATH = "/home/ll/SRTP/Aero-Hand/sim_rl/mujoco_playground/mujoco_playground/_
 # =======================================================
 
 if not os.path.exists(XML_PATH):
-    print(f"❌ 找不到文件，请检查上面的路径是不是复制缺了字母：\n{XML_PATH}")
+    print(f"❌ 找不到文件，请检查上面的路径：\n{XML_PATH}")
 else:
     # 自动提取文件夹路径和文件名
     xml_dir = os.path.dirname(XML_PATH)
