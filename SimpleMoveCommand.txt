@@ -1,0 +1,8 @@
+conda activate aero_rl
+python /home/ll/SRTP/Aero-Hand/handinformation/basic_pinch_control.py \
+  --port /dev/ttyUSB0 \
+  --baudrate 115200 \
+  --open_angle_deg 0 \
+  --close_angle_deg 70 \
+  --thumb_rotate_close_deg 25 \
+  --cycles 10
