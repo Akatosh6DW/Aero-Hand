@@ -1,0 +1,57 @@
+{
+    "action_repeat": 1,
+    "action_scale": [
+        0.02,
+        0.02,
+        0.02,
+        0.02,
+        0.02,
+        0.02
+    ],
+    "ctrl_dt": 0.05,
+    "early_termination": true,
+    "episode_length": 500,
+    "history_len": 1,
+    "impl": "jax",
+    "noise_config": {
+        "level": 1.0,
+        "scales": {
+            "hw_force": 0.05,
+            "hw_pos": 0.005
+        }
+    },
+    "reward_config": {
+        "force_contact_saturation": 0.25,
+        "force_contact_threshold": 0.05,
+        "force_overload_threshold": 0.7,
+        "scales": {
+            "action_rate": -0.02,
+            "approach": 4.0,
+            "closure": 1.2,
+            "contact": 1.5,
+            "force_balance": 0.8,
+            "force_contact": 2.0,
+            "force_overload": -0.6,
+            "height": 4.0,
+            "multi_finger": 3.0,
+            "survival": 0.05,
+            "termination": -150.0,
+            "thumb_engage": 2.5,
+            "torques": -0.001
+        }
+    },
+    "sim_dt": 0.01,
+    "support_config": {
+        "release_after_sec": 1.2,
+        "support_hidden_pos": [
+            0.0,
+            0.0,
+            -10.0
+        ],
+        "support_pos": [
+            -0.066,
+            0.0,
+            0.067
+        ]
+    }
+}
