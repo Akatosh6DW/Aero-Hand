@@ -90,9 +90,9 @@ class SimpleBendController:
         self,
         proto: HandBendProtocol,
         open_angle_deg: float = 0.0,
-        close_angle_deg: float = 70.0,
+        close_angle_deg: float = 90.0,
         thumb_rotate_open_deg: float = 0.0,
-        thumb_rotate_close_deg: float = 25.0,
+        thumb_rotate_close_deg: float = 90.0,
         ramp_time_sec: float = 0.8,
         hold_open_sec: float = 0.6,
         hold_close_sec: float = 1.0,
@@ -184,9 +184,9 @@ def parse_args() -> argparse.Namespace:
 
     # 角度参数（单位：度）
     parser.add_argument("--open_angle_deg", type=float, default=0.0, help="四指+拇指弯曲通道张开角")
-    parser.add_argument("--close_angle_deg", type=float, default=70.0, help="四指+拇指弯曲通道闭合角")
+    parser.add_argument("--close_angle_deg", type=float, default=90.0, help="四指+拇指弯曲通道闭合角")
     parser.add_argument("--thumb_rotate_open_deg", type=float, default=0.0, help="拇指旋转通道张开角")
-    parser.add_argument("--thumb_rotate_close_deg", type=float, default=25.0, help="拇指旋转通道闭合角")
+    parser.add_argument("--thumb_rotate_close_deg", type=float, default=90.0, help="拇指旋转通道闭合角")
 
     # 时序参数
     parser.add_argument("--ramp_time_sec", type=float, default=0.8, help="开合过渡时间")
