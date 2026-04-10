@@ -187,3 +187,51 @@ V-iter21: 扩大 jitter 增强鲁棒性 + 超低学习率
 ▶ 结果: 训练中...
 
 ===================================================================
+
+===================================================================
+VT-iter7~iter11: 触觉强化学习迭代优化
+===================================================================
+日期: 2026-04-09 ~ 2026-04-10
+
+--- VT-iter7 (方案A: 奖励权重调整) ---
+  改动: hold_position 150→200, stable_hold 15→25,
+        force_balance 1.5→4.0, survival 2→3
+  LR=3e-5, 30M步, 从 iter6 final 恢复
+  结果: 最佳 494.1 (step 32.1M), 大幅震荡后恢复
+  教训: 同时修改多个权重→value function mismatch
+
+--- VT-iter8 (沿用方案A, LR降低) ---
+  改动: 保持 iter7 权重, LR=2e-5, 40M步
+  结果: 最佳 476.8, 持续退化至 459.5, 仅完成6/8 eval
+  教训: 方案A (纯提高权重) 彻底失败
+
+--- VT-iter9 (gamma=0.995 + soft_contact + 改进force_overload) ---
+  新增代码:
+    _reward_soft_contact(): bell-shaped 安全区间奖励
+      lower_gate = sigmoid(20*(|f|-0.1)) * upper_gate = sigmoid(10*(2.5-|f|))
+    _cost_force_overload(): quadratic + cubic 非线性惩罚
+      cost = overload^2 + (overload/soft_width)^3
+  改动: gamma 0.99→0.995, soft_contact=5.0, 回退iter7权重至iter5值,
+        从 iter5 checkpoint 恢复, LR=3e-5, 40M步
+  结果: 最佳 487.3, 最终 475.3, cubic过载惩罚初期暴涨至-1839
+  教训: gamma=0.995无效(不同于0.97→0.99), cubic soft_width=0.5太激进
+
+--- VT-iter10 (降低overload + 课程学习ramp=1.0s) ---
+  改动: force_overload -1.5→-0.5, soft_width 0.5→1.5, ramp 1.5→1.0s
+  从 iter5 checkpoint 恢复, gamma=0.99, LR=3e-5, 40M步
+  结果: 最佳 487.3 (step 0), 最终 479.2, ramp变化导致下降后缓慢恢复
+  教训: ramp缩短使任务变难, 40M步不够适应
+
+--- VT-iter11 (80M步长训练 + 温和改动) ---
+  改动: 保留 soft_contact=5.0 + 温和overload=-0.5, 回退ramp=1.5s
+  从 iter5 checkpoint 恢复, gamma=0.99, LR=3e-5, 80M步 (2x加长)
+  假设: 40M步不足以突破493平台期, 延长训练可能帮助
+  结果: 训练中...
+
+--- RMA 架构设计 ---
+  代码: sim_rl/rma_reference.py (PyTorch参考实现, 214K参数)
+  Teacher: 精确力(15D) → MLP(128,64) → z_t(8D)
+  Student: 历史(50帧×17D) → TCN(32,64,64) → z_hat(8D)
+  Policy:  (proprio+z_t) → MLP(512,256,128) → action
+  蒸馏:    MSE(z_hat, z_t.detach())
+===================================================================

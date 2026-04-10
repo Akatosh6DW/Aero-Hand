@@ -1,0 +1,240 @@
+================================================================================
+  VT 触觉强化学习训练续接提示词（2026-04-09）
+  用途：在新对话中恢复此任务，让 AI 无缝续接当前进度
+================================================================================
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+【一、用户需求（原始需求）】
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+目标：在 TetherIA Aero Hand Open（腱驱6通道灵巧手）的强化学习竖直抓取任务中，
+      将"指尖接触力（触觉）"正式加入策略观测空间。
+
+具体要求：
+  1. 修改灵巧手模型文件，添加触觉传感器支持
+  2. 引入滤波算法过滤触觉噪声
+  3. 将触觉数据加入策略状态空间（policy obs）
+  4. 从当前最佳 checkpoint 开始自主迭代训练
+  5. 自主阅读日志，迭代调整奖励函数、滤波参数等
+  6. 停止条件：EpLen ≥ 570步（30s@20Hz）或 迭代次数超过15次
+  7. 可适当增大 Y 轴方块偏移量（但不能超出手掌范围）
+  8. 方块大小可自主调整
+  9. 将所有改动效果写入 txt 文档供阅读
+  10. 将改动总结整理为可续接的提示词
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+【二、技术方案（已实施）】
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+■ 工程路径
+  工作区：/home/ll/SRTP/Aero-Hand
+  conda 环境：aero_rl
+  训练脚本：sim_rl/mujoco_playground/learning/train_jax_ppo.py
+  环境文件：sim_rl/mujoco_playground/mujoco_playground/_src/manipulation/aero_hand/grasp_cube_hw6_force.py
+  手部模型XML：sim_rl/mujoco_playground/mujoco_playground/_src/manipulation/aero_hand/xmls/right_hand_vertical_hw6.xml
+  注册文件：sim_rl/mujoco_playground/mujoco_playground/_src/manipulation/__init__.py
+  PPO配置：sim_rl/mujoco_playground/mujoco_playground/config/manipulation_params.py
+  训练日志目录：sim_rl/mujoco_playground/logs/
+
+■ 已实施修改 A：XML 模型修复
+  文件：right_hand_vertical_hw6.xml + right_hand_palmup_hw6.xml
+  修改：将 80 个 touch sensor site 的半径从 0.0008m（0.8mm）增大到 0.003m（3mm）
+  原因：0.8mm 半径远小于接触区域，导致 sensordata 始终为 0
+
+■ 已实施修改 B：新增 default_config_vt() 和 CubeGraspHW6ForceVT 类
+  文件：grasp_cube_hw6_force.py
+  新增内容：
+    - tactile_config.use_real_tactile = True   ← 启用真实触觉
+    - tactile_config.force_saturation_n = 3.0  ← 饱和值(N)，与硬件量程对齐
+    - tactile_config.obs_force_ema_alpha = 0.7 ← EMA 滤波系数
+    - episode_length = 600                      ← 30秒目标
+    - cube_jitter[1] 扩大到 ±8mm               ← Y 轴偏移增大
+    - VT 奖励权重（见下文"当前配置状态"）
+
+■ 已实施修改 C：信号处理流水线（在 step() 和 _get_obs() 中）
+  1. 每步调用 _get_contact_forces_efc() 提取原始接触力 f_raw ∈ R^5（每指一个值）
+  2. 奖励用 EMA（alpha=0.8）：f_reward_ema = 0.8*prev + 0.2*f_raw
+  3. 观测用独立 EMA（alpha=0.7）：f_obs_ema = 0.7*prev + 0.3*f_raw（存于 info["obs_tactile_ema"]）
+  4. 归一化：tactile_obs = clip(f_obs_ema / 3.0, 0, 1) → [0,1]
+  5. 注入噪声：+ uniform(-1,1)*noise_level*scales.hw_force（增强泛化）
+  6. clip 回 [0,1]
+  7. 最终填入策略观测 state[6:11]（5维触觉位）
+
+■ 观测维度（不变，17D）
+  state[0:6]  = motor_targets（6路电机目标角）
+  state[6:11] = tactile_obs（5指接触力，0~1归一化，EMA滤波）  ← 已从全零变为真实力
+  state[11:17] = last_act（上一步动作）
+
+■ 已注册环境
+  "AeroCubeGraspHW6ForceVT" → CubeGraspHW6ForceVT
+  manipulation_params.py 中也已添加对应 PPO 配置（等同 V-stage）
+
+■ 已备份的奖励/配置变更
+  iter2 改动：hold_position 120→150，stable_hold 0→15，survival 0.5→2.0
+  iter3 改动：drop_risk -25→-10（代码中已生效）
+
+■ 当前 default_config_vt() 状态（代码中实际值）
+  ─ 奖励权重 ─
+    hold_position    = 150.0    （核心：方块保持3D位置）
+    stable_hold      = 15.0     （多指有力+方块低速）
+    force_contact    = 8.0      （真实接触力正反馈）
+    grip_force       = 4.0      （对握力）
+    force_balance    = 1.5      （5指力均衡）
+    finger_participation = 2.0  （多指参与度）
+    force_overload   = -1.5     （过载惩罚）
+    contact          = 3.0      （SDF几何引导）
+    closure          = 3.0      （MCP弯曲）
+    distal_closure   = 3.0      （PIP/DIP弯曲）
+    thumb_engage     = 6.0      （拇指引导）
+    human_pose       = (未设，继承V=5.0 or 3.0)
+    survival         = 2.0
+    termination      = -120.0
+    drop_risk        = -10.0
+    action_rate      = -0.02
+    action_accel     = -0.015
+    torques          = -0.00003
+  ─ 场景配置 ─
+    cube_pos         = [-0.072, 0.005, 0.072]
+    cube_jitter      = [0.004, 0.008, 0.003]   （Y ±8mm）
+    episode_length   = 600                      （30s@20Hz）
+    support release  = 4.0s + 1.5s ramp
+  ─ 触觉配置 ─
+    use_real_tactile = True
+    obs_force_ema_alpha = 0.7
+    force_saturation_n  = 3.0
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+【三、迭代训练进度（已完成 6 次）】
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  目标 EpLen = 570步（30s）；已完成 6/15 次迭代
+
+  ┌────────┬────────────┬──────────┬───────────┬──────────────────────────────────────────┐
+  │ 迭代   │ 最佳EpLen  │ 最终EpLen│ 最终R     │ 关键参数变化                             │
+  ├────────┼────────────┼──────────┼───────────┼──────────────────────────────────────────┤
+  │ iter1  │  390.7步   │  387.5步 │   778.6   │ 从零训练；LR=3e-4；γ=0.97；40M步        │
+  │        │  （~19.5s）│          │           │ force_overload: -929→-82（自动学会控力）  │
+  ├────────┼────────────┼──────────┼───────────┼──────────────────────────────────────────┤
+  │ iter2  │  440.6步   │  422.6步 │  1136.4   │ LR=1.5e-4；stable_hold 0→15；           │
+  │        │  （~22s）  │          │           │ hold_position 120→150；survival 0.5→2.0  │
+  │        │            │          │           │ 问题：3.6M步达峰后灾难性遗忘             │
+  ├────────┼────────────┼──────────┼───────────┼──────────────────────────────────────────┤
+  │ iter3  │  456.8步   │  456.8步 │  1285.3   │ LR→5e-5；entropy→0.005；drop_risk→-10   │
+  │        │  （~22.8s）│          │           │ 无灾难性遗忘；稳步提升                   │
+  ├────────┼────────────┼──────────┼───────────┼──────────────────────────────────────────┤
+  │ iter4  │  492.1步   │  492.1步 │  1404.8   │ γ: 0.97→0.99                            │
+  │        │  （~24.6s）│          │           │ 规划视野33步→100步；效果显著             │
+  ├────────┼────────────┼──────────┼───────────┼──────────────────────────────────────────┤
+  │ iter5  │  493.3步   │  493.3步 │  1388.2   │ 同iter4参数继续训练                      │
+  │        │  （~24.7s）│          │           │ 趋于饱和（+1.2步净提升）                 │
+  ├────────┼────────────┼──────────┼───────────┼──────────────────────────────────────────┤
+  │ iter6  │  492.2步   │  483.8步 │  1396.3   │ unroll_length 40→60；updates_per_batch  │
+  │        │  （~24.7s）│          │           │ 4→6；效果不明显，末尾略有下降            │
+  └────────┴────────────┴──────────┴───────────┴──────────────────────────────────────────┘
+
+  ▶ 当前最佳 checkpoint（iter6 最终）：
+    /home/ll/SRTP/Aero-Hand/sim_rl/mujoco_playground/logs/
+    AeroCubeGraspHW6ForceVT-20260409-132004-VT_iter6/checkpoints/000041287680
+
+  ▶ 当前差距：EpLen=492 vs 目标570，差 78步（~3.9秒）
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+【四、iter6 瓶颈分析及 iter7 建议】
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  瓶颈原因：
+    1. EpLen ~490 平台化：agent 学会了抓住约 25s，但之后方块缓慢滑落
+    2. unroll_length=60 + updates=6 未改善（episode 600步，unroll 60步仍太短）
+    3. force_balance=1.5 可能尚未充分发挥作用（5指均匀受力有助于长期持握）
+
+  iter7 建议方向（选1~2条）：
+    方案A（奖励调整）：
+      - hold_position: 150→200      （加强长持握信号）
+      - stable_hold: 15→25          （多指有力+低速度的权重）
+      - force_balance: 1.5→4.0      （鼓励5指均匀分布载荷）
+      - survival: 2.0→3.0           （每活一步奖励更多）
+      - LR=3e-5（更细微调整）
+
+    方案B（课程学习）：
+      - 在抓住后让支撑台完全移除更快（ramp_sec: 1.5→1.0）
+      - 增加 drop_risk: -10→-20（更早对方块滑落给出预警信号）
+
+    方案C（Normalizer 重置）：
+      - 从零开始重训 VT（不继承 checkpoint），但这需要从头训 ~100M 步
+
+  推荐：先尝试方案A，LR=3e-5细调，hold+stable_hold权重提升，30M步。
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+【五、硬件/架构关键信息】
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  GPU：RTX 4060 Laptop 8GB → 训练使用 num_envs=4096（8192 OOM）
+  Framework：Brax PPO + MuJoCo MJX (JAX)
+  Policy 网络：(512, 256, 128) MLP，tanh 激活
+  Actor obs（state）：17D [motor_targets(6), tactile(5), last_act(6)]
+  Critic obs（privileged_state）：83D（含 joint 角度、速度、力、方块状态等）
+  训练时间：每次 40M步约 80-100 分钟（RTX 4060 Laptop）
+
+  手部参数：
+    6通道控制：[thumb_rot, thumb_flex, index, middle, ring, pinky]
+    action_scale：[1.3, 0.030, 0.055, 0.055, 0.055, 0.055]
+    仿真步长：ctrl_dt=0.05s（20Hz），sim_dt=0.01s
+
+  触觉架构：
+    物理传感器：efc_force 约束力提取（非 sensordata，后者在 MJX 中有精度限制）
+    奖励用 EMA（alpha=0.8）：更快响应用于奖励计算
+    观测用 EMA（alpha=0.7）：~3步时间常数，平滑高频碰撞噪声
+    归一化：clip(f/3.0, 0, 1)，对应硬件 3N 量程
+    注入噪声：±noise_level×hw_force_scale（增强 sim-to-real 泛化）
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+【六、继续任务的指令】
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  停止条件：EpLen ≥ 570步（30s@20Hz）或 累计迭代次数 > 15次（当前已完成 6 次）
+
+  下一步行动：
+    1. 读取 iter6 最终结果，确认当前最佳 checkpoint
+    2. 按【四】中建议修改 default_config_vt() 奖励权重
+    3. 启动 iter7 训练（num_envs=4096，从 iter6 checkpoint 恢复）
+    4. 监控 metrics.csv，逐 eval 分析趋势
+    5. 每次迭代更新 VT_training_report.txt
+
+  报告文件路径：
+    /home/ll/SRTP/Aero-Hand/VT_training_report.txt   （需创建/更新）
+
+  已有分析脚本：
+    sim_rl/mujoco_playground/scripts/analyze_metrics.py
+
+  快速启动 iter7 的命令模板：
+    cd /home/ll/SRTP/Aero-Hand/sim_rl/mujoco_playground
+    conda activate aero_rl
+    python learning/train_jax_ppo.py \
+      --env_name=AeroCubeGraspHW6ForceVT \
+      --num_timesteps=40000000 \
+      --num_evals=8 \
+      --num_envs=4096 \
+      --learning_rate=3e-5 \
+      --seed=42 \
+      --suffix=VT_iter7 \
+      --num_minibatches=32 \
+      --unroll_length=40 \
+      --num_updates_per_batch=4 \
+      --discounting=0.99 \
+      --entropy_cost=0.005 \
+      --batch_size=256 \
+      --policy_hidden_layer_sizes=512,256,128 \
+      --value_hidden_layer_sizes=512,256,128 \
+      --policy_obs_key=state \
+      --value_obs_key=privileged_state \
+      --domain_randomization \
+      --episode_length=600 \
+      --num_videos=0 \
+      --load_checkpoint_path=/home/ll/SRTP/Aero-Hand/sim_rl/mujoco_playground/logs/AeroCubeGraspHW6ForceVT-20260409-132004-VT_iter6/checkpoints
+
+================================================================================
