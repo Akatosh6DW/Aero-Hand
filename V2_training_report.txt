@@ -1,0 +1,50 @@
+======================================================================
+V2 灵犀手方块抓握自主迭代训练报告
+生成时间: 2026-04-11 07:11:14
+======================================================================
+
+一、方案概述
+----------------------------------------
+目标: V2 灵犀手 (6通道直驱关节) 稳定抓握 3cm 方块 ≥24s
+
+核心组件:
+  手: V2 灵犀手 (11关节, 6执行器, 直驱位置控制)
+  触觉: efc_force (约束力提取, per-finger 聚合所有碰撞体)
+  滤波: EMA α=0.7, 饱和截断 3.0N → [0,1]
+  观测: state=17D [motor(6)+tactile(5)+last_act(6)]
+        privileged=73D (含关节角/速/力/指尖位/方块状态)
+  PPO: Brax, (512,256,128) MLP, 非对称 Actor-Critic
+  并行环境: 4096, 域随机化, episode_length=500
+
+
+--- V2-iter2 [07:11:14] ---
+  lr=0.0002, steps=40M, time=92.2min
+  best_reward=65.0, last_reward=40.7
+  best_eplen=106.9, last_eplen=103.2
+  avg_last3_eplen=105.0
+  force_contact=0.000
+  hold_position=0.000
+  stable_hold=0.000
+  checkpoint=/home/ll/SRTP/Aero-Hand/sim_rl/mujoco_playground/logs/AeroCubeGraspV2Force-20260411-071119-v2_R02/checkpoints
+
+--- V2-iter3 [08:43:24] ---
+  lr=0.0002, steps=40M, time=91.8min
+  best_reward=43.3, last_reward=41.5
+  best_eplen=106.9, last_eplen=106.9
+  avg_last3_eplen=105.2
+  force_contact=0.000
+  hold_position=0.000
+  stable_hold=0.000
+  checkpoint=/home/ll/SRTP/Aero-Hand/sim_rl/mujoco_playground/logs/AeroCubeGraspV2Force-20260411-084329-v2_R03/checkpoints
+
+--- V2-iter4 [10:15:15] ---
+  lr=0.0001, steps=40M, time=91.8min
+  best_reward=41.9, last_reward=37.4
+  best_eplen=105.6, last_eplen=103.1
+  avg_last3_eplen=103.0
+  force_contact=0.000
+  hold_position=0.000
+  stable_hold=0.000
+  checkpoint=/home/ll/SRTP/Aero-Hand/sim_rl/mujoco_playground/logs/AeroCubeGraspV2Force-20260411-101520-v2_R04/checkpoints
+
+(训练进行中...)

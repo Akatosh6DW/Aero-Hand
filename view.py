@@ -5,7 +5,7 @@ import os
 # =======================================================
 # 👇 请把你要看的 XML 文件的绝对路径粘贴在双引号里面 👇
 # =======================================================
-XML_PATH = "/home/ll/SRTP/Aero-Hand/sim_rl/mujoco_playground/mujoco_playground/_src/manipulation/aero_hand/xmls/scene_mjx_grasp_hw6.xml"
+XML_PATH = "/home/ll/SRTP/Aero-Hand/sim_rl/mujoco_playground/mujoco_playground/_src/manipulation/aero_hand/xmls/scene_mjx_grasp_v2.xml"
 # 仅用于可视化排查：将重力临时置零，方便检查初始相对位置。
 ZERO_GRAVITY_FOR_VIEW = False
 # 将执行器目标自动对齐到当前姿态，避免启动后瞬间弹动。

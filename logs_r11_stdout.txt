@@ -1,0 +1,148 @@
+nohup: 忽略输入
+Environment Config:
+action_repeat: 1
+action_scale:
+- 1.4
+- 0.8
+- 1.4
+- 1.4
+- 1.4
+- 1.4
+ctrl_dt: 0.05
+early_termination: true
+episode_length: 500
+force_history_len: 1
+history_len: 1
+impl: jax
+noise_config:
+  force_ema_alpha: 0.85
+  level: 0.3
+  scales:
+    hw_force: 0.05
+    hw_pos: 0.005
+reset_config:
+  hand_qpos_noise_scale: 0.02
+reward_config:
+  finger_active_threshold: 0.1
+  force_contact_saturation: 1.0
+  force_contact_threshold: 0.06
+  force_overload_soft_width: 1.5
+  force_overload_threshold: 2.8
+  scales:
+    action_accel: -0.01
+    action_rate: -0.015
+    approach: 5.0
+    closure: 7.0
+    contact: 5.0
+    drop_risk: -8.0
+    finger_participation: 4.0
+    force_balance: 3.0
+    force_contact: 8.0
+    force_overload: -1.0
+    grip_force: 3.0
+    height: 5.0
+    hold_position: 150.0
+    human_pose: 5.0
+    idle_follow: 2.0
+    pip_closure: 5.0
+    soft_contact: 2.0
+    stable_hold: 20.0
+    survival: 1.0
+    termination: -80.0
+    thumb_engage: 8.0
+    torques: -3.0e-05
+  soft_contact_fmax: 2.5
+  soft_contact_fmin: 0.1
+sim_dt: 0.01
+spawn_config:
+  cube_jitter:
+  - 0.003
+  - 0.005
+  - 0.003
+  cube_pos:
+  - 0.0
+  - -0.04
+  - 0.098
+  support_enabled: true
+support_config:
+  min_release_active_fingers: 3
+  min_release_force: 0.2
+  release_after_sec: 3.0
+  release_ramp_sec: 0.0
+  support_hidden_pos:
+  - 0.0
+  - 0.0
+  - -10.0
+  support_pos:
+  - 0.0
+  - -0.04
+  - 0.08
+tactile_config:
+  force_saturation_n: 3.0
+  obs_force_ema_alpha: 0.7
+  taxel_weights:
+  - 0.7
+  - 1.0
+  - 1.0
+  - 0.7
+  - 1.0
+  - 1.4
+  - 1.4
+  - 1.0
+  - 1.0
+  - 1.4
+  - 1.4
+  - 1.0
+  - 0.7
+  - 1.0
+  - 1.0
+  - 0.7
+  use_pooled_obs: true
+  use_real_tactile: true
+
+PPO Training Parameters:
+action_repeat: 1
+batch_size: 256
+discounting: 0.97
+entropy_cost: 0.01
+episode_length: 500
+learning_rate: 0.0003
+network_factory:
+  policy_hidden_layer_sizes: &id001 !!python/tuple
+  - 512
+  - 256
+  - 128
+  policy_obs_key: state
+  value_hidden_layer_sizes: *id001
+  value_obs_key: privileged_state
+normalize_observations: true
+num_envs: 8192
+num_evals: 10
+num_minibatches: 32
+num_resets_per_eval: 1
+num_timesteps: 80000000
+num_updates_per_batch: 4
+reward_scaling: 1.0
+unroll_length: 40
+
+Experiment name: AeroCubeGraspV2Force-20260412-101316-v2_R11
+Logs are being stored in: /home/ll/SRTP/Aero-Hand/sim_rl/mujoco_playground/logs/AeroCubeGraspV2Force-20260412-101316-v2_R11
+Restoring from: /home/ll/SRTP/Aero-Hand/sim_rl/mujoco_playground/logs/AeroCubeGraspV2Force-20260412-081018-v2_R10/checkpoints/000041287680
+Checkpoint path: /home/ll/SRTP/Aero-Hand/sim_rl/mujoco_playground/logs/AeroCubeGraspV2Force-20260412-101316-v2_R11/checkpoints
+0: reward=303.812
+9175040: reward=259.782
+18350080: reward=276.499
+27525120: reward=299.283
+36700160: reward=342.794
+45875200: reward=322.649
+55050240: reward=267.251
+64225280: reward=329.339
+73400320: reward=631.029
+82575360: reward=739.015
+Done training.
+Time to JIT compile: 39.323376397001994
+Time to train: 14387.934214400997
+Starting inference...
+FPS for rendering: 10.0
+  0%|          | 0/500 [00:00<?, ?it/s]  2%|▏         | 9/500 [00:00<00:05, 86.85it/s]  7%|▋         | 37/500 [00:00<00:02, 195.40it/s] 13%|█▎        | 64/500 [00:00<00:01, 227.11it/s] 18%|█▊        | 89/500 [00:00<00:01, 235.28it/s] 23%|██▎       | 115/500 [00:00<00:01, 241.31it/s] 28%|██▊       | 140/500 [00:00<00:01, 240.12it/s] 33%|███▎      | 165/500 [00:00<00:01, 242.98it/s] 38%|███▊      | 191/500 [00:00<00:01, 245.88it/s] 43%|████▎     | 217/500 [00:00<00:01, 247.92it/s] 49%|████▊     | 243/500 [00:01<00:01, 251.43it/s] 54%|█████▍    | 270/500 [00:01<00:00, 254.88it/s] 59%|█████▉    | 296/500 [00:01<00:00, 253.14it/s] 64%|██████▍   | 322/500 [00:01<00:00, 248.77it/s] 69%|██████▉   | 347/500 [00:01<00:00, 247.52it/s] 75%|███████▍  | 373/500 [00:01<00:00, 250.46it/s] 80%|███████▉  | 399/500 [00:01<00:00, 247.59it/s] 85%|████████▍ | 424/500 [00:01<00:00, 246.84it/s] 90%|████████▉ | 449/500 [00:01<00:00, 245.82it/s] 95%|█████████▍| 474/500 [00:01<00:00, 243.34it/s]100%|█████████▉| 499/500 [00:02<00:00, 243.28it/s]100%|██████████| 500/500 [00:02<00:00, 241.72it/s]
+Rollout video saved as 'rollout0.mp4'.

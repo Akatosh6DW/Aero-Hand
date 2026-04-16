@@ -1,0 +1,2335 @@
+nohup: 忽略输入
+Environment Config:
+action_repeat: 1
+action_scale:
+- 1.4
+- 0.8
+- 1.4
+- 1.4
+- 1.4
+- 1.4
+ctrl_dt: 0.05
+early_termination: true
+episode_length: 500
+history_len: 1
+impl: jax
+noise_config:
+  force_ema_alpha: 0.85
+  level: 0.3
+  scales:
+    hw_force: 0.05
+    hw_pos: 0.005
+reset_config:
+  hand_qpos_noise_scale: 0.02
+reward_config:
+  finger_active_threshold: 0.15
+  force_contact_saturation: 1.2
+  force_contact_threshold: 0.08
+  force_overload_soft_width: 1.5
+  force_overload_threshold: 2.8
+  scales:
+    action_accel: -0.015
+    action_rate: -0.02
+    approach: 5.0
+    closure: 5.0
+    contact: 3.0
+    drop_risk: -10.0
+    finger_participation: 0.0
+    force_balance: 0.0
+    force_contact: 5.0
+    force_overload: -1.0
+    grip_force: 3.0
+    height: 0.0
+    hold_position: 120.0
+    human_pose: 5.0
+    idle_follow: 0.0
+    pip_closure: 3.0
+    soft_contact: 0.0
+    stable_hold: 10.0
+    survival: 0.5
+    termination: -120.0
+    thumb_engage: 6.0
+    torques: -3.0e-05
+  soft_contact_fmax: 2.5
+  soft_contact_fmin: 0.1
+sim_dt: 0.01
+spawn_config:
+  cube_jitter:
+  - 0.003
+  - 0.005
+  - 0.003
+  cube_pos:
+  - 0.0
+  - -0.04
+  - 0.098
+  support_enabled: true
+support_config:
+  min_release_active_fingers: 3
+  min_release_force: 0.2
+  release_after_sec: 4.0
+  release_ramp_sec: 1.5
+  support_hidden_pos:
+  - 0.0
+  - 0.0
+  - -10.0
+  support_pos:
+  - 0.0
+  - -0.04
+  - 0.08
+tactile_config:
+  force_saturation_n: 3.0
+  obs_force_ema_alpha: 0.7
+  taxel_weights:
+  - 0.7
+  - 1.0
+  - 1.0
+  - 0.7
+  - 1.0
+  - 1.4
+  - 1.4
+  - 1.0
+  - 1.0
+  - 1.4
+  - 1.4
+  - 1.0
+  - 0.7
+  - 1.0
+  - 1.0
+  - 0.7
+  use_pooled_obs: true
+  use_real_tactile: true
+
+PPO Training Parameters:
+action_repeat: 1
+batch_size: 256
+discounting: 0.97
+entropy_cost: 0.01
+episode_length: 500
+learning_rate: 0.0003
+network_factory:
+  policy_hidden_layer_sizes: !!python/tuple
+  - 512
+  - 256
+  - 128
+  policy_obs_key: state
+  value_hidden_layer_sizes: !!python/tuple
+  - 512
+  - 256
+  - 128
+  value_obs_key: privileged_state
+normalize_observations: true
+num_envs: 4096
+num_evals: 8
+num_minibatches: 32
+num_resets_per_eval: 1
+num_timesteps: 40000000
+num_updates_per_batch: 4
+reward_scaling: 1.0
+unroll_length: 40
+
+Experiment name: AeroCubeGraspV2Force-20260411-024600-v2_R01
+Logs are being stored in: /home/ll/SRTP/Aero-Hand/sim_rl/mujoco_playground/logs/AeroCubeGraspV2Force-20260411-024600-v2_R01
+No checkpoint path provided, not restoring from checkpoint
+Checkpoint path: /home/ll/SRTP/Aero-Hand/sim_rl/mujoco_playground/logs/AeroCubeGraspV2Force-20260411-024600-v2_R01/checkpoints
+0: reward=17.146
+5898240: reward=17.914
+11796480: reward=54.032
+17694720: reward=49.500
+23592960: reward=45.595
+29491200: reward=52.956
+35389440: reward=57.224
+41287680: reward=61.044
+Done training.
+Time to JIT compile: 44.71309621900036
+Time to train: 5466.277316424999
+Starting inference...
+FPS for rendering: 10.0
+  0%|          | 0/250 [00:00<?, ?it/s] 30%|███       | 76/250 [00:00<00:00, 758.63it/s] 61%|██████    | 152/250 [00:00<00:00, 742.08it/s] 91%|█████████ | 227/250 [00:00<00:00, 716.81it/s]100%|██████████| 250/250 [00:00<00:00, 723.50it/s]
+Rollout video saved as 'rollout0.mp4'.
+Environment Config:
+action_repeat: 1
+action_scale:
+- 1.4
+- 0.8
+- 1.4
+- 1.4
+- 1.4
+- 1.4
+ctrl_dt: 0.05
+early_termination: true
+episode_length: 500
+history_len: 1
+impl: jax
+noise_config:
+  force_ema_alpha: 0.85
+  level: 0.3
+  scales:
+    hw_force: 0.05
+    hw_pos: 0.005
+reset_config:
+  hand_qpos_noise_scale: 0.02
+reward_config:
+  finger_active_threshold: 0.15
+  force_contact_saturation: 1.2
+  force_contact_threshold: 0.08
+  force_overload_soft_width: 1.5
+  force_overload_threshold: 2.8
+  scales:
+    action_accel: -0.015
+    action_rate: -0.02
+    approach: 5.0
+    closure: 5.0
+    contact: 3.0
+    drop_risk: -10.0
+    finger_participation: 0.0
+    force_balance: 0.0
+    force_contact: 5.0
+    force_overload: -1.0
+    grip_force: 3.0
+    height: 0.0
+    hold_position: 120.0
+    human_pose: 5.0
+    idle_follow: 0.0
+    pip_closure: 3.0
+    soft_contact: 0.0
+    stable_hold: 10.0
+    survival: 0.5
+    termination: -120.0
+    thumb_engage: 6.0
+    torques: -3.0e-05
+  soft_contact_fmax: 2.5
+  soft_contact_fmin: 0.1
+sim_dt: 0.01
+spawn_config:
+  cube_jitter:
+  - 0.003
+  - 0.005
+  - 0.003
+  cube_pos:
+  - 0.0
+  - -0.04
+  - 0.098
+  support_enabled: true
+support_config:
+  min_release_active_fingers: 3
+  min_release_force: 0.2
+  release_after_sec: 4.0
+  release_ramp_sec: 1.5
+  support_hidden_pos:
+  - 0.0
+  - 0.0
+  - -10.0
+  support_pos:
+  - 0.0
+  - -0.04
+  - 0.08
+tactile_config:
+  force_saturation_n: 3.0
+  obs_force_ema_alpha: 0.7
+  taxel_weights:
+  - 0.7
+  - 1.0
+  - 1.0
+  - 0.7
+  - 1.0
+  - 1.4
+  - 1.4
+  - 1.0
+  - 1.0
+  - 1.4
+  - 1.4
+  - 1.0
+  - 0.7
+  - 1.0
+  - 1.0
+  - 0.7
+  use_pooled_obs: true
+  use_real_tactile: true
+
+PPO Training Parameters:
+action_repeat: 1
+batch_size: 256
+discounting: 0.97
+entropy_cost: 0.01
+episode_length: 500
+learning_rate: 0.0002
+network_factory:
+  policy_hidden_layer_sizes: !!python/tuple
+  - 512
+  - 256
+  - 128
+  policy_obs_key: state
+  value_hidden_layer_sizes: !!python/tuple
+  - 512
+  - 256
+  - 128
+  value_obs_key: privileged_state
+normalize_observations: true
+num_envs: 4096
+num_evals: 8
+num_minibatches: 32
+num_resets_per_eval: 1
+num_timesteps: 40000000
+num_updates_per_batch: 4
+reward_scaling: 1.0
+unroll_length: 40
+
+Experiment name: AeroCubeGraspV2Force-20260411-041817-v2_R02
+Logs are being stored in: /home/ll/SRTP/Aero-Hand/sim_rl/mujoco_playground/logs/AeroCubeGraspV2Force-20260411-041817-v2_R02
+Traceback (most recent call last):
+  File "/home/ll/SRTP/Aero-Hand/sim_rl/mujoco_playground/learning/train_jax_ppo.py", line 642, in <module>
+    app.run(main)
+  File "/home/ll/miniconda3/envs/aero_rl/lib/python3.11/site-packages/absl/app.py", line 367, in run
+    _run_main(main, args)
+  File "/home/ll/miniconda3/envs/aero_rl/lib/python3.11/site-packages/absl/app.py", line 312, in _run_main
+    sys.exit(main(argv))
+             ^^^^^^^^^^
+  File "/home/ll/SRTP/Aero-Hand/sim_rl/mujoco_playground/learning/train_jax_ppo.py", line 329, in main
+    latest_ckpt = _resolve_latest_checkpoint_dir(ckpt_path)
+                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/ll/SRTP/Aero-Hand/sim_rl/mujoco_playground/learning/train_jax_ppo.py", line 226, in _resolve_latest_checkpoint_dir
+    raise FileNotFoundError(
+FileNotFoundError: No numbered checkpoint directories found under /home/ll/SRTP/Aero-Hand/sim_rl/mujoco_playground/logs/AeroCubeGraspV2Force-20260411-024600-v2_R01/checkpoints/000041287680.
+Environment Config:
+action_repeat: 1
+action_scale:
+- 1.4
+- 0.8
+- 1.4
+- 1.4
+- 1.4
+- 1.4
+ctrl_dt: 0.05
+early_termination: true
+episode_length: 500
+history_len: 1
+impl: jax
+noise_config:
+  force_ema_alpha: 0.85
+  level: 0.3
+  scales:
+    hw_force: 0.05
+    hw_pos: 0.005
+reset_config:
+  hand_qpos_noise_scale: 0.02
+reward_config:
+  finger_active_threshold: 0.15
+  force_contact_saturation: 1.2
+  force_contact_threshold: 0.08
+  force_overload_soft_width: 1.5
+  force_overload_threshold: 2.8
+  scales:
+    action_accel: -0.015
+    action_rate: -0.02
+    approach: 5.0
+    closure: 5.0
+    contact: 3.0
+    drop_risk: -10.0
+    finger_participation: 0.0
+    force_balance: 0.0
+    force_contact: 5.0
+    force_overload: -1.0
+    grip_force: 3.0
+    height: 0.0
+    hold_position: 120.0
+    human_pose: 5.0
+    idle_follow: 0.0
+    pip_closure: 3.0
+    soft_contact: 0.0
+    stable_hold: 10.0
+    survival: 0.5
+    termination: -120.0
+    thumb_engage: 6.0
+    torques: -3.0e-05
+  soft_contact_fmax: 2.5
+  soft_contact_fmin: 0.1
+sim_dt: 0.01
+spawn_config:
+  cube_jitter:
+  - 0.003
+  - 0.005
+  - 0.003
+  cube_pos:
+  - 0.0
+  - -0.04
+  - 0.098
+  support_enabled: true
+support_config:
+  min_release_active_fingers: 3
+  min_release_force: 0.2
+  release_after_sec: 4.0
+  release_ramp_sec: 1.5
+  support_hidden_pos:
+  - 0.0
+  - 0.0
+  - -10.0
+  support_pos:
+  - 0.0
+  - -0.04
+  - 0.08
+tactile_config:
+  force_saturation_n: 3.0
+  obs_force_ema_alpha: 0.7
+  taxel_weights:
+  - 0.7
+  - 1.0
+  - 1.0
+  - 0.7
+  - 1.0
+  - 1.4
+  - 1.4
+  - 1.0
+  - 1.0
+  - 1.4
+  - 1.4
+  - 1.0
+  - 0.7
+  - 1.0
+  - 1.0
+  - 0.7
+  use_pooled_obs: true
+  use_real_tactile: true
+
+PPO Training Parameters:
+action_repeat: 1
+batch_size: 256
+discounting: 0.97
+entropy_cost: 0.01
+episode_length: 500
+learning_rate: 0.0002
+network_factory:
+  policy_hidden_layer_sizes: !!python/tuple
+  - 512
+  - 256
+  - 128
+  policy_obs_key: state
+  value_hidden_layer_sizes: !!python/tuple
+  - 512
+  - 256
+  - 128
+  value_obs_key: privileged_state
+normalize_observations: true
+num_envs: 4096
+num_evals: 8
+num_minibatches: 32
+num_resets_per_eval: 1
+num_timesteps: 40000000
+num_updates_per_batch: 4
+reward_scaling: 1.0
+unroll_length: 40
+
+Experiment name: AeroCubeGraspV2Force-20260411-041823-v2_R03
+Logs are being stored in: /home/ll/SRTP/Aero-Hand/sim_rl/mujoco_playground/logs/AeroCubeGraspV2Force-20260411-041823-v2_R03
+Traceback (most recent call last):
+  File "/home/ll/SRTP/Aero-Hand/sim_rl/mujoco_playground/learning/train_jax_ppo.py", line 642, in <module>
+    app.run(main)
+  File "/home/ll/miniconda3/envs/aero_rl/lib/python3.11/site-packages/absl/app.py", line 367, in run
+    _run_main(main, args)
+  File "/home/ll/miniconda3/envs/aero_rl/lib/python3.11/site-packages/absl/app.py", line 312, in _run_main
+    sys.exit(main(argv))
+             ^^^^^^^^^^
+  File "/home/ll/SRTP/Aero-Hand/sim_rl/mujoco_playground/learning/train_jax_ppo.py", line 329, in main
+    latest_ckpt = _resolve_latest_checkpoint_dir(ckpt_path)
+                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/ll/SRTP/Aero-Hand/sim_rl/mujoco_playground/learning/train_jax_ppo.py", line 226, in _resolve_latest_checkpoint_dir
+    raise FileNotFoundError(
+FileNotFoundError: No numbered checkpoint directories found under /home/ll/SRTP/Aero-Hand/sim_rl/mujoco_playground/logs/AeroCubeGraspV2Force-20260411-024600-v2_R01/checkpoints/000041287680.
+Environment Config:
+action_repeat: 1
+action_scale:
+- 1.4
+- 0.8
+- 1.4
+- 1.4
+- 1.4
+- 1.4
+ctrl_dt: 0.05
+early_termination: true
+episode_length: 500
+history_len: 1
+impl: jax
+noise_config:
+  force_ema_alpha: 0.85
+  level: 0.3
+  scales:
+    hw_force: 0.05
+    hw_pos: 0.005
+reset_config:
+  hand_qpos_noise_scale: 0.02
+reward_config:
+  finger_active_threshold: 0.15
+  force_contact_saturation: 1.2
+  force_contact_threshold: 0.08
+  force_overload_soft_width: 1.5
+  force_overload_threshold: 2.8
+  scales:
+    action_accel: -0.015
+    action_rate: -0.02
+    approach: 5.0
+    closure: 5.0
+    contact: 3.0
+    drop_risk: -10.0
+    finger_participation: 0.0
+    force_balance: 0.0
+    force_contact: 5.0
+    force_overload: -1.0
+    grip_force: 3.0
+    height: 0.0
+    hold_position: 120.0
+    human_pose: 5.0
+    idle_follow: 0.0
+    pip_closure: 3.0
+    soft_contact: 0.0
+    stable_hold: 10.0
+    survival: 0.5
+    termination: -120.0
+    thumb_engage: 6.0
+    torques: -3.0e-05
+  soft_contact_fmax: 2.5
+  soft_contact_fmin: 0.1
+sim_dt: 0.01
+spawn_config:
+  cube_jitter:
+  - 0.003
+  - 0.005
+  - 0.003
+  cube_pos:
+  - 0.0
+  - -0.04
+  - 0.098
+  support_enabled: true
+support_config:
+  min_release_active_fingers: 3
+  min_release_force: 0.2
+  release_after_sec: 4.0
+  release_ramp_sec: 1.5
+  support_hidden_pos:
+  - 0.0
+  - 0.0
+  - -10.0
+  support_pos:
+  - 0.0
+  - -0.04
+  - 0.08
+tactile_config:
+  force_saturation_n: 3.0
+  obs_force_ema_alpha: 0.7
+  taxel_weights:
+  - 0.7
+  - 1.0
+  - 1.0
+  - 0.7
+  - 1.0
+  - 1.4
+  - 1.4
+  - 1.0
+  - 1.0
+  - 1.4
+  - 1.4
+  - 1.0
+  - 0.7
+  - 1.0
+  - 1.0
+  - 0.7
+  use_pooled_obs: true
+  use_real_tactile: true
+
+PPO Training Parameters:
+action_repeat: 1
+batch_size: 256
+discounting: 0.97
+entropy_cost: 0.01
+episode_length: 500
+learning_rate: 0.0001
+network_factory:
+  policy_hidden_layer_sizes: !!python/tuple
+  - 512
+  - 256
+  - 128
+  policy_obs_key: state
+  value_hidden_layer_sizes: !!python/tuple
+  - 512
+  - 256
+  - 128
+  value_obs_key: privileged_state
+normalize_observations: true
+num_envs: 4096
+num_evals: 8
+num_minibatches: 32
+num_resets_per_eval: 1
+num_timesteps: 40000000
+num_updates_per_batch: 4
+reward_scaling: 1.0
+unroll_length: 40
+
+Experiment name: AeroCubeGraspV2Force-20260411-041829-v2_R04
+Logs are being stored in: /home/ll/SRTP/Aero-Hand/sim_rl/mujoco_playground/logs/AeroCubeGraspV2Force-20260411-041829-v2_R04
+Traceback (most recent call last):
+  File "/home/ll/SRTP/Aero-Hand/sim_rl/mujoco_playground/learning/train_jax_ppo.py", line 642, in <module>
+    app.run(main)
+  File "/home/ll/miniconda3/envs/aero_rl/lib/python3.11/site-packages/absl/app.py", line 367, in run
+    _run_main(main, args)
+  File "/home/ll/miniconda3/envs/aero_rl/lib/python3.11/site-packages/absl/app.py", line 312, in _run_main
+    sys.exit(main(argv))
+             ^^^^^^^^^^
+  File "/home/ll/SRTP/Aero-Hand/sim_rl/mujoco_playground/learning/train_jax_ppo.py", line 329, in main
+    latest_ckpt = _resolve_latest_checkpoint_dir(ckpt_path)
+                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/ll/SRTP/Aero-Hand/sim_rl/mujoco_playground/learning/train_jax_ppo.py", line 226, in _resolve_latest_checkpoint_dir
+    raise FileNotFoundError(
+FileNotFoundError: No numbered checkpoint directories found under /home/ll/SRTP/Aero-Hand/sim_rl/mujoco_playground/logs/AeroCubeGraspV2Force-20260411-024600-v2_R01/checkpoints/000041287680.
+Environment Config:
+action_repeat: 1
+action_scale:
+- 1.4
+- 0.8
+- 1.4
+- 1.4
+- 1.4
+- 1.4
+ctrl_dt: 0.05
+early_termination: true
+episode_length: 500
+history_len: 1
+impl: jax
+noise_config:
+  force_ema_alpha: 0.85
+  level: 0.3
+  scales:
+    hw_force: 0.05
+    hw_pos: 0.005
+reset_config:
+  hand_qpos_noise_scale: 0.02
+reward_config:
+  finger_active_threshold: 0.15
+  force_contact_saturation: 1.2
+  force_contact_threshold: 0.08
+  force_overload_soft_width: 1.5
+  force_overload_threshold: 2.8
+  scales:
+    action_accel: -0.015
+    action_rate: -0.02
+    approach: 5.0
+    closure: 5.0
+    contact: 3.0
+    drop_risk: -10.0
+    finger_participation: 0.0
+    force_balance: 0.0
+    force_contact: 5.0
+    force_overload: -1.0
+    grip_force: 3.0
+    height: 0.0
+    hold_position: 120.0
+    human_pose: 5.0
+    idle_follow: 0.0
+    pip_closure: 3.0
+    soft_contact: 0.0
+    stable_hold: 10.0
+    survival: 0.5
+    termination: -120.0
+    thumb_engage: 6.0
+    torques: -3.0e-05
+  soft_contact_fmax: 2.5
+  soft_contact_fmin: 0.1
+sim_dt: 0.01
+spawn_config:
+  cube_jitter:
+  - 0.003
+  - 0.005
+  - 0.003
+  cube_pos:
+  - 0.0
+  - -0.04
+  - 0.098
+  support_enabled: true
+support_config:
+  min_release_active_fingers: 3
+  min_release_force: 0.2
+  release_after_sec: 4.0
+  release_ramp_sec: 1.5
+  support_hidden_pos:
+  - 0.0
+  - 0.0
+  - -10.0
+  support_pos:
+  - 0.0
+  - -0.04
+  - 0.08
+tactile_config:
+  force_saturation_n: 3.0
+  obs_force_ema_alpha: 0.7
+  taxel_weights:
+  - 0.7
+  - 1.0
+  - 1.0
+  - 0.7
+  - 1.0
+  - 1.4
+  - 1.4
+  - 1.0
+  - 1.0
+  - 1.4
+  - 1.4
+  - 1.0
+  - 0.7
+  - 1.0
+  - 1.0
+  - 0.7
+  use_pooled_obs: true
+  use_real_tactile: true
+
+PPO Training Parameters:
+action_repeat: 1
+batch_size: 256
+discounting: 0.97
+entropy_cost: 0.01
+episode_length: 500
+learning_rate: 0.0001
+network_factory:
+  policy_hidden_layer_sizes: !!python/tuple
+  - 512
+  - 256
+  - 128
+  policy_obs_key: state
+  value_hidden_layer_sizes: !!python/tuple
+  - 512
+  - 256
+  - 128
+  value_obs_key: privileged_state
+normalize_observations: true
+num_envs: 4096
+num_evals: 8
+num_minibatches: 32
+num_resets_per_eval: 1
+num_timesteps: 40000000
+num_updates_per_batch: 4
+reward_scaling: 1.0
+unroll_length: 40
+
+Experiment name: AeroCubeGraspV2Force-20260411-041834-v2_R05
+Logs are being stored in: /home/ll/SRTP/Aero-Hand/sim_rl/mujoco_playground/logs/AeroCubeGraspV2Force-20260411-041834-v2_R05
+Traceback (most recent call last):
+  File "/home/ll/SRTP/Aero-Hand/sim_rl/mujoco_playground/learning/train_jax_ppo.py", line 642, in <module>
+    app.run(main)
+  File "/home/ll/miniconda3/envs/aero_rl/lib/python3.11/site-packages/absl/app.py", line 367, in run
+    _run_main(main, args)
+  File "/home/ll/miniconda3/envs/aero_rl/lib/python3.11/site-packages/absl/app.py", line 312, in _run_main
+    sys.exit(main(argv))
+             ^^^^^^^^^^
+  File "/home/ll/SRTP/Aero-Hand/sim_rl/mujoco_playground/learning/train_jax_ppo.py", line 329, in main
+    latest_ckpt = _resolve_latest_checkpoint_dir(ckpt_path)
+                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/ll/SRTP/Aero-Hand/sim_rl/mujoco_playground/learning/train_jax_ppo.py", line 226, in _resolve_latest_checkpoint_dir
+    raise FileNotFoundError(
+FileNotFoundError: No numbered checkpoint directories found under /home/ll/SRTP/Aero-Hand/sim_rl/mujoco_playground/logs/AeroCubeGraspV2Force-20260411-024600-v2_R01/checkpoints/000041287680.
+Environment Config:
+action_repeat: 1
+action_scale:
+- 1.4
+- 0.8
+- 1.4
+- 1.4
+- 1.4
+- 1.4
+ctrl_dt: 0.05
+early_termination: true
+episode_length: 500
+history_len: 1
+impl: jax
+noise_config:
+  force_ema_alpha: 0.85
+  level: 0.3
+  scales:
+    hw_force: 0.05
+    hw_pos: 0.005
+reset_config:
+  hand_qpos_noise_scale: 0.02
+reward_config:
+  finger_active_threshold: 0.15
+  force_contact_saturation: 1.2
+  force_contact_threshold: 0.08
+  force_overload_soft_width: 1.5
+  force_overload_threshold: 2.8
+  scales:
+    action_accel: -0.015
+    action_rate: -0.02
+    approach: 5.0
+    closure: 5.0
+    contact: 3.0
+    drop_risk: -10.0
+    finger_participation: 0.0
+    force_balance: 0.0
+    force_contact: 5.0
+    force_overload: -1.0
+    grip_force: 3.0
+    height: 0.0
+    hold_position: 120.0
+    human_pose: 5.0
+    idle_follow: 0.0
+    pip_closure: 3.0
+    soft_contact: 0.0
+    stable_hold: 10.0
+    survival: 0.5
+    termination: -120.0
+    thumb_engage: 6.0
+    torques: -3.0e-05
+  soft_contact_fmax: 2.5
+  soft_contact_fmin: 0.1
+sim_dt: 0.01
+spawn_config:
+  cube_jitter:
+  - 0.003
+  - 0.005
+  - 0.003
+  cube_pos:
+  - 0.0
+  - -0.04
+  - 0.098
+  support_enabled: true
+support_config:
+  min_release_active_fingers: 3
+  min_release_force: 0.2
+  release_after_sec: 4.0
+  release_ramp_sec: 1.5
+  support_hidden_pos:
+  - 0.0
+  - 0.0
+  - -10.0
+  support_pos:
+  - 0.0
+  - -0.04
+  - 0.08
+tactile_config:
+  force_saturation_n: 3.0
+  obs_force_ema_alpha: 0.7
+  taxel_weights:
+  - 0.7
+  - 1.0
+  - 1.0
+  - 0.7
+  - 1.0
+  - 1.4
+  - 1.4
+  - 1.0
+  - 1.0
+  - 1.4
+  - 1.4
+  - 1.0
+  - 0.7
+  - 1.0
+  - 1.0
+  - 0.7
+  use_pooled_obs: true
+  use_real_tactile: true
+
+PPO Training Parameters:
+action_repeat: 1
+batch_size: 256
+discounting: 0.97
+entropy_cost: 0.01
+episode_length: 500
+learning_rate: 0.0001
+network_factory:
+  policy_hidden_layer_sizes: !!python/tuple
+  - 512
+  - 256
+  - 128
+  policy_obs_key: state
+  value_hidden_layer_sizes: !!python/tuple
+  - 512
+  - 256
+  - 128
+  value_obs_key: privileged_state
+normalize_observations: true
+num_envs: 4096
+num_evals: 8
+num_minibatches: 32
+num_resets_per_eval: 1
+num_timesteps: 40000000
+num_updates_per_batch: 4
+reward_scaling: 1.0
+unroll_length: 40
+
+Experiment name: AeroCubeGraspV2Force-20260411-041840-v2_R06
+Logs are being stored in: /home/ll/SRTP/Aero-Hand/sim_rl/mujoco_playground/logs/AeroCubeGraspV2Force-20260411-041840-v2_R06
+Traceback (most recent call last):
+  File "/home/ll/SRTP/Aero-Hand/sim_rl/mujoco_playground/learning/train_jax_ppo.py", line 642, in <module>
+    app.run(main)
+  File "/home/ll/miniconda3/envs/aero_rl/lib/python3.11/site-packages/absl/app.py", line 367, in run
+    _run_main(main, args)
+  File "/home/ll/miniconda3/envs/aero_rl/lib/python3.11/site-packages/absl/app.py", line 312, in _run_main
+    sys.exit(main(argv))
+             ^^^^^^^^^^
+  File "/home/ll/SRTP/Aero-Hand/sim_rl/mujoco_playground/learning/train_jax_ppo.py", line 329, in main
+    latest_ckpt = _resolve_latest_checkpoint_dir(ckpt_path)
+                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/ll/SRTP/Aero-Hand/sim_rl/mujoco_playground/learning/train_jax_ppo.py", line 226, in _resolve_latest_checkpoint_dir
+    raise FileNotFoundError(
+FileNotFoundError: No numbered checkpoint directories found under /home/ll/SRTP/Aero-Hand/sim_rl/mujoco_playground/logs/AeroCubeGraspV2Force-20260411-024600-v2_R01/checkpoints/000041287680.
+Environment Config:
+action_repeat: 1
+action_scale:
+- 1.4
+- 0.8
+- 1.4
+- 1.4
+- 1.4
+- 1.4
+ctrl_dt: 0.05
+early_termination: true
+episode_length: 500
+history_len: 1
+impl: jax
+noise_config:
+  force_ema_alpha: 0.85
+  level: 0.3
+  scales:
+    hw_force: 0.05
+    hw_pos: 0.005
+reset_config:
+  hand_qpos_noise_scale: 0.02
+reward_config:
+  finger_active_threshold: 0.15
+  force_contact_saturation: 1.2
+  force_contact_threshold: 0.08
+  force_overload_soft_width: 1.5
+  force_overload_threshold: 2.8
+  scales:
+    action_accel: -0.015
+    action_rate: -0.02
+    approach: 5.0
+    closure: 5.0
+    contact: 3.0
+    drop_risk: -10.0
+    finger_participation: 0.0
+    force_balance: 0.0
+    force_contact: 5.0
+    force_overload: -1.0
+    grip_force: 3.0
+    height: 0.0
+    hold_position: 120.0
+    human_pose: 5.0
+    idle_follow: 0.0
+    pip_closure: 3.0
+    soft_contact: 0.0
+    stable_hold: 10.0
+    survival: 0.5
+    termination: -120.0
+    thumb_engage: 6.0
+    torques: -3.0e-05
+  soft_contact_fmax: 2.5
+  soft_contact_fmin: 0.1
+sim_dt: 0.01
+spawn_config:
+  cube_jitter:
+  - 0.003
+  - 0.005
+  - 0.003
+  cube_pos:
+  - 0.0
+  - -0.04
+  - 0.098
+  support_enabled: true
+support_config:
+  min_release_active_fingers: 3
+  min_release_force: 0.2
+  release_after_sec: 4.0
+  release_ramp_sec: 1.5
+  support_hidden_pos:
+  - 0.0
+  - 0.0
+  - -10.0
+  support_pos:
+  - 0.0
+  - -0.04
+  - 0.08
+tactile_config:
+  force_saturation_n: 3.0
+  obs_force_ema_alpha: 0.7
+  taxel_weights:
+  - 0.7
+  - 1.0
+  - 1.0
+  - 0.7
+  - 1.0
+  - 1.4
+  - 1.4
+  - 1.0
+  - 1.0
+  - 1.4
+  - 1.4
+  - 1.0
+  - 0.7
+  - 1.0
+  - 1.0
+  - 0.7
+  use_pooled_obs: true
+  use_real_tactile: true
+
+PPO Training Parameters:
+action_repeat: 1
+batch_size: 256
+discounting: 0.97
+entropy_cost: 0.01
+episode_length: 500
+learning_rate: 7.0e-05
+network_factory:
+  policy_hidden_layer_sizes: !!python/tuple
+  - 512
+  - 256
+  - 128
+  policy_obs_key: state
+  value_hidden_layer_sizes: !!python/tuple
+  - 512
+  - 256
+  - 128
+  value_obs_key: privileged_state
+normalize_observations: true
+num_envs: 4096
+num_evals: 8
+num_minibatches: 32
+num_resets_per_eval: 1
+num_timesteps: 40000000
+num_updates_per_batch: 4
+reward_scaling: 1.0
+unroll_length: 40
+
+Experiment name: AeroCubeGraspV2Force-20260411-041846-v2_R07
+Logs are being stored in: /home/ll/SRTP/Aero-Hand/sim_rl/mujoco_playground/logs/AeroCubeGraspV2Force-20260411-041846-v2_R07
+Traceback (most recent call last):
+  File "/home/ll/SRTP/Aero-Hand/sim_rl/mujoco_playground/learning/train_jax_ppo.py", line 642, in <module>
+    app.run(main)
+  File "/home/ll/miniconda3/envs/aero_rl/lib/python3.11/site-packages/absl/app.py", line 367, in run
+    _run_main(main, args)
+  File "/home/ll/miniconda3/envs/aero_rl/lib/python3.11/site-packages/absl/app.py", line 312, in _run_main
+    sys.exit(main(argv))
+             ^^^^^^^^^^
+  File "/home/ll/SRTP/Aero-Hand/sim_rl/mujoco_playground/learning/train_jax_ppo.py", line 329, in main
+    latest_ckpt = _resolve_latest_checkpoint_dir(ckpt_path)
+                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/ll/SRTP/Aero-Hand/sim_rl/mujoco_playground/learning/train_jax_ppo.py", line 226, in _resolve_latest_checkpoint_dir
+    raise FileNotFoundError(
+FileNotFoundError: No numbered checkpoint directories found under /home/ll/SRTP/Aero-Hand/sim_rl/mujoco_playground/logs/AeroCubeGraspV2Force-20260411-024600-v2_R01/checkpoints/000041287680.
+Environment Config:
+action_repeat: 1
+action_scale:
+- 1.4
+- 0.8
+- 1.4
+- 1.4
+- 1.4
+- 1.4
+ctrl_dt: 0.05
+early_termination: true
+episode_length: 500
+history_len: 1
+impl: jax
+noise_config:
+  force_ema_alpha: 0.85
+  level: 0.3
+  scales:
+    hw_force: 0.05
+    hw_pos: 0.005
+reset_config:
+  hand_qpos_noise_scale: 0.02
+reward_config:
+  finger_active_threshold: 0.15
+  force_contact_saturation: 1.2
+  force_contact_threshold: 0.08
+  force_overload_soft_width: 1.5
+  force_overload_threshold: 2.8
+  scales:
+    action_accel: -0.015
+    action_rate: -0.02
+    approach: 5.0
+    closure: 5.0
+    contact: 3.0
+    drop_risk: -10.0
+    finger_participation: 0.0
+    force_balance: 0.0
+    force_contact: 5.0
+    force_overload: -1.0
+    grip_force: 3.0
+    height: 0.0
+    hold_position: 120.0
+    human_pose: 5.0
+    idle_follow: 0.0
+    pip_closure: 3.0
+    soft_contact: 0.0
+    stable_hold: 10.0
+    survival: 0.5
+    termination: -120.0
+    thumb_engage: 6.0
+    torques: -3.0e-05
+  soft_contact_fmax: 2.5
+  soft_contact_fmin: 0.1
+sim_dt: 0.01
+spawn_config:
+  cube_jitter:
+  - 0.003
+  - 0.005
+  - 0.003
+  cube_pos:
+  - 0.0
+  - -0.04
+  - 0.098
+  support_enabled: true
+support_config:
+  min_release_active_fingers: 3
+  min_release_force: 0.2
+  release_after_sec: 4.0
+  release_ramp_sec: 1.5
+  support_hidden_pos:
+  - 0.0
+  - 0.0
+  - -10.0
+  support_pos:
+  - 0.0
+  - -0.04
+  - 0.08
+tactile_config:
+  force_saturation_n: 3.0
+  obs_force_ema_alpha: 0.7
+  taxel_weights:
+  - 0.7
+  - 1.0
+  - 1.0
+  - 0.7
+  - 1.0
+  - 1.4
+  - 1.4
+  - 1.0
+  - 1.0
+  - 1.4
+  - 1.4
+  - 1.0
+  - 0.7
+  - 1.0
+  - 1.0
+  - 0.7
+  use_pooled_obs: true
+  use_real_tactile: true
+
+PPO Training Parameters:
+action_repeat: 1
+batch_size: 256
+discounting: 0.97
+entropy_cost: 0.01
+episode_length: 500
+learning_rate: 7.0e-05
+network_factory:
+  policy_hidden_layer_sizes: !!python/tuple
+  - 512
+  - 256
+  - 128
+  policy_obs_key: state
+  value_hidden_layer_sizes: !!python/tuple
+  - 512
+  - 256
+  - 128
+  value_obs_key: privileged_state
+normalize_observations: true
+num_envs: 4096
+num_evals: 8
+num_minibatches: 32
+num_resets_per_eval: 1
+num_timesteps: 40000000
+num_updates_per_batch: 4
+reward_scaling: 1.0
+unroll_length: 40
+
+Experiment name: AeroCubeGraspV2Force-20260411-041852-v2_R08
+Logs are being stored in: /home/ll/SRTP/Aero-Hand/sim_rl/mujoco_playground/logs/AeroCubeGraspV2Force-20260411-041852-v2_R08
+Traceback (most recent call last):
+  File "/home/ll/SRTP/Aero-Hand/sim_rl/mujoco_playground/learning/train_jax_ppo.py", line 642, in <module>
+    app.run(main)
+  File "/home/ll/miniconda3/envs/aero_rl/lib/python3.11/site-packages/absl/app.py", line 367, in run
+    _run_main(main, args)
+  File "/home/ll/miniconda3/envs/aero_rl/lib/python3.11/site-packages/absl/app.py", line 312, in _run_main
+    sys.exit(main(argv))
+             ^^^^^^^^^^
+  File "/home/ll/SRTP/Aero-Hand/sim_rl/mujoco_playground/learning/train_jax_ppo.py", line 329, in main
+    latest_ckpt = _resolve_latest_checkpoint_dir(ckpt_path)
+                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/ll/SRTP/Aero-Hand/sim_rl/mujoco_playground/learning/train_jax_ppo.py", line 226, in _resolve_latest_checkpoint_dir
+    raise FileNotFoundError(
+FileNotFoundError: No numbered checkpoint directories found under /home/ll/SRTP/Aero-Hand/sim_rl/mujoco_playground/logs/AeroCubeGraspV2Force-20260411-024600-v2_R01/checkpoints/000041287680.
+Environment Config:
+action_repeat: 1
+action_scale:
+- 1.4
+- 0.8
+- 1.4
+- 1.4
+- 1.4
+- 1.4
+ctrl_dt: 0.05
+early_termination: true
+episode_length: 500
+history_len: 1
+impl: jax
+noise_config:
+  force_ema_alpha: 0.85
+  level: 0.3
+  scales:
+    hw_force: 0.05
+    hw_pos: 0.005
+reset_config:
+  hand_qpos_noise_scale: 0.02
+reward_config:
+  finger_active_threshold: 0.15
+  force_contact_saturation: 1.2
+  force_contact_threshold: 0.08
+  force_overload_soft_width: 1.5
+  force_overload_threshold: 2.8
+  scales:
+    action_accel: -0.015
+    action_rate: -0.02
+    approach: 5.0
+    closure: 5.0
+    contact: 3.0
+    drop_risk: -10.0
+    finger_participation: 0.0
+    force_balance: 0.0
+    force_contact: 5.0
+    force_overload: -1.0
+    grip_force: 3.0
+    height: 0.0
+    hold_position: 120.0
+    human_pose: 5.0
+    idle_follow: 0.0
+    pip_closure: 3.0
+    soft_contact: 0.0
+    stable_hold: 10.0
+    survival: 0.5
+    termination: -120.0
+    thumb_engage: 6.0
+    torques: -3.0e-05
+  soft_contact_fmax: 2.5
+  soft_contact_fmin: 0.1
+sim_dt: 0.01
+spawn_config:
+  cube_jitter:
+  - 0.003
+  - 0.005
+  - 0.003
+  cube_pos:
+  - 0.0
+  - -0.04
+  - 0.098
+  support_enabled: true
+support_config:
+  min_release_active_fingers: 3
+  min_release_force: 0.2
+  release_after_sec: 4.0
+  release_ramp_sec: 1.5
+  support_hidden_pos:
+  - 0.0
+  - 0.0
+  - -10.0
+  support_pos:
+  - 0.0
+  - -0.04
+  - 0.08
+tactile_config:
+  force_saturation_n: 3.0
+  obs_force_ema_alpha: 0.7
+  taxel_weights:
+  - 0.7
+  - 1.0
+  - 1.0
+  - 0.7
+  - 1.0
+  - 1.4
+  - 1.4
+  - 1.0
+  - 1.0
+  - 1.4
+  - 1.4
+  - 1.0
+  - 0.7
+  - 1.0
+  - 1.0
+  - 0.7
+  use_pooled_obs: true
+  use_real_tactile: true
+
+PPO Training Parameters:
+action_repeat: 1
+batch_size: 256
+discounting: 0.97
+entropy_cost: 0.01
+episode_length: 500
+learning_rate: 7.0e-05
+network_factory:
+  policy_hidden_layer_sizes: !!python/tuple
+  - 512
+  - 256
+  - 128
+  policy_obs_key: state
+  value_hidden_layer_sizes: !!python/tuple
+  - 512
+  - 256
+  - 128
+  value_obs_key: privileged_state
+normalize_observations: true
+num_envs: 4096
+num_evals: 8
+num_minibatches: 32
+num_resets_per_eval: 1
+num_timesteps: 40000000
+num_updates_per_batch: 4
+reward_scaling: 1.0
+unroll_length: 40
+
+Experiment name: AeroCubeGraspV2Force-20260411-041858-v2_R09
+Logs are being stored in: /home/ll/SRTP/Aero-Hand/sim_rl/mujoco_playground/logs/AeroCubeGraspV2Force-20260411-041858-v2_R09
+Traceback (most recent call last):
+  File "/home/ll/SRTP/Aero-Hand/sim_rl/mujoco_playground/learning/train_jax_ppo.py", line 642, in <module>
+    app.run(main)
+  File "/home/ll/miniconda3/envs/aero_rl/lib/python3.11/site-packages/absl/app.py", line 367, in run
+    _run_main(main, args)
+  File "/home/ll/miniconda3/envs/aero_rl/lib/python3.11/site-packages/absl/app.py", line 312, in _run_main
+    sys.exit(main(argv))
+             ^^^^^^^^^^
+  File "/home/ll/SRTP/Aero-Hand/sim_rl/mujoco_playground/learning/train_jax_ppo.py", line 329, in main
+    latest_ckpt = _resolve_latest_checkpoint_dir(ckpt_path)
+                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/ll/SRTP/Aero-Hand/sim_rl/mujoco_playground/learning/train_jax_ppo.py", line 226, in _resolve_latest_checkpoint_dir
+    raise FileNotFoundError(
+FileNotFoundError: No numbered checkpoint directories found under /home/ll/SRTP/Aero-Hand/sim_rl/mujoco_playground/logs/AeroCubeGraspV2Force-20260411-024600-v2_R01/checkpoints/000041287680.
+Environment Config:
+action_repeat: 1
+action_scale:
+- 1.4
+- 0.8
+- 1.4
+- 1.4
+- 1.4
+- 1.4
+ctrl_dt: 0.05
+early_termination: true
+episode_length: 500
+history_len: 1
+impl: jax
+noise_config:
+  force_ema_alpha: 0.85
+  level: 0.3
+  scales:
+    hw_force: 0.05
+    hw_pos: 0.005
+reset_config:
+  hand_qpos_noise_scale: 0.02
+reward_config:
+  finger_active_threshold: 0.15
+  force_contact_saturation: 1.2
+  force_contact_threshold: 0.08
+  force_overload_soft_width: 1.5
+  force_overload_threshold: 2.8
+  scales:
+    action_accel: -0.015
+    action_rate: -0.02
+    approach: 5.0
+    closure: 5.0
+    contact: 3.0
+    drop_risk: -10.0
+    finger_participation: 0.0
+    force_balance: 0.0
+    force_contact: 5.0
+    force_overload: -1.0
+    grip_force: 3.0
+    height: 0.0
+    hold_position: 120.0
+    human_pose: 5.0
+    idle_follow: 0.0
+    pip_closure: 3.0
+    soft_contact: 0.0
+    stable_hold: 10.0
+    survival: 0.5
+    termination: -120.0
+    thumb_engage: 6.0
+    torques: -3.0e-05
+  soft_contact_fmax: 2.5
+  soft_contact_fmin: 0.1
+sim_dt: 0.01
+spawn_config:
+  cube_jitter:
+  - 0.003
+  - 0.005
+  - 0.003
+  cube_pos:
+  - 0.0
+  - -0.04
+  - 0.098
+  support_enabled: true
+support_config:
+  min_release_active_fingers: 3
+  min_release_force: 0.2
+  release_after_sec: 4.0
+  release_ramp_sec: 1.5
+  support_hidden_pos:
+  - 0.0
+  - 0.0
+  - -10.0
+  support_pos:
+  - 0.0
+  - -0.04
+  - 0.08
+tactile_config:
+  force_saturation_n: 3.0
+  obs_force_ema_alpha: 0.7
+  taxel_weights:
+  - 0.7
+  - 1.0
+  - 1.0
+  - 0.7
+  - 1.0
+  - 1.4
+  - 1.4
+  - 1.0
+  - 1.0
+  - 1.4
+  - 1.4
+  - 1.0
+  - 0.7
+  - 1.0
+  - 1.0
+  - 0.7
+  use_pooled_obs: true
+  use_real_tactile: true
+
+PPO Training Parameters:
+action_repeat: 1
+batch_size: 256
+discounting: 0.97
+entropy_cost: 0.01
+episode_length: 500
+learning_rate: 7.0e-05
+network_factory:
+  policy_hidden_layer_sizes: !!python/tuple
+  - 512
+  - 256
+  - 128
+  policy_obs_key: state
+  value_hidden_layer_sizes: !!python/tuple
+  - 512
+  - 256
+  - 128
+  value_obs_key: privileged_state
+normalize_observations: true
+num_envs: 4096
+num_evals: 8
+num_minibatches: 32
+num_resets_per_eval: 1
+num_timesteps: 40000000
+num_updates_per_batch: 4
+reward_scaling: 1.0
+unroll_length: 40
+
+Experiment name: AeroCubeGraspV2Force-20260411-041904-v2_R10
+Logs are being stored in: /home/ll/SRTP/Aero-Hand/sim_rl/mujoco_playground/logs/AeroCubeGraspV2Force-20260411-041904-v2_R10
+Traceback (most recent call last):
+  File "/home/ll/SRTP/Aero-Hand/sim_rl/mujoco_playground/learning/train_jax_ppo.py", line 642, in <module>
+    app.run(main)
+  File "/home/ll/miniconda3/envs/aero_rl/lib/python3.11/site-packages/absl/app.py", line 367, in run
+    _run_main(main, args)
+  File "/home/ll/miniconda3/envs/aero_rl/lib/python3.11/site-packages/absl/app.py", line 312, in _run_main
+    sys.exit(main(argv))
+             ^^^^^^^^^^
+  File "/home/ll/SRTP/Aero-Hand/sim_rl/mujoco_playground/learning/train_jax_ppo.py", line 329, in main
+    latest_ckpt = _resolve_latest_checkpoint_dir(ckpt_path)
+                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/ll/SRTP/Aero-Hand/sim_rl/mujoco_playground/learning/train_jax_ppo.py", line 226, in _resolve_latest_checkpoint_dir
+    raise FileNotFoundError(
+FileNotFoundError: No numbered checkpoint directories found under /home/ll/SRTP/Aero-Hand/sim_rl/mujoco_playground/logs/AeroCubeGraspV2Force-20260411-024600-v2_R01/checkpoints/000041287680.
+Environment Config:
+action_repeat: 1
+action_scale:
+- 1.4
+- 0.8
+- 1.4
+- 1.4
+- 1.4
+- 1.4
+ctrl_dt: 0.05
+early_termination: true
+episode_length: 500
+history_len: 1
+impl: jax
+noise_config:
+  force_ema_alpha: 0.85
+  level: 0.3
+  scales:
+    hw_force: 0.05
+    hw_pos: 0.005
+reset_config:
+  hand_qpos_noise_scale: 0.02
+reward_config:
+  finger_active_threshold: 0.15
+  force_contact_saturation: 1.2
+  force_contact_threshold: 0.08
+  force_overload_soft_width: 1.5
+  force_overload_threshold: 2.8
+  scales:
+    action_accel: -0.015
+    action_rate: -0.02
+    approach: 5.0
+    closure: 5.0
+    contact: 3.0
+    drop_risk: -10.0
+    finger_participation: 0.0
+    force_balance: 0.0
+    force_contact: 5.0
+    force_overload: -1.0
+    grip_force: 3.0
+    height: 0.0
+    hold_position: 120.0
+    human_pose: 5.0
+    idle_follow: 0.0
+    pip_closure: 3.0
+    soft_contact: 0.0
+    stable_hold: 10.0
+    survival: 0.5
+    termination: -120.0
+    thumb_engage: 6.0
+    torques: -3.0e-05
+  soft_contact_fmax: 2.5
+  soft_contact_fmin: 0.1
+sim_dt: 0.01
+spawn_config:
+  cube_jitter:
+  - 0.003
+  - 0.005
+  - 0.003
+  cube_pos:
+  - 0.0
+  - -0.04
+  - 0.098
+  support_enabled: true
+support_config:
+  min_release_active_fingers: 3
+  min_release_force: 0.2
+  release_after_sec: 4.0
+  release_ramp_sec: 1.5
+  support_hidden_pos:
+  - 0.0
+  - 0.0
+  - -10.0
+  support_pos:
+  - 0.0
+  - -0.04
+  - 0.08
+tactile_config:
+  force_saturation_n: 3.0
+  obs_force_ema_alpha: 0.7
+  taxel_weights:
+  - 0.7
+  - 1.0
+  - 1.0
+  - 0.7
+  - 1.0
+  - 1.4
+  - 1.4
+  - 1.0
+  - 1.0
+  - 1.4
+  - 1.4
+  - 1.0
+  - 0.7
+  - 1.0
+  - 1.0
+  - 0.7
+  use_pooled_obs: true
+  use_real_tactile: true
+
+PPO Training Parameters:
+action_repeat: 1
+batch_size: 256
+discounting: 0.97
+entropy_cost: 0.01
+episode_length: 500
+learning_rate: 7.0e-05
+network_factory:
+  policy_hidden_layer_sizes: !!python/tuple
+  - 512
+  - 256
+  - 128
+  policy_obs_key: state
+  value_hidden_layer_sizes: !!python/tuple
+  - 512
+  - 256
+  - 128
+  value_obs_key: privileged_state
+normalize_observations: true
+num_envs: 4096
+num_evals: 8
+num_minibatches: 32
+num_resets_per_eval: 1
+num_timesteps: 40000000
+num_updates_per_batch: 4
+reward_scaling: 1.0
+unroll_length: 40
+
+Experiment name: AeroCubeGraspV2Force-20260411-041909-v2_R11
+Logs are being stored in: /home/ll/SRTP/Aero-Hand/sim_rl/mujoco_playground/logs/AeroCubeGraspV2Force-20260411-041909-v2_R11
+Traceback (most recent call last):
+  File "/home/ll/SRTP/Aero-Hand/sim_rl/mujoco_playground/learning/train_jax_ppo.py", line 642, in <module>
+    app.run(main)
+  File "/home/ll/miniconda3/envs/aero_rl/lib/python3.11/site-packages/absl/app.py", line 367, in run
+    _run_main(main, args)
+  File "/home/ll/miniconda3/envs/aero_rl/lib/python3.11/site-packages/absl/app.py", line 312, in _run_main
+    sys.exit(main(argv))
+             ^^^^^^^^^^
+  File "/home/ll/SRTP/Aero-Hand/sim_rl/mujoco_playground/learning/train_jax_ppo.py", line 329, in main
+    latest_ckpt = _resolve_latest_checkpoint_dir(ckpt_path)
+                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/ll/SRTP/Aero-Hand/sim_rl/mujoco_playground/learning/train_jax_ppo.py", line 226, in _resolve_latest_checkpoint_dir
+    raise FileNotFoundError(
+FileNotFoundError: No numbered checkpoint directories found under /home/ll/SRTP/Aero-Hand/sim_rl/mujoco_playground/logs/AeroCubeGraspV2Force-20260411-024600-v2_R01/checkpoints/000041287680.
+Environment Config:
+action_repeat: 1
+action_scale:
+- 1.4
+- 0.8
+- 1.4
+- 1.4
+- 1.4
+- 1.4
+ctrl_dt: 0.05
+early_termination: true
+episode_length: 500
+history_len: 1
+impl: jax
+noise_config:
+  force_ema_alpha: 0.85
+  level: 0.3
+  scales:
+    hw_force: 0.05
+    hw_pos: 0.005
+reset_config:
+  hand_qpos_noise_scale: 0.02
+reward_config:
+  finger_active_threshold: 0.15
+  force_contact_saturation: 1.2
+  force_contact_threshold: 0.08
+  force_overload_soft_width: 1.5
+  force_overload_threshold: 2.8
+  scales:
+    action_accel: -0.015
+    action_rate: -0.02
+    approach: 5.0
+    closure: 5.0
+    contact: 3.0
+    drop_risk: -10.0
+    finger_participation: 0.0
+    force_balance: 0.0
+    force_contact: 5.0
+    force_overload: -1.0
+    grip_force: 3.0
+    height: 0.0
+    hold_position: 120.0
+    human_pose: 5.0
+    idle_follow: 0.0
+    pip_closure: 3.0
+    soft_contact: 0.0
+    stable_hold: 10.0
+    survival: 0.5
+    termination: -120.0
+    thumb_engage: 6.0
+    torques: -3.0e-05
+  soft_contact_fmax: 2.5
+  soft_contact_fmin: 0.1
+sim_dt: 0.01
+spawn_config:
+  cube_jitter:
+  - 0.003
+  - 0.005
+  - 0.003
+  cube_pos:
+  - 0.0
+  - -0.04
+  - 0.098
+  support_enabled: true
+support_config:
+  min_release_active_fingers: 3
+  min_release_force: 0.2
+  release_after_sec: 4.0
+  release_ramp_sec: 1.5
+  support_hidden_pos:
+  - 0.0
+  - 0.0
+  - -10.0
+  support_pos:
+  - 0.0
+  - -0.04
+  - 0.08
+tactile_config:
+  force_saturation_n: 3.0
+  obs_force_ema_alpha: 0.7
+  taxel_weights:
+  - 0.7
+  - 1.0
+  - 1.0
+  - 0.7
+  - 1.0
+  - 1.4
+  - 1.4
+  - 1.0
+  - 1.0
+  - 1.4
+  - 1.4
+  - 1.0
+  - 0.7
+  - 1.0
+  - 1.0
+  - 0.7
+  use_pooled_obs: true
+  use_real_tactile: true
+
+PPO Training Parameters:
+action_repeat: 1
+batch_size: 256
+discounting: 0.97
+entropy_cost: 0.01
+episode_length: 500
+learning_rate: 7.0e-05
+network_factory:
+  policy_hidden_layer_sizes: !!python/tuple
+  - 512
+  - 256
+  - 128
+  policy_obs_key: state
+  value_hidden_layer_sizes: !!python/tuple
+  - 512
+  - 256
+  - 128
+  value_obs_key: privileged_state
+normalize_observations: true
+num_envs: 4096
+num_evals: 8
+num_minibatches: 32
+num_resets_per_eval: 1
+num_timesteps: 40000000
+num_updates_per_batch: 4
+reward_scaling: 1.0
+unroll_length: 40
+
+Experiment name: AeroCubeGraspV2Force-20260411-041915-v2_R12
+Logs are being stored in: /home/ll/SRTP/Aero-Hand/sim_rl/mujoco_playground/logs/AeroCubeGraspV2Force-20260411-041915-v2_R12
+Traceback (most recent call last):
+  File "/home/ll/SRTP/Aero-Hand/sim_rl/mujoco_playground/learning/train_jax_ppo.py", line 642, in <module>
+    app.run(main)
+  File "/home/ll/miniconda3/envs/aero_rl/lib/python3.11/site-packages/absl/app.py", line 367, in run
+    _run_main(main, args)
+  File "/home/ll/miniconda3/envs/aero_rl/lib/python3.11/site-packages/absl/app.py", line 312, in _run_main
+    sys.exit(main(argv))
+             ^^^^^^^^^^
+  File "/home/ll/SRTP/Aero-Hand/sim_rl/mujoco_playground/learning/train_jax_ppo.py", line 329, in main
+    latest_ckpt = _resolve_latest_checkpoint_dir(ckpt_path)
+                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/ll/SRTP/Aero-Hand/sim_rl/mujoco_playground/learning/train_jax_ppo.py", line 226, in _resolve_latest_checkpoint_dir
+    raise FileNotFoundError(
+FileNotFoundError: No numbered checkpoint directories found under /home/ll/SRTP/Aero-Hand/sim_rl/mujoco_playground/logs/AeroCubeGraspV2Force-20260411-024600-v2_R01/checkpoints/000041287680.
+Environment Config:
+action_repeat: 1
+action_scale:
+- 1.4
+- 0.8
+- 1.4
+- 1.4
+- 1.4
+- 1.4
+ctrl_dt: 0.05
+early_termination: true
+episode_length: 500
+history_len: 1
+impl: jax
+noise_config:
+  force_ema_alpha: 0.85
+  level: 0.3
+  scales:
+    hw_force: 0.05
+    hw_pos: 0.005
+reset_config:
+  hand_qpos_noise_scale: 0.02
+reward_config:
+  finger_active_threshold: 0.15
+  force_contact_saturation: 1.2
+  force_contact_threshold: 0.08
+  force_overload_soft_width: 1.5
+  force_overload_threshold: 2.8
+  scales:
+    action_accel: -0.015
+    action_rate: -0.02
+    approach: 5.0
+    closure: 5.0
+    contact: 3.0
+    drop_risk: -10.0
+    finger_participation: 0.0
+    force_balance: 0.0
+    force_contact: 5.0
+    force_overload: -1.0
+    grip_force: 3.0
+    height: 0.0
+    hold_position: 120.0
+    human_pose: 5.0
+    idle_follow: 0.0
+    pip_closure: 3.0
+    soft_contact: 0.0
+    stable_hold: 10.0
+    survival: 0.5
+    termination: -120.0
+    thumb_engage: 6.0
+    torques: -3.0e-05
+  soft_contact_fmax: 2.5
+  soft_contact_fmin: 0.1
+sim_dt: 0.01
+spawn_config:
+  cube_jitter:
+  - 0.003
+  - 0.005
+  - 0.003
+  cube_pos:
+  - 0.0
+  - -0.04
+  - 0.098
+  support_enabled: true
+support_config:
+  min_release_active_fingers: 3
+  min_release_force: 0.2
+  release_after_sec: 4.0
+  release_ramp_sec: 1.5
+  support_hidden_pos:
+  - 0.0
+  - 0.0
+  - -10.0
+  support_pos:
+  - 0.0
+  - -0.04
+  - 0.08
+tactile_config:
+  force_saturation_n: 3.0
+  obs_force_ema_alpha: 0.7
+  taxel_weights:
+  - 0.7
+  - 1.0
+  - 1.0
+  - 0.7
+  - 1.0
+  - 1.4
+  - 1.4
+  - 1.0
+  - 1.0
+  - 1.4
+  - 1.4
+  - 1.0
+  - 0.7
+  - 1.0
+  - 1.0
+  - 0.7
+  use_pooled_obs: true
+  use_real_tactile: true
+
+PPO Training Parameters:
+action_repeat: 1
+batch_size: 256
+discounting: 0.97
+entropy_cost: 0.01
+episode_length: 500
+learning_rate: 7.0e-05
+network_factory:
+  policy_hidden_layer_sizes: !!python/tuple
+  - 512
+  - 256
+  - 128
+  policy_obs_key: state
+  value_hidden_layer_sizes: !!python/tuple
+  - 512
+  - 256
+  - 128
+  value_obs_key: privileged_state
+normalize_observations: true
+num_envs: 4096
+num_evals: 8
+num_minibatches: 32
+num_resets_per_eval: 1
+num_timesteps: 40000000
+num_updates_per_batch: 4
+reward_scaling: 1.0
+unroll_length: 40
+
+Experiment name: AeroCubeGraspV2Force-20260411-041921-v2_R13
+Logs are being stored in: /home/ll/SRTP/Aero-Hand/sim_rl/mujoco_playground/logs/AeroCubeGraspV2Force-20260411-041921-v2_R13
+Traceback (most recent call last):
+  File "/home/ll/SRTP/Aero-Hand/sim_rl/mujoco_playground/learning/train_jax_ppo.py", line 642, in <module>
+    app.run(main)
+  File "/home/ll/miniconda3/envs/aero_rl/lib/python3.11/site-packages/absl/app.py", line 367, in run
+    _run_main(main, args)
+  File "/home/ll/miniconda3/envs/aero_rl/lib/python3.11/site-packages/absl/app.py", line 312, in _run_main
+    sys.exit(main(argv))
+             ^^^^^^^^^^
+  File "/home/ll/SRTP/Aero-Hand/sim_rl/mujoco_playground/learning/train_jax_ppo.py", line 329, in main
+    latest_ckpt = _resolve_latest_checkpoint_dir(ckpt_path)
+                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/ll/SRTP/Aero-Hand/sim_rl/mujoco_playground/learning/train_jax_ppo.py", line 226, in _resolve_latest_checkpoint_dir
+    raise FileNotFoundError(
+FileNotFoundError: No numbered checkpoint directories found under /home/ll/SRTP/Aero-Hand/sim_rl/mujoco_playground/logs/AeroCubeGraspV2Force-20260411-024600-v2_R01/checkpoints/000041287680.
+Environment Config:
+action_repeat: 1
+action_scale:
+- 1.4
+- 0.8
+- 1.4
+- 1.4
+- 1.4
+- 1.4
+ctrl_dt: 0.05
+early_termination: true
+episode_length: 500
+history_len: 1
+impl: jax
+noise_config:
+  force_ema_alpha: 0.85
+  level: 0.3
+  scales:
+    hw_force: 0.05
+    hw_pos: 0.005
+reset_config:
+  hand_qpos_noise_scale: 0.02
+reward_config:
+  finger_active_threshold: 0.15
+  force_contact_saturation: 1.2
+  force_contact_threshold: 0.08
+  force_overload_soft_width: 1.5
+  force_overload_threshold: 2.8
+  scales:
+    action_accel: -0.015
+    action_rate: -0.02
+    approach: 5.0
+    closure: 5.0
+    contact: 3.0
+    drop_risk: -10.0
+    finger_participation: 0.0
+    force_balance: 0.0
+    force_contact: 5.0
+    force_overload: -1.0
+    grip_force: 3.0
+    height: 0.0
+    hold_position: 120.0
+    human_pose: 5.0
+    idle_follow: 0.0
+    pip_closure: 3.0
+    soft_contact: 0.0
+    stable_hold: 10.0
+    survival: 0.5
+    termination: -120.0
+    thumb_engage: 6.0
+    torques: -3.0e-05
+  soft_contact_fmax: 2.5
+  soft_contact_fmin: 0.1
+sim_dt: 0.01
+spawn_config:
+  cube_jitter:
+  - 0.003
+  - 0.005
+  - 0.003
+  cube_pos:
+  - 0.0
+  - -0.04
+  - 0.098
+  support_enabled: true
+support_config:
+  min_release_active_fingers: 3
+  min_release_force: 0.2
+  release_after_sec: 4.0
+  release_ramp_sec: 1.5
+  support_hidden_pos:
+  - 0.0
+  - 0.0
+  - -10.0
+  support_pos:
+  - 0.0
+  - -0.04
+  - 0.08
+tactile_config:
+  force_saturation_n: 3.0
+  obs_force_ema_alpha: 0.7
+  taxel_weights:
+  - 0.7
+  - 1.0
+  - 1.0
+  - 0.7
+  - 1.0
+  - 1.4
+  - 1.4
+  - 1.0
+  - 1.0
+  - 1.4
+  - 1.4
+  - 1.0
+  - 0.7
+  - 1.0
+  - 1.0
+  - 0.7
+  use_pooled_obs: true
+  use_real_tactile: true
+
+PPO Training Parameters:
+action_repeat: 1
+batch_size: 256
+discounting: 0.97
+entropy_cost: 0.01
+episode_length: 500
+learning_rate: 7.0e-05
+network_factory:
+  policy_hidden_layer_sizes: !!python/tuple
+  - 512
+  - 256
+  - 128
+  policy_obs_key: state
+  value_hidden_layer_sizes: !!python/tuple
+  - 512
+  - 256
+  - 128
+  value_obs_key: privileged_state
+normalize_observations: true
+num_envs: 4096
+num_evals: 8
+num_minibatches: 32
+num_resets_per_eval: 1
+num_timesteps: 40000000
+num_updates_per_batch: 4
+reward_scaling: 1.0
+unroll_length: 40
+
+Experiment name: AeroCubeGraspV2Force-20260411-041927-v2_R14
+Logs are being stored in: /home/ll/SRTP/Aero-Hand/sim_rl/mujoco_playground/logs/AeroCubeGraspV2Force-20260411-041927-v2_R14
+Traceback (most recent call last):
+  File "/home/ll/SRTP/Aero-Hand/sim_rl/mujoco_playground/learning/train_jax_ppo.py", line 642, in <module>
+    app.run(main)
+  File "/home/ll/miniconda3/envs/aero_rl/lib/python3.11/site-packages/absl/app.py", line 367, in run
+    _run_main(main, args)
+  File "/home/ll/miniconda3/envs/aero_rl/lib/python3.11/site-packages/absl/app.py", line 312, in _run_main
+    sys.exit(main(argv))
+             ^^^^^^^^^^
+  File "/home/ll/SRTP/Aero-Hand/sim_rl/mujoco_playground/learning/train_jax_ppo.py", line 329, in main
+    latest_ckpt = _resolve_latest_checkpoint_dir(ckpt_path)
+                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/ll/SRTP/Aero-Hand/sim_rl/mujoco_playground/learning/train_jax_ppo.py", line 226, in _resolve_latest_checkpoint_dir
+    raise FileNotFoundError(
+FileNotFoundError: No numbered checkpoint directories found under /home/ll/SRTP/Aero-Hand/sim_rl/mujoco_playground/logs/AeroCubeGraspV2Force-20260411-024600-v2_R01/checkpoints/000041287680.
+Environment Config:
+action_repeat: 1
+action_scale:
+- 1.4
+- 0.8
+- 1.4
+- 1.4
+- 1.4
+- 1.4
+ctrl_dt: 0.05
+early_termination: true
+episode_length: 500
+history_len: 1
+impl: jax
+noise_config:
+  force_ema_alpha: 0.85
+  level: 0.3
+  scales:
+    hw_force: 0.05
+    hw_pos: 0.005
+reset_config:
+  hand_qpos_noise_scale: 0.02
+reward_config:
+  finger_active_threshold: 0.15
+  force_contact_saturation: 1.2
+  force_contact_threshold: 0.08
+  force_overload_soft_width: 1.5
+  force_overload_threshold: 2.8
+  scales:
+    action_accel: -0.015
+    action_rate: -0.02
+    approach: 5.0
+    closure: 5.0
+    contact: 3.0
+    drop_risk: -10.0
+    finger_participation: 0.0
+    force_balance: 0.0
+    force_contact: 5.0
+    force_overload: -1.0
+    grip_force: 3.0
+    height: 0.0
+    hold_position: 120.0
+    human_pose: 5.0
+    idle_follow: 0.0
+    pip_closure: 3.0
+    soft_contact: 0.0
+    stable_hold: 10.0
+    survival: 0.5
+    termination: -120.0
+    thumb_engage: 6.0
+    torques: -3.0e-05
+  soft_contact_fmax: 2.5
+  soft_contact_fmin: 0.1
+sim_dt: 0.01
+spawn_config:
+  cube_jitter:
+  - 0.003
+  - 0.005
+  - 0.003
+  cube_pos:
+  - 0.0
+  - -0.04
+  - 0.098
+  support_enabled: true
+support_config:
+  min_release_active_fingers: 3
+  min_release_force: 0.2
+  release_after_sec: 4.0
+  release_ramp_sec: 1.5
+  support_hidden_pos:
+  - 0.0
+  - 0.0
+  - -10.0
+  support_pos:
+  - 0.0
+  - -0.04
+  - 0.08
+tactile_config:
+  force_saturation_n: 3.0
+  obs_force_ema_alpha: 0.7
+  taxel_weights:
+  - 0.7
+  - 1.0
+  - 1.0
+  - 0.7
+  - 1.0
+  - 1.4
+  - 1.4
+  - 1.0
+  - 1.0
+  - 1.4
+  - 1.4
+  - 1.0
+  - 0.7
+  - 1.0
+  - 1.0
+  - 0.7
+  use_pooled_obs: true
+  use_real_tactile: true
+
+PPO Training Parameters:
+action_repeat: 1
+batch_size: 256
+discounting: 0.97
+entropy_cost: 0.01
+episode_length: 500
+learning_rate: 7.0e-05
+network_factory:
+  policy_hidden_layer_sizes: !!python/tuple
+  - 512
+  - 256
+  - 128
+  policy_obs_key: state
+  value_hidden_layer_sizes: !!python/tuple
+  - 512
+  - 256
+  - 128
+  value_obs_key: privileged_state
+normalize_observations: true
+num_envs: 4096
+num_evals: 8
+num_minibatches: 32
+num_resets_per_eval: 1
+num_timesteps: 40000000
+num_updates_per_batch: 4
+reward_scaling: 1.0
+unroll_length: 40
+
+Experiment name: AeroCubeGraspV2Force-20260411-041933-v2_R15
+Logs are being stored in: /home/ll/SRTP/Aero-Hand/sim_rl/mujoco_playground/logs/AeroCubeGraspV2Force-20260411-041933-v2_R15
+Traceback (most recent call last):
+  File "/home/ll/SRTP/Aero-Hand/sim_rl/mujoco_playground/learning/train_jax_ppo.py", line 642, in <module>
+    app.run(main)
+  File "/home/ll/miniconda3/envs/aero_rl/lib/python3.11/site-packages/absl/app.py", line 367, in run
+    _run_main(main, args)
+  File "/home/ll/miniconda3/envs/aero_rl/lib/python3.11/site-packages/absl/app.py", line 312, in _run_main
+    sys.exit(main(argv))
+             ^^^^^^^^^^
+  File "/home/ll/SRTP/Aero-Hand/sim_rl/mujoco_playground/learning/train_jax_ppo.py", line 329, in main
+    latest_ckpt = _resolve_latest_checkpoint_dir(ckpt_path)
+                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/ll/SRTP/Aero-Hand/sim_rl/mujoco_playground/learning/train_jax_ppo.py", line 226, in _resolve_latest_checkpoint_dir
+    raise FileNotFoundError(
+FileNotFoundError: No numbered checkpoint directories found under /home/ll/SRTP/Aero-Hand/sim_rl/mujoco_playground/logs/AeroCubeGraspV2Force-20260411-024600-v2_R01/checkpoints/000041287680.
+
+============================================================
+V2-iter1: Starting training (40M steps, lr=0.0003)
+  suffix=v2_R01
+============================================================
+
+
+V2-iter1 completed in 92.3 min (exit code=0)
+Report written to /home/ll/SRTP/Aero-Hand/V2_training_report.txt
+V2-iter1: eplen=106.5, reward=61.0
+
+============================================================
+V2-iter2: Starting training (40M steps, lr=0.0002)
+  suffix=v2_R02
+  checkpoint=/home/ll/SRTP/Aero-Hand/sim_rl/mujoco_playground/logs/AeroCubeGraspV2Force-20260411-024600-v2_R01/checkpoints/000041287680
+============================================================
+
+
+V2-iter2 completed in 0.1 min (exit code=1)
+Report written to /home/ll/SRTP/Aero-Hand/V2_training_report.txt
+V2-iter2: eplen=0.0, reward=0.0
+
+============================================================
+V2-iter3: Starting training (40M steps, lr=0.0002)
+  suffix=v2_R03
+  checkpoint=/home/ll/SRTP/Aero-Hand/sim_rl/mujoco_playground/logs/AeroCubeGraspV2Force-20260411-024600-v2_R01/checkpoints/000041287680
+============================================================
+
+
+V2-iter3 completed in 0.1 min (exit code=1)
+Report written to /home/ll/SRTP/Aero-Hand/V2_training_report.txt
+V2-iter3: eplen=0.0, reward=0.0
+
+============================================================
+V2-iter4: Starting training (40M steps, lr=0.0001)
+  suffix=v2_R04
+  checkpoint=/home/ll/SRTP/Aero-Hand/sim_rl/mujoco_playground/logs/AeroCubeGraspV2Force-20260411-024600-v2_R01/checkpoints/000041287680
+============================================================
+
+
+V2-iter4 completed in 0.1 min (exit code=1)
+Report written to /home/ll/SRTP/Aero-Hand/V2_training_report.txt
+V2-iter4: eplen=0.0, reward=0.0
+
+============================================================
+V2-iter5: Starting training (40M steps, lr=0.0001)
+  suffix=v2_R05
+  checkpoint=/home/ll/SRTP/Aero-Hand/sim_rl/mujoco_playground/logs/AeroCubeGraspV2Force-20260411-024600-v2_R01/checkpoints/000041287680
+============================================================
+
+
+V2-iter5 completed in 0.1 min (exit code=1)
+Report written to /home/ll/SRTP/Aero-Hand/V2_training_report.txt
+V2-iter5: eplen=0.0, reward=0.0
+
+============================================================
+V2-iter6: Starting training (40M steps, lr=0.0001)
+  suffix=v2_R06
+  checkpoint=/home/ll/SRTP/Aero-Hand/sim_rl/mujoco_playground/logs/AeroCubeGraspV2Force-20260411-024600-v2_R01/checkpoints/000041287680
+============================================================
+
+
+V2-iter6 completed in 0.1 min (exit code=1)
+Report written to /home/ll/SRTP/Aero-Hand/V2_training_report.txt
+V2-iter6: eplen=0.0, reward=0.0
+
+============================================================
+V2-iter7: Starting training (40M steps, lr=7e-05)
+  suffix=v2_R07
+  checkpoint=/home/ll/SRTP/Aero-Hand/sim_rl/mujoco_playground/logs/AeroCubeGraspV2Force-20260411-024600-v2_R01/checkpoints/000041287680
+============================================================
+
+
+V2-iter7 completed in 0.1 min (exit code=1)
+Report written to /home/ll/SRTP/Aero-Hand/V2_training_report.txt
+V2-iter7: eplen=0.0, reward=0.0
+
+============================================================
+V2-iter8: Starting training (40M steps, lr=7e-05)
+  suffix=v2_R08
+  checkpoint=/home/ll/SRTP/Aero-Hand/sim_rl/mujoco_playground/logs/AeroCubeGraspV2Force-20260411-024600-v2_R01/checkpoints/000041287680
+============================================================
+
+
+V2-iter8 completed in 0.1 min (exit code=1)
+Report written to /home/ll/SRTP/Aero-Hand/V2_training_report.txt
+V2-iter8: eplen=0.0, reward=0.0
+
+============================================================
+V2-iter9: Starting training (40M steps, lr=7e-05)
+  suffix=v2_R09
+  checkpoint=/home/ll/SRTP/Aero-Hand/sim_rl/mujoco_playground/logs/AeroCubeGraspV2Force-20260411-024600-v2_R01/checkpoints/000041287680
+============================================================
+
+
+V2-iter9 completed in 0.1 min (exit code=1)
+Report written to /home/ll/SRTP/Aero-Hand/V2_training_report.txt
+V2-iter9: eplen=0.0, reward=0.0
+
+============================================================
+V2-iter10: Starting training (40M steps, lr=7e-05)
+  suffix=v2_R10
+  checkpoint=/home/ll/SRTP/Aero-Hand/sim_rl/mujoco_playground/logs/AeroCubeGraspV2Force-20260411-024600-v2_R01/checkpoints/000041287680
+============================================================
+
+
+V2-iter10 completed in 0.1 min (exit code=1)
+Report written to /home/ll/SRTP/Aero-Hand/V2_training_report.txt
+V2-iter10: eplen=0.0, reward=0.0
+
+============================================================
+V2-iter11: Starting training (40M steps, lr=7e-05)
+  suffix=v2_R11
+  checkpoint=/home/ll/SRTP/Aero-Hand/sim_rl/mujoco_playground/logs/AeroCubeGraspV2Force-20260411-024600-v2_R01/checkpoints/000041287680
+============================================================
+
+
+V2-iter11 completed in 0.1 min (exit code=1)
+Report written to /home/ll/SRTP/Aero-Hand/V2_training_report.txt
+V2-iter11: eplen=0.0, reward=0.0
+
+============================================================
+V2-iter12: Starting training (40M steps, lr=7e-05)
+  suffix=v2_R12
+  checkpoint=/home/ll/SRTP/Aero-Hand/sim_rl/mujoco_playground/logs/AeroCubeGraspV2Force-20260411-024600-v2_R01/checkpoints/000041287680
+============================================================
+
+
+V2-iter12 completed in 0.1 min (exit code=1)
+Report written to /home/ll/SRTP/Aero-Hand/V2_training_report.txt
+V2-iter12: eplen=0.0, reward=0.0
+
+============================================================
+V2-iter13: Starting training (40M steps, lr=7e-05)
+  suffix=v2_R13
+  checkpoint=/home/ll/SRTP/Aero-Hand/sim_rl/mujoco_playground/logs/AeroCubeGraspV2Force-20260411-024600-v2_R01/checkpoints/000041287680
+============================================================
+
+
+V2-iter13 completed in 0.1 min (exit code=1)
+Report written to /home/ll/SRTP/Aero-Hand/V2_training_report.txt
+V2-iter13: eplen=0.0, reward=0.0
+
+============================================================
+V2-iter14: Starting training (40M steps, lr=7e-05)
+  suffix=v2_R14
+  checkpoint=/home/ll/SRTP/Aero-Hand/sim_rl/mujoco_playground/logs/AeroCubeGraspV2Force-20260411-024600-v2_R01/checkpoints/000041287680
+============================================================
+
+
+V2-iter14 completed in 0.1 min (exit code=1)
+Report written to /home/ll/SRTP/Aero-Hand/V2_training_report.txt
+V2-iter14: eplen=0.0, reward=0.0
+
+============================================================
+V2-iter15: Starting training (40M steps, lr=7e-05)
+  suffix=v2_R15
+  checkpoint=/home/ll/SRTP/Aero-Hand/sim_rl/mujoco_playground/logs/AeroCubeGraspV2Force-20260411-024600-v2_R01/checkpoints/000041287680
+============================================================
+
+
+V2-iter15 completed in 0.1 min (exit code=1)
+Report written to /home/ll/SRTP/Aero-Hand/V2_training_report.txt
+V2-iter15: eplen=0.0, reward=0.0
+Report written to /home/ll/SRTP/Aero-Hand/V2_training_report.txt
+
+============================================================
+All iterations complete. Report: /home/ll/SRTP/Aero-Hand/V2_training_report.txt
+Strategy log: /home/ll/SRTP/Aero-Hand/V2_training_analysis.txt
+Best EpLen: 106.5
+============================================================

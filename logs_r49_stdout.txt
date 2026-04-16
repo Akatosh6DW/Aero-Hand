@@ -1,0 +1,149 @@
+nohup: 忽略输入
+Environment Config:
+action_repeat: 1
+action_scale:
+- 1.4
+- 0.8
+- 1.4
+- 1.4
+- 1.4
+- 1.4
+ctrl_dt: 0.05
+early_termination: true
+episode_length: 800
+force_history_len: 1
+history_len: 1
+impl: jax
+noise_config:
+  force_ema_alpha: 0.85
+  level: 0.3
+  scales:
+    hw_force: 0.05
+    hw_pos: 0.005
+reset_config:
+  hand_qpos_noise_scale: 0.02
+reward_config:
+  finger_active_threshold: 0.08
+  force_contact_saturation: 3.0
+  force_contact_threshold: 0.06
+  force_overload_soft_width: 1.5
+  force_overload_threshold: 2.8
+  scales:
+    action_accel: -0.005
+    action_rate: -0.01
+    approach: 15.0
+    closure: 25.0
+    contact: 10.0
+    drop_risk: -5.0
+    finger_participation: 5.0
+    force_balance: 0.0
+    force_contact: 15.0
+    force_overload: 0.0
+    grip_force: 15.0
+    height: 5.0
+    hold_position: 30.0
+    human_pose: 3.0
+    idle_follow: 0.0
+    pip_closure: 10.0
+    progressive_hold: 0.0
+    soft_contact: 0.0
+    stable_hold: 5.0
+    survival: 1.0
+    termination: -80.0
+    thumb_engage: 15.0
+    torques: -3.0e-05
+  soft_contact_fmax: 2.5
+  soft_contact_fmin: 0.1
+sim_dt: 0.01
+spawn_config:
+  cube_jitter:
+  - 0.003
+  - 0.005
+  - 0.003
+  cube_pos:
+  - 0.0
+  - -0.04
+  - 0.0955
+  support_enabled: true
+support_config:
+  min_release_active_fingers: 3
+  min_release_force: 0.2
+  release_after_sec: 3.0
+  release_ramp_sec: 0.0
+  support_hidden_pos:
+  - 0.0
+  - 0.0
+  - -10.0
+  support_pos:
+  - 0.0
+  - -0.04
+  - 0.08
+tactile_config:
+  force_saturation_n: 3.0
+  obs_force_ema_alpha: 0.7
+  taxel_weights:
+  - 0.7
+  - 1.0
+  - 1.0
+  - 0.7
+  - 1.0
+  - 1.4
+  - 1.4
+  - 1.0
+  - 1.0
+  - 1.4
+  - 1.4
+  - 1.0
+  - 0.7
+  - 1.0
+  - 1.0
+  - 0.7
+  use_pooled_obs: true
+  use_real_tactile: true
+
+PPO Training Parameters:
+action_repeat: 1
+batch_size: 256
+discounting: 0.97
+entropy_cost: 0.01
+episode_length: 800
+learning_rate: 0.0002
+network_factory:
+  policy_hidden_layer_sizes: &id001 !!python/tuple
+  - 512
+  - 256
+  - 128
+  policy_obs_key: state
+  value_hidden_layer_sizes: *id001
+  value_obs_key: privileged_state
+normalize_observations: true
+num_envs: 4096
+num_evals: 10
+num_minibatches: 32
+num_resets_per_eval: 1
+num_timesteps: 20000000
+num_updates_per_batch: 4
+reward_scaling: 1.0
+unroll_length: 40
+
+Experiment name: AeroCubeGraspV2Force-20260415-120020
+Logs are being stored in: /home/ll/SRTP/Aero-Hand/sim_rl/mujoco_playground/logs/AeroCubeGraspV2Force-20260415-120020
+Restoring from: /home/ll/SRTP/Aero-Hand/sim_rl/mujoco_playground/logs/AeroCubeGraspV2Force-20260415-110253/checkpoints/000020643840
+Checkpoint path: /home/ll/SRTP/Aero-Hand/sim_rl/mujoco_playground/logs/AeroCubeGraspV2Force-20260415-120020/checkpoints
+0: reward=61.368
+2293760: reward=76.097
+4587520: reward=61.210
+6881280: reward=67.829
+9175040: reward=78.655
+11468800: reward=77.563
+13762560: reward=72.052
+16056320: reward=81.967
+18350080: reward=80.602
+20643840: reward=78.179
+Done training.
+Time to JIT compile: 44.94255538300058
+Time to train: 3003.5172900940015
+Starting inference...
+FPS for rendering: 10.0
+  0%|          | 0/400 [00:00<?, ?it/s] 18%|█▊        | 70/400 [00:00<00:00, 694.50it/s] 35%|███▌      | 140/400 [00:00<00:00, 674.93it/s] 53%|█████▎    | 211/400 [00:00<00:00, 687.33it/s] 70%|███████   | 280/400 [00:00<00:00, 680.14it/s] 87%|████████▋ | 349/400 [00:00<00:00, 666.62it/s]100%|██████████| 400/400 [00:00<00:00, 678.93it/s]
+Rollout video saved as 'rollout0.mp4'.
