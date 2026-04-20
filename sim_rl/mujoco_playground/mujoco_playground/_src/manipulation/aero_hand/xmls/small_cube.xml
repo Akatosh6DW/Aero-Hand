@@ -1,0 +1,40 @@
+<mujoco>
+  <!-- ================================================================
+       物块参数文件（P-stage 和 V-stage 共用）
+       ================================================================ -->
+  <default>
+    <default class="cube">
+      <!-- 【摩擦参数】friction="滑动 扭转"
+           sliding_friction=1.0 → 抓取摩擦系数（范围 0.5~2.0，越大越难滑落）
+           torsional_friction=0.05 → 扭转摩擦（影响旋转操作，一般无需修改）
+           condim=3 → 3D 接触（x/y/z 切向力）
+           conaffinity=7(111)：与 contype=1(手指/掌)、contype=2、contype=4(支撑台) 均可碰撞
+             hand fingers: contype=1, (1&7=1)≠0 AND (1&1=1)≠0 → 碰撞 ✓【R10修复前=6时此处为0→无碰撞！】
+             support: contype=4, (1&5=1)≠0 AND (4&7=4)≠0 → 碰撞 ✓（保持不变）
+           注：conaffinity原为6(110)，导致1&6=0→手指永远无法物理接触方块！R10修复为7。 -->
+      <!-- C14: friction 2.0→1.5 (moderate), mass 20g→10g (easier hold) -->
+      <!-- C20穿模修复: 添加solref/solimp使方块接触更硬 -->
+      <geom friction="1.5 0.05" conaffinity="7" condim="3" solref="0.005 1.0" solimp="0.97 0.999 0.0001"/>
+    </default>
+  </default>
+
+  <worldbody>
+    <!-- 【物块 body】
+         pos：默认初始位置（被 keyframe 或 Python config 中 cube_pos 覆盖，此值不生效）
+         quat：初始姿态，1 0 0 0 = 无旋转 -->
+    <body name="cube" pos="-0.066 0.0 0.085" quat="1 0 0 0" childclass="cube">
+      <!-- freejoint：使物块有 6-DOF 自由运动（位置+姿态，共 7 qpos）-->
+      <freejoint name="cube_freejoint"/>
+      <!-- 【物块几何参数】
+           type=box，size=半体积尺寸（x/y/z 半轴长）
+           size=0.015 0.015 0.015 → 实际边长 3cm × 3cm × 3cm
+           【修改大小】改 size 的3个数（均为半长）→ 例如 0.020 改为 4cm 边长
+           mass=0.020 → 质量 **20g**（R46: 50g→20g, 2.5cm方块50g=密度3200不合理, 20g给物理余量）
+           【修改质量】改 mass 的值（单位 kg）→ 越重越难被手指抬起
+           rgba → 颜色：蓝色 (0.2, 0.6, 1.0, 不透明) -->
+      <geom name="cube" type="box" size=".0125 .0125 .0125" mass=".020" group="1" rgba="0.2 0.6 1.0 1"/>
+      <site name="cube_center" pos="0 0 0" group="4"/>
+    </body>
+  </worldbody>
+</mujoco>
+

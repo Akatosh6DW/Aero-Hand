@@ -1,0 +1,224 @@
+================================================================================
+奖励函数迭代日志  AeroCubeGraspHW6ForceP  P-stage (掌心向上包裹抓取)
+基础 Checkpoint: logs/AeroCubeGraspHW6ForceP-20260402-212745-wrap_phase2/checkpoints (步骤 ~1.11亿)
+迭代开始时间: 2026-04-03
+诊断目标: 5M步/轮，快速识别奖励函数缺陷并迭代修复
+================================================================================
+
+关键几何约束（始终牢记）：
+  - palmup 场景：手掌朝 +z，方块在掌心 z=-0.022 [R6修复为 z=+0.015]
+  - MCP=90° 时，指尖在方块正上方，距方块中心 ~7.1cm
+
+================================================================================
+  [2026-04-03 追加] 完整迭代轮次结果 + 关键 Bug 总结 (R1-R11)
+================================================================================
+
+===== 一、训练进展总表 =====
+
+  轮次 | 日志后缀    | approach        | contact/step | 关键发现/修改
+  -----+-------------+-----------------+--------------+------------------
+  R1   | diag_r1    | 6.20cm (flat)   | —            | 起点（错误几何）
+  R2   | diag_r2    | 6.20cm          | —            | 权重调整无效
+  R3   | diag_r3    | 6.20cm          | 0            | Box-SDF contact采用
+  R4   | diag_r4    | 6.20cm          | 低           | FK分析开始
+  R5   | diag_r5    | 6.20cm          | 低           | 确认几何问题
+  R6   | diag_r6    | 6.20cm          | —            | 几何修复测试(ca=4失败)
+  R6b  | diag_r6b   | 6.20cm          | —            | ca=5修复,但策略固化
+  R6c  | diag_r6c   | 9.05→5.08cm ↓  | 0.24→0.79   | 从零重训,首次改善!
+  R7   | diag_r7    | 5.09→4.24cm ↓  | 0.79→0.81   | 持续改善
+  R8   | diag_r8    | 4.26→4.19cm ↓  | 0.81→0.82   | 平台检测到
+  R9   | diag_r9    | 4.20cm (flat)   | 0.82         | 发现 approach 局部最优
+  R10  | diag_r10   | — (scale=0)     | 0.82 (flat)  | 发现物理碰撞Bug
+  R11  | diag_r11   | —               | 0.82 (flat)  | 发现MJX touch sensor不工作
+
+  最佳 approach: 4.19cm (R8)  |  最佳 contact SDF: 0.823/step (R11)
+  最佳实际抓握: 未实现（force_contact 始终 0 — 详见 Bug#2/Bug#3）
+
+===== 二、Bug 总结（按发现顺序）=====
+
+【Bug#0】cube_pos.z=-0.022（掌面内部）(R1-R5诊断、R6修复)
+  现象: approach 锁死 6.2cm
+  根因: FK验证 — MCP=90°,PIP=60° 时指尖 z≈+0.020，而 cube 在 z=-0.022（掌面内）
+        指尖永远在 cube 之外，几何上不可达
+  修复: cube z=-0.022 → +0.015；support_pos z=-0.003（支撑台托住）
+  文件: grasp_cube_hw6_force.py, scene_mjx_grasp_hw6_palmup.xml
+
+【Bug#0b】support.conaffinity 导致碰撞 AND 条件失败 (R6诊断修复)
+  根因: MuJoCo 碰撞 AND 条件: (A.contype & B.conaffinity)≠0 AND (B.contype & A.conaffinity)≠0
+        support.conaffinity=0或4 → (cube.ct=1 & 0=0) 或 (cube.ct=1 & 4=0) → 失败
+  修复: support.conaffinity=5(0b101): (1&5=1)≠0 AND (4&6=4)≠0 → 成功
+  文件: scene_mjx_grasp_hw6_palmup.xml
+
+【Bug#1】approach 奖励在 palm-up 配置制造 MCP≈45° 局部最优 (R9诊断)
+  根因: _reward_approach = exp(-20 * min_tip_dist_to_CUBE_CENTER)
+        palm-up 中 MCP 超过 ~45° 后指尖"越过"cube center → 距中心增大 → reward 下降
+        策略被锁定在 MCP≈45°（approach 极大值），不会继续弯曲
+  缓解: approach scale=0（R10起禁用）
+  建议根本修复: 改用 exp(-20 * max(surface_dist, 0))（与 contact 一致的 surface SDF）
+  文件: grasp_cube_hw6_force.py::_reward_approach
+
+【Bug#2】small_cube.xml conaffinity=6 → 手指永远无法物理接触方块 (R11发现)
+  根因: cube.conaffinity=6(0b110)，finger.contype=1(0b001)
+        1 & 6 = 0 → AND 条件失败 → R6c-R10 全部训练中手指从未物理接触 cube!
+        contact reward=0.82 完全是 Box-SDF 软距离"幻觉"
+  修复: conaffinity=6 → 7(0b111): (1&7=1)≠0 AND (1&1=1)≠0 → 手指触碰 cube ✓
+        验证: if_tip/mf_tip/rf_tip/pf_tip/th_tip 及所有 palm_collision 现均可碰撞 cube
+  文件: small_cube.xml
+
+【Bug#3】MJX 不计算 touch 传感器数据 (R11发现, 框架限制)
+  根因: MJX (JAX-based MuJoCo) 不更新 touch/force sensor sensordata
+        验证: state.data.sensordata 全为零 (All zeros? True)
+        CPU MuJoCo: nconmax=-1, ncon=4, sensordata 正常非零 ✓
+  影响: force_contact 奖励（scale≥0 无效）、stable_hold 奖励（永远0）
+        R1-R11 共 11 轮训练中 stable_hold 始终为 0
+  建议:
+    (a) 改用 data.contact 几何代理（检测接触 geom 对）
+    (b) 用 cube 速度 + 高度代理"稳定持握"（无需力传感器）
+    (c) 切换 CPU 多线程训练以启用 touch sensor
+
+===== 三、下一步建议 =====
+
+1. 修复 _reward_approach（Bug#1根本修复）:
+   return jp.exp(-20.0 * jp.maximum(surface_dist, 0.0))  # surface SDF 而非中心距离
+
+2. 实现几何代理 _reward_stable_hold（替代 Bug#3 中失效的传感器版本）:
+   cube_held_proxy = exp(-6*linvel) * exp(-4*angvel) * clip((cube_z + 0.01)/0.02, 0, 1)
+   # 无需力传感器，利用物理约束和位置信息
+
+3. 利用 data.contact 检测实际接触（MJX 支持）:
+   检测 finger geom vs cube geom 的接触对数量，作为接触计数信号
+
+4. 预期：Bug#1+Bug#2+Bug#3 全部修复后，approach < 2cm，实际抓握可能实现
+
+================================================================================
+  - 弯曲 PIP/DIP 会使指尖横向扫出 → approach 的 exp(-20*dist) 信号下降
+  - contact/stable_hold/force_contact 需要真实物理接触 → 前提是指尖先到达方块
+
+当前奖励函数结构：
+  reward = sum(r_i * scale_i) * dt
+  各项通过 state.metrics["reward/X"] 记录，CSV 列为 eval/episode_reward/X
+
+================================================================================
+ROUND 0: 基线参考（来自 wrap_phase2 最后状态，步骤 1.11 亿）
+================================================================================
+配置（修改前）：
+  approach=5.0, contact=2.0, thumb_engage=2.0, closure=3.0, distal_closure=4.0
+  stable_hold=8.0, force_contact=3.0, hold_position=1.5, termination=-20.0
+
+观测值（wrap_phase2 最终）：
+  total=39.03 | approach=601 | closure=27.7 | distal=219.9 | contact=0 | stable=0 | force_contact=0 | hold_pos=0.01
+
+问题分析：
+  - contact/stable_hold/force_contact/hold_position 全程=0，权重浪费，产生噪声梯度
+  - approach 在 1.11 亿步时开始从 607 下降到 580 再回升 → 不稳定
+  - distal_closure 在增长（150→220），但 approach 同时下降 → 几何冲突
+
+本轮目标修改（Round 0→1）：
+  将 contact=0, stable_hold=0, force_contact=0, hold_position=0（已完成）
+  验证仅 approach+thumb_engage+closure+distal_closure+termination 能否稳定
+
+================================================================================
+================================================================================
+ROUND 1: 验证 4项清零后的基线
+================================================================================
+奖励配置：
+  approach=5.0(mean), contact=0, thumb_engage=2.0, closure=3.0(prox_gate),
+  distal_closure=4.0(mcp_gate), stable_hold=0, force_contact=0, hold_position=0,
+  termination=-20.0
+
+训练日志：diag_r1，从 wrap_phase2/checkpoints/000111411200 开始，5M步
+
+实际观测：
+  step_0:  total=38.69 | approach=598 | closure=25.6 | distal=219.7 | contact=0 | thumb=50.8
+  step_1M: total=29.42 | approach=566 | closure=12.9 | distal=205.6 | contact=0 | thumb=45.2
+  step_5M: total=35.81 | approach=576 | closure=15.9 | distal=213.9 | contact=0 | thumb=47.6
+
+预期效果：维持已有水平，4项清零不影响行为（这些项本来就=0）
+实际效果：closure 从 25→15 明显下降，approach 也下降（598→576），policy 在"退步"
+
+根因分析（关键发现）：
+  - proximity_gate = clip(1 - mean_dist/0.07, 0, 1)
+  - 当 MCP=90° 时 mean_tip_dist ≈ 7cm → proximity_gate ≈ 1.7%
+  - closure 奖励被封堵到 1.7%，MCP 几乎得不到梯度
+  - 策略找到新平衡：稍微减少 MCP 弯曲 → approach 损失 < closure 损失 → 净奖励更高
+  - 这是之前 wrap_phase2 没有发现的隐藏 bug（4项有非零scale掩盖了这个问题）
+
+修改决策（→ Round 2）：
+  1. closure 门: proximity_gate → mcp_gate（自引用门，MCP 弯了才奖励 MCP）
+  2. approach: mean_tip_dist → min_tip_dist（奖励最近一指，减弱几何冲突）
+  3. approach scale: 5.0→2.0（降低冲突影响），closure scale: 3.0→4.0，distal: 4.0→5.0
+
+================================================================================
+ROUND 2: 修复 proximity_gate 封堵 + approach 换 min_tip_dist
+================================================================================
+奖励配置（新）：
+  approach=2.0(min_dist), contact=0, thumb_engage=2.0, closure=4.0(mcp_gate),
+  distal_closure=5.0(mcp_gate), stable_hold=0, force_contact=0, hold_position=0,
+  termination=-20.0
+
+预期效果：
+  - closure 停止下降（mcp_gate 提供稳定梯度，MCP=90° 时 gate=1.0）
+  - approach 减少冲突（min_tip_dist 奖励最近指，几何约束更宽松）
+  - distal 继续增长（mcp_gate=1.0 + scale提升）
+  - total reward 上升（不再有 closure 退步）
+
+
+实际观测（Round 2）：
+  step_0:  total=98.10 | approach=289.9 | closure=1467.1 | distal=274.6 | contact=0 | thumb=50.8
+  step_5M: total=94.28 | approach=291.0 | closure=1457.9 | distal=257.3 | contact=0 | thumb=49.2
+  结论：mcp_gate 修复效果显著（closure 25→1467，58x提升），确认 MCP 已充分弯曲。
+        但 contact 仍然为 0——指尖到方块表面距约 4.7cm，硬阈值 2.5cm 完全无梯度信号。
+
+=== Round 3 ===
+修改内容：
+  1. `_reward_contact` 重写为 Box-SDF 软距离奖励：exp(-5 * surface_dist)
+     - 原：tip_dists < 2.5cm 的硬阈值（零梯度）
+     - 新：到方块表面 L2 距离，衰减系数 5（在 ~20cm 外仍有可用梯度）
+  2. `_get_reward` 中调用签名更新：(tip_dists) → (tip_world, cube_pos)
+  3. contact scale 恢复：0.0 → 2.0
+预期效果：
+  - contact 指标从 0 变为非零（~0.79 @ 6.2cm center/4.7cm surface）
+  - 梯度信号引导指尖向方块表面靠拢，min_tip_dist 应逐步缩小
+  - total reward 因新梯度信号提升
+
+实际观测（Round 3）：
+  step_0:  total=137.0 | approach=289.1 | closure=1467.1 | distal=274.6 | contact=779.5 | thumb=50.6
+  step_5M: total=136.5 | approach=290.5 | closure=1481.6 | distal=296.1 | contact=780.1 | thumb=52.7
+  结论：contact 从 0 → 779（Box-SDF 立即激活，机制正确）。
+        但 approach 仍然平台（289→290），contact 也平台（779→780），指尖完全未向方块靠近。
+        分析：closure 奖励主导（max剩余空间1672 >> approach当前289），policy 只反复弯手指。
+        MCP 42°，PIP 6°——手指弯曲适中，但不向方块靠近。
+
+=== Round 4 ===
+修改内容：
+  1. approach scale: 2.0 → 6.0（3x 提升，使其成为主导奖励）
+  2. closure scale:  4.0 → 2.0（减半，避免 closure 梯度压制 approach）
+  3. contact scale:  2.0 → 3.0（小幅提升，辅助 Box-SDF 引导）
+  4. distal_closure: 5.0（保持）
+预期效果：
+  - approach 从 289 开始上升（指尖向方块靠拢）
+  - contact 相应提升（随 approach 改善而增加）
+  - closure 可能略降（接受牺牲以换取靠近）
+  - 如果仍然平台，下一轮考虑检查坐标系/几何是否有问题
+
+实际观测（Round 4）：
+  step_0:  total=149.1 | approach(×6)=872 | contact(×3)=1170 | closure(×2)=734 | distal(×5)=275 | thumb=51 | survival=25
+  step_5M: total=147.1 | approach(×6)=874 | contact(×3)=1169 | closure(×2)=736 | distal(×5)=281 | thumb=50 | survival=25
+  approach_raw_min_tip_dist: 全程 6.2cm（8个评估点完全相同，包括 step_0 到 step_5M）
+  结论：即使 approach scale×3 仍然完全无效。min_tip_dist 恒如铁板，与 scale 无关。
+  新发现：
+    - survival=25 全程完美（无 termination），不是方块落地问题
+    - torques: -128 → -166（力矩增大但无位移），policy 在浪费能量
+    - 几何分析：cube 距 grasp_site = 5.4cm，当前指尖距 cube = 6.2cm
+    - wrap_phase2 的 policy 在 5M 步内完全锁定于局部吸引子，PPO 过于保守无法逃脱
+
+=== Round 5 ===
+修改内容：Shock Therapy - 清零所有干扰，只剩 approach + contact
+  1. approach scale: 6.0 → 10.0（最高权重）
+  2. contact scale:  3.0 → 5.0（强辅助）
+  3. closure scale:  2.0 → 0.0（清零，消除对 approach 的拮抗梯度）
+  4. distal_closure: 5.0 → 0.0（清零）
+  5. thumb_engage:   2.0 → 0.0（清零）
+预期效果：
+  - 若 approach 仍然不变：确认 policy 在几何上无法靠近方块，需要外部干预（改 cube 位置/curriculum）
+  - 若 approach 改善：closure/distal 的梯度方向确实与 approach 冲突，可以分阶段恢复

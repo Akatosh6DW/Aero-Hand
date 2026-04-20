@@ -1,0 +1,122 @@
+<!-- <mujoco model="tetheria_aero_hand_open_right_scene">
+    <include file="right_hand.xml"/>
+
+    <statistic center="0.15 0 0" extent="0.4" meansize="0.01"/>
+
+    <visual>
+        <headlight diffuse=".8 .8 .8" ambient=".2 .2 .2" specular="1 1 1"/>
+        <global azimuth="120" elevation="-20"/>
+        <quality shadowsize="8192"/>
+    </visual>
+
+    <asset>
+        <texture type="skybox" builtin="gradient" rgb1="0.60 0.90 0.97" rgb2="0 0 0" width="800" height="800"/>
+        <texture type="2d" name="groundplane" builtin="checker" mark="edge" rgb1="0.1 0.3 0.2" rgb2="0.2 0.4 0.3" markrgb="0.8 0.8 0.8" width="300" height="300"/>
+        <material name="groundplane" texture="groundplane" texuniform="true" texrepeat="5 5" reflectance="0"/>
+    </asset>
+
+    <worldbody>
+        <camera name="side" pos="-0.183 0.396 0.296" xyaxes="-0.783 -0.622 -0.000 0.332 -0.419 0.845"/>
+        <geom name="floor" pos="0 0 -0.25" size="0 0 0.01" type="plane" material="groundplane" contype="2" conaffinity="2"/>
+    
+        <body name="target_box" pos="0.05 -0.05 0.1">
+        <freejoint/>
+        <geom type="box" size="0.03 0.03 0.03" rgba="1 0 0 1" mass="0.1" friction="1 1 1" condim="4"/>
+    </body>
+    </worldbody>
+    <keyframe>
+        <key name="home" qpos="1.57335 0.347305 0.352258 
+    1.57303 0.400789 0.406 
+    1.57335 0.365219 0.370336 
+    1.57336 0.515229 0.520112 
+    0.746438 0.260182 -0.00155382 1.0748 " ctrl="
+    0.09 
+    0.09 
+    0.09 
+    0.09 
+    0.75 0.035 0.1"/>
+    </keyframe>
+
+</mujoco> -->
+<mujoco model="tetheria_aero_hand_open_right_scene">
+    <include file="right_hand2.xml"/>
+
+    <statistic center="0.15 0 0" extent="0.4" meansize="0.01"/>
+
+    <visual>
+        <headlight diffuse=".8 .8 .8" ambient=".2 .2 .2" specular="1 1 1"/>
+        <global azimuth="120" elevation="-20"/>
+        <quality shadowsize="8192"/>
+    </visual>
+
+    <asset>
+        <texture type="skybox" builtin="gradient" rgb1="0.60 0.90 0.97" rgb2="0 0 0" width="800" height="800"/>
+        <texture type="2d" name="groundplane" builtin="checker" mark="edge" rgb1="0.1 0.3 0.2" rgb2="0.2 0.4 0.3" markrgb="0.8 0.8 0.8" width="300" height="300"/>
+        <material name="groundplane" texture="groundplane" texuniform="true" texrepeat="5 5" reflectance="0"/>
+    </asset>
+
+    <worldbody>
+        <!--
+            摄像机：从右前侧斜视，可同时看到手、桌面和方块
+        -->
+        <camera name="side" pos="0.35 -0.40 0.25" xyaxes="0.707 0.707 0 -0.18 0.18 0.97"/>
+
+        <!-- 地板（contype=2：只与方块碰撞，手可穿过） -->
+        <geom name="floor" pos="0 0 -0.25" size="0 0 0.01" type="plane"
+              material="groundplane" contype="2" conaffinity="2"/>
+
+                <!--
+                        【场景说明】
+                        物体改为圆柱体：先放在平台上，随后执行“抓取→抬起→翻腕（手心向上）”。
+
+                        碰撞规则：
+                            平台  contype=1 / conaffinity=1
+                            圆柱  contype=3 / conaffinity=3
+                            手    contype=1 / conaffinity=1（right_hand.xml 默认）
+
+                            手 vs 平台：1 AND 1 = 1 ≠ 0 → 碰撞，不再穿过桌面
+                            圆柱 vs 平台：3 AND 1 = 1 ≠ 0 → 可稳定放置在平台上
+                            圆柱 vs 手：3 AND 1 = 1 ≠ 0 → 可被手指抓取
+                -->
+
+        <!--
+            实体桌面（有碰撞）：
+            - 使用厚桌板避免薄板数值穿透
+            - 桌面顶面 z = 0.065 + 0.020 = 0.085
+        -->
+          <geom name="tabletop" type="box"
+              pos="0.09 0.00 0.065"
+              size="0.12 0.12 0.020"
+              rgba="0.78 0.57 0.35 1"
+              friction="1.0 0.04 0.01"
+              contype="1" conaffinity="1"/>
+
+        <!--
+            目标圆柱（杯子简化）：中等尺寸，优先保证“竖握可稳定抓起”
+            半径 2cm，高 6cm，质量 50g。
+            圆柱中心 z=0.145，底面 z=0.085（放在桌面上）。
+        -->
+        <!-- target_cylinder: Python 里通过 mj_name2id 查这个 body，用于接触力统计与高度判定 -->
+        <body name="target_cylinder" pos="0.15 -0.02 0.145">
+            <freejoint/>
+            <geom type="cylinder" size="0.010 0.060" rgba="0.9 0.15 0.1 1"
+                  mass="0.2" friction="1.2 0.2 0.12" solref="0.04 1"
+                  contype="3" conaffinity="3"/>
+        </body>
+
+    </worldbody>
+
+    <keyframe>
+        <key name="home" qpos="1.57335 0.347305 0.352258 
+    1.57303 0.400789 0.406 
+    1.57335 0.365219 0.370336 
+    1.57336 0.515229 0.520112 
+    0.746438 0.260182 -0.00155382 1.0748 " ctrl="
+    0.09 
+    0.09 
+    0.09 
+    0.09 
+    0.75 0.035 0.1"/>
+    </keyframe>
+
+</mujoco>

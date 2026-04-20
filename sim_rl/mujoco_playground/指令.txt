@@ -1,0 +1,152 @@
+训练：
+conda activate aero_rl
+
+python learning/train_jax_ppo.py \
+  --env_name AeroCubeRotateZAxis \
+  --load_checkpoint_path /home/ll/SRTP/Aero-Hand/sim_rl/mujoco_playground/logs/AeroCubeRotateZAxis-20260307-155214/checkpoints
+抓取任务：
+python learning/train_jax_ppo.py \
+  --env_name=AeroCubeGrasp \
+  --num_timesteps=3000000000 \
+  --num_evals=200 \
+  --learning_rate=0.00005
+  --load_checkpoint_path /home/ll/SRTP/Aero-Hand/sim_rl/mujoco_playground/logs/AeroCubeGrasp-20260320-014047/checkpoints
+  
+  python learning/train_jax_ppo.py \
+  --env_name=AeroCubeGrasp \
+  --num_timesteps=800000000 \
+  --num_evals=80 \
+  --learning_rate=0.00005
+  
+  
+  python learning/train_jax_ppo.py \
+  --env_name AeroCubeRotateZAxis \
+  --num_envs 2048 \
+  --num_timesteps 1000000000 \
+  --num_evals 200 \
+  --learning_rate 0.00005 \
+  --load_checkpoint_path /home/ll/SRTP/Aero-Hand/sim_rl/mujoco_playground/logs/AeroCubeRotateZAxis-20260308-125958/checkpoints
+  
+  python learning/train_jax_ppo.py \
+  --env_name AeroCubeRotateZAxis \
+  --num_envs 2048 \
+  --num_evals 500 \
+  --load_checkpoint_path /home/ll/SRTP/Aero-Hand/sim_rl/mujoco_playground/logs/AeroCubeRotateZAxis-20260308-125958/checkpoints
+  
+  144506880
+  
+  python learning/train_jax_ppo.py --env_name=AeroCubeGrasp
+  
+力反馈命令：
+cd /home/ll/SRTP/Aero-Hand/sim_rl/mujoco_playground
+
+python learning/train_jax_ppo.py \
+  --env_name=AeroCubeGraspHW6Force \
+  --num_timesteps=200000000 \
+  --num_envs=512 \
+  --num_evals=400 \
+  --learning_rate=0.00005 \
+  --use_tb=True \
+  --log_training_metrics=True \
+  --training_metrics_steps=20000 \
+  --load_checkpoint_path /home/ll/SRTP/Aero-Hand/sim_rl/mujoco_playground/logs/AeroCubeGraspHW6Force-20260330-003923/checkpoints
+  
+  
+  
+  cd /home/ll/SRTP/Aero-Hand/sim_rl/mujoco_playground && python learning/train_jax_ppo.py --env_name=AeroCubeGraspHW6Force --num_timesteps=1000000 --num_envs=512 --num_evals=20 --use_tb=True --log_training_metrics=True --training_metrics_steps=20000
+  
+  
+ 力反馈修改版
+  cd /home/ll/SRTP/Aero-Hand/sim_rl/mujoco_playground
+python learning/train_jax_ppo.py \
+  --env_name=AeroCubeGraspHW6ForceV \
+  --suffix=p_tactile80 \
+  --num_timesteps=900000000 \
+  --num_evals=10 \
+  --seed=0 \
+  --load_checkpoint_path /home/ll/SRTP/Aero-Hand/sim_rl/mujoco_playground/logs/AeroCubeGraspHW6ForceP-20260331-003318-p_start/checkpoints
+
+
+p过程命令
+source /home/ll/miniconda3/etc/profile.d/conda.sh
+conda activate aero_rl
+cd /home/ll/SRTP/Aero-Hand/sim_rl/mujoco_playground
+
+cd /home/ll/SRTP/Aero-Hand/sim_rl/mujoco_playground
+python learning/train_jax_ppo.py \
+  --env_name=AeroCubeGraspHW6ForceV \
+  --suffix=v_stable_hold \
+  --num_timesteps=60000000 \
+  --num_evals=50 \
+  --seed=0 \
+  --learning_rate=1.5e-4 \
+  --entropy_cost=0.003 \
+  --load_checkpoint_path /home/ll/SRTP/Aero-Hand/sim_rl/mujoco_playground/logs/AeroCubeGraspHW6ForceV-20260331-201539-v_stable_hold/checkpointspython learning/train_jax_ppo.py \
+  --env_name=AeroCubeGraspHW6ForceP \
+  --suffix=p_static_straight_v1 \
+  --num_timesteps=200000000 \
+  --num_evals=10 \
+  --seed=0 \
+  --learning_rate=2e-4 \
+  --entropy_cost=0.006
+
+cd /home/ll/SRTP/Aero-Hand/sim_rl/mujoco_playground
+python learning/train_jax_ppo.py \
+  --env_name=AeroCubeGraspHW6ForceV \
+  --suffix=v_stable_hold \
+  --num_timesteps=60000000 \
+  --num_evals=50 \
+  --seed=0 \
+  --learning_rate=1.5e-4 \
+  --entropy_cost=0.003 \
+  --load_checkpoint_path /home/ll/SRTP/Aero-Hand/sim_rl/mujoco_playground/logs/AeroCubeGraspHW6ForceP-20260402-212745-wrap_phase2/checkpoints
+  
+  
+cd /home/ll/SRTP/Aero-Hand/sim_rl/mujoco_playground
+python learning/train_jax_ppo.py \
+  --env_name=AeroCubeGraspHW6ForceP \
+  --suffix=human_grasp_v1 \
+  --num_timesteps=100000000 \
+  --num_evals=50 \
+  --seed=0
+  
+  
+
+  
+  
+展示：
+
+python learning/train_jax_ppo.py \
+--env_name=AeroCubeGraspHW6ForceV \
+  --play_only \
+  --load_checkpoint_path /home/ll/SRTP/Aero-Hand/sim_rl/mujoco_playground/logs/AeroCubeGraspHW6ForceV-20260406-035526-v_R30_lr5e5_from41M/checkpoints \
+  --camera palm
+
+  
+  cd /home/ll/SRTP/Aero-Hand/sim_rl/mujoco_playground
+source /home/ll/miniconda3/etc/profile.d/conda.sh && conda activate aero_rl
+python learning/train_jax_ppo.py \
+  --env_name=AeroCubeGraspHW6ForceP \
+  --suffix=grasp_phase1 \
+  --num_timesteps=300000000 \
+  --num_evals=50 \
+  --seed=0 \
+  --learning_rate=3e-4 \
+  --entropy_cost=1e-2 \
+  --load_checkpoint_path /home/ll/SRTP/Aero-Hand/sim_rl/mujoco_playground/logs/AeroCubeGraspHW6ForceP-20260402-212745-wrap_phase2/checkpoints
+  
+  
+  2:20
+  
+  目前最佳Checkpoint path: /home/ll/SRTP/Aero-Hand/sim_rl/mujoco_playground/logs/AeroCubeGraspHW6ForceV-20260404-173541-v_R16_smallSupport_lr2e4_200M/checkpoints/000094371840
+  
+\\cd /home/ll/SRTP/Aero-Hand/sim_rl/mujoco_playground && \
+python -u learning/train_jax_ppo.py \
+  --env_name=AeroCubeGraspHW6ForceP \
+  --suffix=diag_r12 \
+  --num_timesteps=5000000 \
+  --num_evals=8 \
+  --load_checkpoint_path=logs/AeroCubeGraspHW6ForceP-20260403-122521-diag_r11/checkpoints \
+  2>&1 | tee /tmp/r12_train.log | tail -20
+  
+  /home/ll/SRTP/Aero-Hand/sim_rl/mujoco_playground/logs/AeroCubeGraspHW6ForceV-20260404-173541-v_R16_smallSupport_lr2e4_200M/checkpoints/000094371840

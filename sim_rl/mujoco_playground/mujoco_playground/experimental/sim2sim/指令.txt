@@ -1,0 +1,1 @@
+python play_aero_grasp_jax.py --checkpoint_path /home/ll/SRTP/Aero-Hand/sim_rl/mujoco_playground/logs/AeroCubeGrasp-20260321-005730/checkpoints/000893255680

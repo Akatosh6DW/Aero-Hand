@@ -1,0 +1,87 @@
+<mujoco model="tetheria_scene_grasp_hw6">
+  <!-- ================================================================
+       V-stage 场景（vertical / 手指竖直向上）
+       文件功能：
+         - 包含 right_hand_vertical_hw6.xml（手部，手指竖立姿态）
+         - 包含 small_cube.xml（待抓物块）
+         - keyframe "home"：view.py 启动时的初始姿态
+       ================================================================ -->
+  <!-- [V-iter12] 增加 nconmax：MJX 默认仅分配 30 个 contact slots，
+       实际抓握时需 24+ 接触点，不足导致关键摩擦力缺失，方块无法被夹持。 -->
+  <size nconmax="80"/>
+  <include file="right_hand_vertical_hw6.xml"/>
+  <include file="small_cube.xml"/>
+
+  <!-- 【视角中心】view.py 摄像机默认注视点
+       NOTE：修改 cube_pos 后请同步改这里的 center
+       V-stage 世界坐标参考：手指向上(+z)，grasp_site=(-0.076, 0, 0.055)
+         掌面主碰撞体 palm_collision_6 中心=(-0.006, 0.010, 0.083) -->
+  <statistic center="-0.050 0 0.080" extent="0.4" meansize="0.01"/>
+
+  <visual>
+    <headlight diffuse=".8 .8 .8" ambient=".2 .2 .2" specular="1 1 1"/>
+    <rgba force="1 0 0 1"/>
+    <global azimuth="120" elevation="-20"/>
+  </visual>
+
+  <asset>
+    <texture type="skybox" builtin="gradient" rgb1="1 1 1" rgb2="1 1 1" width="800" height="800"/>
+    <texture type="2d" name="groundplane" builtin="checker" mark="edge" rgb1="1 1 1" rgb2="1 1 1" markrgb="0 0 0" width="300" height="300"/>
+    <material name="groundplane" texture="groundplane" texuniform="true" texrepeat="5 5" reflectance="0"/>
+  </asset>
+
+  <worldbody>
+    <camera name="side" pos="0.0 -0.5 0.2" xyaxes="1 0 0 0 0.5 0.8"/>
+    <!-- 手心视角：从 -X 方向正对手掌观察，方便看手指包裹方块 -->
+    <camera name="palm" pos="-0.40 0.0 0.10" xyaxes="0 -1 0 0 0 1"/>
+    <!-- 【地板】pos z=-0.25：距手掌 25cm 以下，防过早触发掉落终止 -->
+    <geom name="floor" pos="0 0 -0.25" size="0 0 0.01" type="plane" material="groundplane" contype="2" conaffinity="2"/>
+    <!-- 【支撑台】mocap body，training 中由 Python config support_enabled 控制是否参与碰撞
+         pos z = cube_pos_z - cube_half(0.015) - support_half_z(0.003) = 0.080-0.015-0.003 = 0.062
+         size 半尺寸：4cm×4cm×0.6cm 薄板
+         【修改支撑台高度】改 pos 的 z，注意维持 mpos 与此同步（keyframe 里的 mpos）-->
+    <body name="cube_support" mocap="true" pos="-0.050 0.0 0.062">
+      <geom name="cube_support_geom" type="box" size="0.02 0.02 0.003" rgba="1 1 1 0" contype="4" conaffinity="5"/>
+    </body>
+  </worldbody>
+
+  <sensor>
+    <framepos name="cube_position" objtype="body" objname="cube"/>
+    <framequat name="cube_orientation" objtype="body" objname="cube"/>
+    <framelinvel name="cube_linvel" objtype="body" objname="cube"/>
+    <frameangvel name="cube_angvel" objtype="body" objname="cube"/>
+
+    <framepos name="palm_position" objtype="site" objname="grasp_site"/>
+    <framepos name="th_tip_position" objtype="site" objname="th_tip" reftype="site" refname="grasp_site"/>
+    <framepos name="if_tip_position" objtype="site" objname="if_tip" reftype="site" refname="grasp_site"/>
+    <framepos name="mf_tip_position" objtype="site" objname="mf_tip" reftype="site" refname="grasp_site"/>
+    <framepos name="rf_tip_position" objtype="site" objname="rf_tip" reftype="site" refname="grasp_site"/>
+    <framepos name="pf_tip_position" objtype="site" objname="pf_tip" reftype="site" refname="grasp_site"/>
+  </sensor>
+
+  <!-- ================================================================
+       keyframe "home"：view.py V-stage 初始姿态
+       qpos 字段：(同 palmup 格式，最后7个是物块自由关节 [x y z qw qx qy qz])
+       【修改物块位置】只需改最后一行前3个数 x y z
+         x=-0.050 → 手掌前侧（范围 -0.030~-0.060）
+         y=0.0   → 手掌中轴线
+         z=0.080 → 方块在掌心中段（范围 0.060~0.095）
+         世界坐标参考：grasp_site=(-0.076,0,0.055)，掌面中心 z≈0.083
+       ctrl：6个电机目标位置（rad），ctrl[0]=0(拇指外展)，ctrl[1..5]≈0.109(伸展预载)
+       mpos：支撑台 mocap 位置 = cube_z - 0.018
+       ================================================================ -->
+  <keyframe>
+    <key name="home" qpos="0 0 0
+    0 0 0
+    0 0 0
+    0 0 0
+    0 0 0 0
+    -0.050 0.0 0.080 1 0 0 0" ctrl="
+    0.0
+    0.109869206
+    0.107446114
+    0.108143013
+    0.107442177
+    0.109290230" mpos="-0.050 0 0.062" mquat="1 0 0 0"/>
+  </keyframe>
+</mujoco>

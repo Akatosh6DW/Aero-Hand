@@ -1,0 +1,22 @@
+V2 Hybrid collision model report
+source hand xml: /home/ll/SRTP/Aero-Hand/sim_rl/mujoco_playground/mujoco_playground/_src/manipulation/aero_hand/xmls/right_hand_v2_vertical.xml
+output hand xml: /home/ll/SRTP/Aero-Hand/sim_rl/mujoco_playground/mujoco_playground/_src/manipulation/aero_hand/xmls/right_hand_v2_vertical_coacd.xml
+coacd mesh dir (input): /home/ll/SRTP/Aero-Hand/handinformation/URDF/右/qbr/meshes/coacd_v2
+
+v2_palm                body=palm                         parts=  8 [BOX] types=[box, box, box, box, box, box, box, box] file=v2_base_link.STL
+v2_index_proximal      body=right_index_proximal         parts=  1 [BOX] types=[box] file=link4.STL
+v2_index_distal        body=right_index_distal           parts=  4 [MESH] types=[mesh, mesh, mesh, mesh] file=link5.STL
+v2_middle_proximal     body=right_middle_proximal        parts=  1 [BOX] types=[box] file=link6.STL
+v2_middle_distal       body=right_middle_distal          parts=  4 [MESH] types=[mesh, mesh, mesh, mesh] file=link7.STL
+v2_ring_proximal       body=right_ring_proximal          parts=  1 [BOX] types=[box] file=link8.STL
+v2_ring_distal         body=right_ring_distal            parts=  3 [MESH] types=[mesh, mesh, mesh] file=link9.STL
+v2_pinky_proximal      body=right_pinky_proximal         parts=  1 [BOX] types=[box] file=link10.STL
+v2_pinky_distal        body=right_pinky_distal           parts=  3 [MESH] types=[mesh, mesh, mesh] file=link11.STL
+v2_thumb_base          body=right_thumb_base             parts=  2 [BOX] types=[box, box] file=link1.STL
+v2_thumb_mid           body=right_thumb_mid              parts=  1 [BOX] types=[box] file=link2.STL
+v2_thumb_tip           body=right_thumb_tip              parts=  5 [MESH] types=[mesh, mesh, mesh, mesh, mesh] file=link3.STL
+
+visual mesh geoms processed: 12
+old collision geoms removed: 30
+new fitted primitive geoms: 34
+type breakdown: {'box': 15, 'mesh': 19}

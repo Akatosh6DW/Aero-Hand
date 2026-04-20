@@ -1,0 +1,21 @@
+V2 Capsule collision model report
+source hand xml: /home/ll/SRTP/Aero-Hand/sim_rl/mujoco_playground/mujoco_playground/_src/manipulation/aero_hand/xmls/right_hand_v2_vertical.xml
+output hand xml: /home/ll/SRTP/Aero-Hand/sim_rl/mujoco_playground/mujoco_playground/_src/manipulation/aero_hand/xmls/right_hand_v2_vertical_coacd.xml
+
+v2_palm                body=palm                         parts=  8 [BOX] types=[box, box, box, box, box, box, box, box] file=v2_base_link.STL
+v2_index_proximal      body=right_index_proximal         parts=  1 [CAPSULE] type=capsule file=link4.STL pad_mean=2.91mm pad_p95=5.71mm pad_max=7.55mm cover_1mm=16.2%
+v2_index_distal        body=right_index_distal           parts=  2 [MULTI-CAP] types=[capsule, capsule] file=link5.STL pad_mean=1.40mm pad_p95=4.41mm pad_max=6.41mm cover_1mm=60.4%
+v2_middle_proximal     body=right_middle_proximal        parts=  1 [CAPSULE] type=capsule file=link6.STL pad_mean=2.91mm pad_p95=5.71mm pad_max=7.55mm cover_1mm=16.2%
+v2_middle_distal       body=right_middle_distal          parts=  2 [MULTI-CAP] types=[capsule, capsule] file=link7.STL pad_mean=1.40mm pad_p95=4.41mm pad_max=6.41mm cover_1mm=60.4%
+v2_ring_proximal       body=right_ring_proximal          parts=  1 [CAPSULE] type=capsule file=link8.STL pad_mean=2.91mm pad_p95=5.71mm pad_max=7.55mm cover_1mm=16.2%
+v2_ring_distal         body=right_ring_distal            parts=  2 [MULTI-CAP] types=[capsule, capsule] file=link9.STL pad_mean=1.40mm pad_p95=4.41mm pad_max=6.41mm cover_1mm=60.4%
+v2_pinky_proximal      body=right_pinky_proximal         parts=  1 [CAPSULE] type=capsule file=link10.STL pad_mean=2.91mm pad_p95=5.71mm pad_max=7.55mm cover_1mm=16.2%
+v2_pinky_distal        body=right_pinky_distal           parts=  2 [MULTI-CAP] types=[capsule, capsule] file=link11.STL pad_mean=1.40mm pad_p95=4.41mm pad_max=6.41mm cover_1mm=60.4%
+v2_thumb_base          body=right_thumb_base             parts=  2 [BOX] types=[box, box] file=link1.STL
+v2_thumb_mid           body=right_thumb_mid              parts=  1 [CAPSULE] type=capsule file=link2.STL pad_mean=1.83mm pad_p95=3.40mm pad_max=6.13mm cover_1mm=39.1%
+v2_thumb_tip           body=right_thumb_tip              parts=  2 [MULTI-CAP] types=[capsule, capsule] file=link3.STL pad_mean=1.99mm pad_p95=5.46mm pad_max=7.00mm cover_1mm=37.3%
+
+visual mesh geoms processed: 12
+old collision geoms removed: 30
+new collision geoms: 25
+type breakdown: {'box': 10, 'capsule': 15}
