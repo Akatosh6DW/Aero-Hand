@@ -1,0 +1,1071 @@
+<mujoco model="v2_scene_grasp">
+  <compiler angle="radian" meshdir="/home/ll/SRTP/Aero-Hand/handinformation/URDF/右/qbr/meshes/"/>
+
+  <option timestep="0.01" iterations="12" ls_iterations="16">
+    <flag eulerdamp="disable"/>
+  </option>
+
+  <size nconmax="80" nkey="1"/>
+
+  <visual>
+    <global azimuth="120" elevation="-20" offwidth="1280" offheight="960"/>
+    <headlight ambient="0.2 0.2 0.2" diffuse="0.8 0.8 0.8" specular="1 1 1"/>
+    <rgba force="1 0 0 1"/>
+  </visual>
+
+  <statistic meansize="0.01" extent="0.5" center="-0.13 0 0.005"/>
+
+  <default>
+    <default class="v2_hand">
+      <joint armature="0.00155913" damping="0.02" frictionloss="0.02"/>
+      <site group="4"/>
+      <general biastype="affine" gainprm="3" biasprm="0 -3"/>
+      <default class="visual">
+        <geom type="mesh" contype="0" conaffinity="0" group="2" density="0" material="white"/>
+      </default>
+      <default class="mcp">
+        <joint range="0 1.3963" damping="0.1"/>
+        <general ctrlrange="0 1.4"/>
+      </default>
+      <default class="pip">
+        <joint range="0 1.2915" damping="0.05"/>
+      </default>
+      <default class="thumb_cmc">
+        <joint range="0 1.3788" damping="0.1"/>
+        <general ctrlrange="0 1.38"/>
+      </default>
+      <default class="thumb_flex">
+        <joint range="0 0.5236" damping="0.05"/>
+      </default>
+      <default class="thumb_mcp">
+        <joint range="0 0.7854" damping="0.05"/>
+        <general ctrlrange="0 0.79"/>
+      </default>
+    </default>
+    <default class="cube">
+      <geom conaffinity="7" friction="1 0.05"/>
+    </default>
+  </default>
+
+  <custom>
+    <numeric name="max_contact_points" size="1" data="80"/>
+    <numeric name="max_geom_pairs" size="1" data="50"/>
+  </custom>
+
+  <asset>
+    <texture type="skybox" colorspace="auto" builtin="gradient" rgb1="1 1 1" rgb2="1 1 1" width="800" height="4800"/>
+    <texture type="2d" colorspace="auto" name="groundplane" builtin="checker" mark="edge" rgb1="1 1 1" rgb2="1 1 1" width="300" height="300"/>
+    <material name="black" rgba="0.2 0.2 0.2 1"/>
+    <material name="gray" rgba="0.5 0.5 0.5 1"/>
+    <material name="white" rgba="0.05 0.45 1 0.32"/>
+    <material name="rubber" rgba="0.3 0.3 0.3 1"/>
+    <material name="groundplane" texture="groundplane" texuniform="true" texrepeat="5 5" rgba="0.85 0.85 0.85 0.06"/>
+    <mesh name="v2_palm" content_type="model/stl" file="v2_base_link.STL"/>
+    <mesh name="v2_thumb_base" content_type="model/stl" file="link1.STL"/>
+    <mesh name="v2_thumb_mid" content_type="model/stl" file="link2.STL"/>
+    <mesh name="v2_thumb_tip" content_type="model/stl" file="link3.STL"/>
+    <mesh name="v2_index_proximal" content_type="model/stl" file="link4.STL"/>
+    <mesh name="v2_index_distal" content_type="model/stl" file="link5.STL"/>
+    <mesh name="v2_middle_proximal" content_type="model/stl" file="link6.STL"/>
+    <mesh name="v2_middle_distal" content_type="model/stl" file="link7.STL"/>
+    <mesh name="v2_ring_proximal" content_type="model/stl" file="link8.STL"/>
+    <mesh name="v2_ring_distal" content_type="model/stl" file="link9.STL"/>
+    <mesh name="v2_pinky_proximal" content_type="model/stl" file="link10.STL"/>
+    <mesh name="v2_pinky_distal" content_type="model/stl" file="link11.STL"/>
+    <mesh name="v2_palm_coacd_000" content_type="model/stl" file="coacd_v2/v2_palm_coacd_000.stl"/>
+    <mesh name="v2_palm_coacd_001" content_type="model/stl" file="coacd_v2/v2_palm_coacd_001.stl"/>
+    <mesh name="v2_palm_coacd_002" content_type="model/stl" file="coacd_v2/v2_palm_coacd_002.stl"/>
+    <mesh name="v2_palm_coacd_003" content_type="model/stl" file="coacd_v2/v2_palm_coacd_003.stl"/>
+    <mesh name="v2_palm_coacd_004" content_type="model/stl" file="coacd_v2/v2_palm_coacd_004.stl"/>
+    <mesh name="v2_palm_coacd_005" content_type="model/stl" file="coacd_v2/v2_palm_coacd_005.stl"/>
+    <mesh name="v2_palm_coacd_006" content_type="model/stl" file="coacd_v2/v2_palm_coacd_006.stl"/>
+    <mesh name="v2_palm_coacd_007" content_type="model/stl" file="coacd_v2/v2_palm_coacd_007.stl"/>
+    <mesh name="v2_palm_coacd_008" content_type="model/stl" file="coacd_v2/v2_palm_coacd_008.stl"/>
+    <mesh name="v2_palm_coacd_009" content_type="model/stl" file="coacd_v2/v2_palm_coacd_009.stl"/>
+    <mesh name="v2_palm_coacd_010" content_type="model/stl" file="coacd_v2/v2_palm_coacd_010.stl"/>
+    <mesh name="v2_palm_coacd_011" content_type="model/stl" file="coacd_v2/v2_palm_coacd_011.stl"/>
+    <mesh name="v2_palm_coacd_012" content_type="model/stl" file="coacd_v2/v2_palm_coacd_012.stl"/>
+    <mesh name="v2_palm_coacd_013" content_type="model/stl" file="coacd_v2/v2_palm_coacd_013.stl"/>
+    <mesh name="v2_palm_coacd_014" content_type="model/stl" file="coacd_v2/v2_palm_coacd_014.stl"/>
+    <mesh name="v2_palm_coacd_015" content_type="model/stl" file="coacd_v2/v2_palm_coacd_015.stl"/>
+    <mesh name="v2_palm_coacd_016" content_type="model/stl" file="coacd_v2/v2_palm_coacd_016.stl"/>
+    <mesh name="v2_palm_coacd_017" content_type="model/stl" file="coacd_v2/v2_palm_coacd_017.stl"/>
+    <mesh name="v2_palm_coacd_018" content_type="model/stl" file="coacd_v2/v2_palm_coacd_018.stl"/>
+    <mesh name="v2_palm_coacd_019" content_type="model/stl" file="coacd_v2/v2_palm_coacd_019.stl"/>
+    <mesh name="v2_palm_coacd_020" content_type="model/stl" file="coacd_v2/v2_palm_coacd_020.stl"/>
+    <mesh name="v2_palm_coacd_021" content_type="model/stl" file="coacd_v2/v2_palm_coacd_021.stl"/>
+    <mesh name="v2_palm_coacd_022" content_type="model/stl" file="coacd_v2/v2_palm_coacd_022.stl"/>
+    <mesh name="v2_palm_coacd_023" content_type="model/stl" file="coacd_v2/v2_palm_coacd_023.stl"/>
+    <mesh name="v2_palm_coacd_024" content_type="model/stl" file="coacd_v2/v2_palm_coacd_024.stl"/>
+    <mesh name="v2_palm_coacd_025" content_type="model/stl" file="coacd_v2/v2_palm_coacd_025.stl"/>
+    <mesh name="v2_palm_coacd_026" content_type="model/stl" file="coacd_v2/v2_palm_coacd_026.stl"/>
+    <mesh name="v2_palm_coacd_027" content_type="model/stl" file="coacd_v2/v2_palm_coacd_027.stl"/>
+    <mesh name="v2_palm_coacd_028" content_type="model/stl" file="coacd_v2/v2_palm_coacd_028.stl"/>
+    <mesh name="v2_palm_coacd_029" content_type="model/stl" file="coacd_v2/v2_palm_coacd_029.stl"/>
+    <mesh name="v2_palm_coacd_030" content_type="model/stl" file="coacd_v2/v2_palm_coacd_030.stl"/>
+    <mesh name="v2_palm_coacd_031" content_type="model/stl" file="coacd_v2/v2_palm_coacd_031.stl"/>
+    <mesh name="v2_palm_coacd_032" content_type="model/stl" file="coacd_v2/v2_palm_coacd_032.stl"/>
+    <mesh name="v2_palm_coacd_033" content_type="model/stl" file="coacd_v2/v2_palm_coacd_033.stl"/>
+    <mesh name="v2_palm_coacd_034" content_type="model/stl" file="coacd_v2/v2_palm_coacd_034.stl"/>
+    <mesh name="v2_palm_coacd_035" content_type="model/stl" file="coacd_v2/v2_palm_coacd_035.stl"/>
+    <mesh name="v2_palm_coacd_036" content_type="model/stl" file="coacd_v2/v2_palm_coacd_036.stl"/>
+    <mesh name="v2_palm_coacd_037" content_type="model/stl" file="coacd_v2/v2_palm_coacd_037.stl"/>
+    <mesh name="v2_palm_coacd_038" content_type="model/stl" file="coacd_v2/v2_palm_coacd_038.stl"/>
+    <mesh name="v2_palm_coacd_039" content_type="model/stl" file="coacd_v2/v2_palm_coacd_039.stl"/>
+    <mesh name="v2_palm_coacd_040" content_type="model/stl" file="coacd_v2/v2_palm_coacd_040.stl"/>
+    <mesh name="v2_palm_coacd_041" content_type="model/stl" file="coacd_v2/v2_palm_coacd_041.stl"/>
+    <mesh name="v2_palm_coacd_042" content_type="model/stl" file="coacd_v2/v2_palm_coacd_042.stl"/>
+    <mesh name="v2_palm_coacd_043" content_type="model/stl" file="coacd_v2/v2_palm_coacd_043.stl"/>
+    <mesh name="v2_palm_coacd_044" content_type="model/stl" file="coacd_v2/v2_palm_coacd_044.stl"/>
+    <mesh name="v2_palm_coacd_045" content_type="model/stl" file="coacd_v2/v2_palm_coacd_045.stl"/>
+    <mesh name="v2_palm_coacd_046" content_type="model/stl" file="coacd_v2/v2_palm_coacd_046.stl"/>
+    <mesh name="v2_palm_coacd_047" content_type="model/stl" file="coacd_v2/v2_palm_coacd_047.stl"/>
+    <mesh name="v2_index_proximal_coacd_000" content_type="model/stl" file="coacd_v2/v2_index_proximal_coacd_000.stl"/>
+    <mesh name="v2_index_proximal_coacd_001" content_type="model/stl" file="coacd_v2/v2_index_proximal_coacd_001.stl"/>
+    <mesh name="v2_index_proximal_coacd_002" content_type="model/stl" file="coacd_v2/v2_index_proximal_coacd_002.stl"/>
+    <mesh name="v2_index_proximal_coacd_003" content_type="model/stl" file="coacd_v2/v2_index_proximal_coacd_003.stl"/>
+    <mesh name="v2_index_proximal_coacd_004" content_type="model/stl" file="coacd_v2/v2_index_proximal_coacd_004.stl"/>
+    <mesh name="v2_index_proximal_coacd_005" content_type="model/stl" file="coacd_v2/v2_index_proximal_coacd_005.stl"/>
+    <mesh name="v2_index_proximal_coacd_006" content_type="model/stl" file="coacd_v2/v2_index_proximal_coacd_006.stl"/>
+    <mesh name="v2_index_proximal_coacd_007" content_type="model/stl" file="coacd_v2/v2_index_proximal_coacd_007.stl"/>
+    <mesh name="v2_index_proximal_coacd_008" content_type="model/stl" file="coacd_v2/v2_index_proximal_coacd_008.stl"/>
+    <mesh name="v2_index_proximal_coacd_009" content_type="model/stl" file="coacd_v2/v2_index_proximal_coacd_009.stl"/>
+    <mesh name="v2_index_proximal_coacd_010" content_type="model/stl" file="coacd_v2/v2_index_proximal_coacd_010.stl"/>
+    <mesh name="v2_index_proximal_coacd_011" content_type="model/stl" file="coacd_v2/v2_index_proximal_coacd_011.stl"/>
+    <mesh name="v2_index_proximal_coacd_012" content_type="model/stl" file="coacd_v2/v2_index_proximal_coacd_012.stl"/>
+    <mesh name="v2_index_proximal_coacd_013" content_type="model/stl" file="coacd_v2/v2_index_proximal_coacd_013.stl"/>
+    <mesh name="v2_index_proximal_coacd_014" content_type="model/stl" file="coacd_v2/v2_index_proximal_coacd_014.stl"/>
+    <mesh name="v2_index_proximal_coacd_015" content_type="model/stl" file="coacd_v2/v2_index_proximal_coacd_015.stl"/>
+    <mesh name="v2_index_proximal_coacd_016" content_type="model/stl" file="coacd_v2/v2_index_proximal_coacd_016.stl"/>
+    <mesh name="v2_index_proximal_coacd_017" content_type="model/stl" file="coacd_v2/v2_index_proximal_coacd_017.stl"/>
+    <mesh name="v2_index_proximal_coacd_018" content_type="model/stl" file="coacd_v2/v2_index_proximal_coacd_018.stl"/>
+    <mesh name="v2_index_proximal_coacd_019" content_type="model/stl" file="coacd_v2/v2_index_proximal_coacd_019.stl"/>
+    <mesh name="v2_index_proximal_coacd_020" content_type="model/stl" file="coacd_v2/v2_index_proximal_coacd_020.stl"/>
+    <mesh name="v2_index_proximal_coacd_021" content_type="model/stl" file="coacd_v2/v2_index_proximal_coacd_021.stl"/>
+    <mesh name="v2_index_proximal_coacd_022" content_type="model/stl" file="coacd_v2/v2_index_proximal_coacd_022.stl"/>
+    <mesh name="v2_index_proximal_coacd_023" content_type="model/stl" file="coacd_v2/v2_index_proximal_coacd_023.stl"/>
+    <mesh name="v2_index_proximal_coacd_024" content_type="model/stl" file="coacd_v2/v2_index_proximal_coacd_024.stl"/>
+    <mesh name="v2_index_proximal_coacd_025" content_type="model/stl" file="coacd_v2/v2_index_proximal_coacd_025.stl"/>
+    <mesh name="v2_index_proximal_coacd_026" content_type="model/stl" file="coacd_v2/v2_index_proximal_coacd_026.stl"/>
+    <mesh name="v2_index_proximal_coacd_027" content_type="model/stl" file="coacd_v2/v2_index_proximal_coacd_027.stl"/>
+    <mesh name="v2_index_proximal_coacd_028" content_type="model/stl" file="coacd_v2/v2_index_proximal_coacd_028.stl"/>
+    <mesh name="v2_index_proximal_coacd_029" content_type="model/stl" file="coacd_v2/v2_index_proximal_coacd_029.stl"/>
+    <mesh name="v2_index_proximal_coacd_030" content_type="model/stl" file="coacd_v2/v2_index_proximal_coacd_030.stl"/>
+    <mesh name="v2_index_proximal_coacd_031" content_type="model/stl" file="coacd_v2/v2_index_proximal_coacd_031.stl"/>
+    <mesh name="v2_index_proximal_coacd_032" content_type="model/stl" file="coacd_v2/v2_index_proximal_coacd_032.stl"/>
+    <mesh name="v2_index_proximal_coacd_033" content_type="model/stl" file="coacd_v2/v2_index_proximal_coacd_033.stl"/>
+    <mesh name="v2_index_proximal_coacd_034" content_type="model/stl" file="coacd_v2/v2_index_proximal_coacd_034.stl"/>
+    <mesh name="v2_index_proximal_coacd_035" content_type="model/stl" file="coacd_v2/v2_index_proximal_coacd_035.stl"/>
+    <mesh name="v2_index_proximal_coacd_036" content_type="model/stl" file="coacd_v2/v2_index_proximal_coacd_036.stl"/>
+    <mesh name="v2_index_proximal_coacd_037" content_type="model/stl" file="coacd_v2/v2_index_proximal_coacd_037.stl"/>
+    <mesh name="v2_index_proximal_coacd_038" content_type="model/stl" file="coacd_v2/v2_index_proximal_coacd_038.stl"/>
+    <mesh name="v2_index_proximal_coacd_039" content_type="model/stl" file="coacd_v2/v2_index_proximal_coacd_039.stl"/>
+    <mesh name="v2_index_proximal_coacd_040" content_type="model/stl" file="coacd_v2/v2_index_proximal_coacd_040.stl"/>
+    <mesh name="v2_index_proximal_coacd_041" content_type="model/stl" file="coacd_v2/v2_index_proximal_coacd_041.stl"/>
+    <mesh name="v2_index_proximal_coacd_042" content_type="model/stl" file="coacd_v2/v2_index_proximal_coacd_042.stl"/>
+    <mesh name="v2_index_proximal_coacd_043" content_type="model/stl" file="coacd_v2/v2_index_proximal_coacd_043.stl"/>
+    <mesh name="v2_index_proximal_coacd_044" content_type="model/stl" file="coacd_v2/v2_index_proximal_coacd_044.stl"/>
+    <mesh name="v2_index_proximal_coacd_045" content_type="model/stl" file="coacd_v2/v2_index_proximal_coacd_045.stl"/>
+    <mesh name="v2_index_proximal_coacd_046" content_type="model/stl" file="coacd_v2/v2_index_proximal_coacd_046.stl"/>
+    <mesh name="v2_index_proximal_coacd_047" content_type="model/stl" file="coacd_v2/v2_index_proximal_coacd_047.stl"/>
+    <mesh name="v2_index_distal_coacd_000" content_type="model/stl" file="coacd_v2/v2_index_distal_coacd_000.stl"/>
+    <mesh name="v2_index_distal_coacd_001" content_type="model/stl" file="coacd_v2/v2_index_distal_coacd_001.stl"/>
+    <mesh name="v2_index_distal_coacd_002" content_type="model/stl" file="coacd_v2/v2_index_distal_coacd_002.stl"/>
+    <mesh name="v2_index_distal_coacd_003" content_type="model/stl" file="coacd_v2/v2_index_distal_coacd_003.stl"/>
+    <mesh name="v2_index_distal_coacd_004" content_type="model/stl" file="coacd_v2/v2_index_distal_coacd_004.stl"/>
+    <mesh name="v2_index_distal_coacd_005" content_type="model/stl" file="coacd_v2/v2_index_distal_coacd_005.stl"/>
+    <mesh name="v2_index_distal_coacd_006" content_type="model/stl" file="coacd_v2/v2_index_distal_coacd_006.stl"/>
+    <mesh name="v2_index_distal_coacd_007" content_type="model/stl" file="coacd_v2/v2_index_distal_coacd_007.stl"/>
+    <mesh name="v2_index_distal_coacd_008" content_type="model/stl" file="coacd_v2/v2_index_distal_coacd_008.stl"/>
+    <mesh name="v2_index_distal_coacd_009" content_type="model/stl" file="coacd_v2/v2_index_distal_coacd_009.stl"/>
+    <mesh name="v2_index_distal_coacd_010" content_type="model/stl" file="coacd_v2/v2_index_distal_coacd_010.stl"/>
+    <mesh name="v2_index_distal_coacd_011" content_type="model/stl" file="coacd_v2/v2_index_distal_coacd_011.stl"/>
+    <mesh name="v2_index_distal_coacd_012" content_type="model/stl" file="coacd_v2/v2_index_distal_coacd_012.stl"/>
+    <mesh name="v2_index_distal_coacd_013" content_type="model/stl" file="coacd_v2/v2_index_distal_coacd_013.stl"/>
+    <mesh name="v2_index_distal_coacd_014" content_type="model/stl" file="coacd_v2/v2_index_distal_coacd_014.stl"/>
+    <mesh name="v2_index_distal_coacd_015" content_type="model/stl" file="coacd_v2/v2_index_distal_coacd_015.stl"/>
+    <mesh name="v2_index_distal_coacd_016" content_type="model/stl" file="coacd_v2/v2_index_distal_coacd_016.stl"/>
+    <mesh name="v2_index_distal_coacd_017" content_type="model/stl" file="coacd_v2/v2_index_distal_coacd_017.stl"/>
+    <mesh name="v2_index_distal_coacd_018" content_type="model/stl" file="coacd_v2/v2_index_distal_coacd_018.stl"/>
+    <mesh name="v2_index_distal_coacd_019" content_type="model/stl" file="coacd_v2/v2_index_distal_coacd_019.stl"/>
+    <mesh name="v2_index_distal_coacd_020" content_type="model/stl" file="coacd_v2/v2_index_distal_coacd_020.stl"/>
+    <mesh name="v2_index_distal_coacd_021" content_type="model/stl" file="coacd_v2/v2_index_distal_coacd_021.stl"/>
+    <mesh name="v2_index_distal_coacd_022" content_type="model/stl" file="coacd_v2/v2_index_distal_coacd_022.stl"/>
+    <mesh name="v2_index_distal_coacd_023" content_type="model/stl" file="coacd_v2/v2_index_distal_coacd_023.stl"/>
+    <mesh name="v2_index_distal_coacd_024" content_type="model/stl" file="coacd_v2/v2_index_distal_coacd_024.stl"/>
+    <mesh name="v2_index_distal_coacd_025" content_type="model/stl" file="coacd_v2/v2_index_distal_coacd_025.stl"/>
+    <mesh name="v2_index_distal_coacd_026" content_type="model/stl" file="coacd_v2/v2_index_distal_coacd_026.stl"/>
+    <mesh name="v2_index_distal_coacd_027" content_type="model/stl" file="coacd_v2/v2_index_distal_coacd_027.stl"/>
+    <mesh name="v2_index_distal_coacd_028" content_type="model/stl" file="coacd_v2/v2_index_distal_coacd_028.stl"/>
+    <mesh name="v2_index_distal_coacd_029" content_type="model/stl" file="coacd_v2/v2_index_distal_coacd_029.stl"/>
+    <mesh name="v2_index_distal_coacd_030" content_type="model/stl" file="coacd_v2/v2_index_distal_coacd_030.stl"/>
+    <mesh name="v2_index_distal_coacd_031" content_type="model/stl" file="coacd_v2/v2_index_distal_coacd_031.stl"/>
+    <mesh name="v2_index_distal_coacd_032" content_type="model/stl" file="coacd_v2/v2_index_distal_coacd_032.stl"/>
+    <mesh name="v2_index_distal_coacd_033" content_type="model/stl" file="coacd_v2/v2_index_distal_coacd_033.stl"/>
+    <mesh name="v2_index_distal_coacd_034" content_type="model/stl" file="coacd_v2/v2_index_distal_coacd_034.stl"/>
+    <mesh name="v2_index_distal_coacd_035" content_type="model/stl" file="coacd_v2/v2_index_distal_coacd_035.stl"/>
+    <mesh name="v2_index_distal_coacd_036" content_type="model/stl" file="coacd_v2/v2_index_distal_coacd_036.stl"/>
+    <mesh name="v2_index_distal_coacd_037" content_type="model/stl" file="coacd_v2/v2_index_distal_coacd_037.stl"/>
+    <mesh name="v2_index_distal_coacd_038" content_type="model/stl" file="coacd_v2/v2_index_distal_coacd_038.stl"/>
+    <mesh name="v2_index_distal_coacd_039" content_type="model/stl" file="coacd_v2/v2_index_distal_coacd_039.stl"/>
+    <mesh name="v2_index_distal_coacd_040" content_type="model/stl" file="coacd_v2/v2_index_distal_coacd_040.stl"/>
+    <mesh name="v2_index_distal_coacd_041" content_type="model/stl" file="coacd_v2/v2_index_distal_coacd_041.stl"/>
+    <mesh name="v2_index_distal_coacd_042" content_type="model/stl" file="coacd_v2/v2_index_distal_coacd_042.stl"/>
+    <mesh name="v2_index_distal_coacd_043" content_type="model/stl" file="coacd_v2/v2_index_distal_coacd_043.stl"/>
+    <mesh name="v2_index_distal_coacd_044" content_type="model/stl" file="coacd_v2/v2_index_distal_coacd_044.stl"/>
+    <mesh name="v2_index_distal_coacd_045" content_type="model/stl" file="coacd_v2/v2_index_distal_coacd_045.stl"/>
+    <mesh name="v2_index_distal_coacd_046" content_type="model/stl" file="coacd_v2/v2_index_distal_coacd_046.stl"/>
+    <mesh name="v2_index_distal_coacd_047" content_type="model/stl" file="coacd_v2/v2_index_distal_coacd_047.stl"/>
+    <mesh name="v2_middle_proximal_coacd_000" content_type="model/stl" file="coacd_v2/v2_middle_proximal_coacd_000.stl"/>
+    <mesh name="v2_middle_proximal_coacd_001" content_type="model/stl" file="coacd_v2/v2_middle_proximal_coacd_001.stl"/>
+    <mesh name="v2_middle_proximal_coacd_002" content_type="model/stl" file="coacd_v2/v2_middle_proximal_coacd_002.stl"/>
+    <mesh name="v2_middle_proximal_coacd_003" content_type="model/stl" file="coacd_v2/v2_middle_proximal_coacd_003.stl"/>
+    <mesh name="v2_middle_proximal_coacd_004" content_type="model/stl" file="coacd_v2/v2_middle_proximal_coacd_004.stl"/>
+    <mesh name="v2_middle_proximal_coacd_005" content_type="model/stl" file="coacd_v2/v2_middle_proximal_coacd_005.stl"/>
+    <mesh name="v2_middle_proximal_coacd_006" content_type="model/stl" file="coacd_v2/v2_middle_proximal_coacd_006.stl"/>
+    <mesh name="v2_middle_proximal_coacd_007" content_type="model/stl" file="coacd_v2/v2_middle_proximal_coacd_007.stl"/>
+    <mesh name="v2_middle_proximal_coacd_008" content_type="model/stl" file="coacd_v2/v2_middle_proximal_coacd_008.stl"/>
+    <mesh name="v2_middle_proximal_coacd_009" content_type="model/stl" file="coacd_v2/v2_middle_proximal_coacd_009.stl"/>
+    <mesh name="v2_middle_proximal_coacd_010" content_type="model/stl" file="coacd_v2/v2_middle_proximal_coacd_010.stl"/>
+    <mesh name="v2_middle_proximal_coacd_011" content_type="model/stl" file="coacd_v2/v2_middle_proximal_coacd_011.stl"/>
+    <mesh name="v2_middle_proximal_coacd_012" content_type="model/stl" file="coacd_v2/v2_middle_proximal_coacd_012.stl"/>
+    <mesh name="v2_middle_proximal_coacd_013" content_type="model/stl" file="coacd_v2/v2_middle_proximal_coacd_013.stl"/>
+    <mesh name="v2_middle_proximal_coacd_014" content_type="model/stl" file="coacd_v2/v2_middle_proximal_coacd_014.stl"/>
+    <mesh name="v2_middle_proximal_coacd_015" content_type="model/stl" file="coacd_v2/v2_middle_proximal_coacd_015.stl"/>
+    <mesh name="v2_middle_proximal_coacd_016" content_type="model/stl" file="coacd_v2/v2_middle_proximal_coacd_016.stl"/>
+    <mesh name="v2_middle_proximal_coacd_017" content_type="model/stl" file="coacd_v2/v2_middle_proximal_coacd_017.stl"/>
+    <mesh name="v2_middle_proximal_coacd_018" content_type="model/stl" file="coacd_v2/v2_middle_proximal_coacd_018.stl"/>
+    <mesh name="v2_middle_proximal_coacd_019" content_type="model/stl" file="coacd_v2/v2_middle_proximal_coacd_019.stl"/>
+    <mesh name="v2_middle_distal_coacd_000" content_type="model/stl" file="coacd_v2/v2_middle_distal_coacd_000.stl"/>
+    <mesh name="v2_middle_distal_coacd_001" content_type="model/stl" file="coacd_v2/v2_middle_distal_coacd_001.stl"/>
+    <mesh name="v2_middle_distal_coacd_002" content_type="model/stl" file="coacd_v2/v2_middle_distal_coacd_002.stl"/>
+    <mesh name="v2_middle_distal_coacd_003" content_type="model/stl" file="coacd_v2/v2_middle_distal_coacd_003.stl"/>
+    <mesh name="v2_middle_distal_coacd_004" content_type="model/stl" file="coacd_v2/v2_middle_distal_coacd_004.stl"/>
+    <mesh name="v2_middle_distal_coacd_005" content_type="model/stl" file="coacd_v2/v2_middle_distal_coacd_005.stl"/>
+    <mesh name="v2_middle_distal_coacd_006" content_type="model/stl" file="coacd_v2/v2_middle_distal_coacd_006.stl"/>
+    <mesh name="v2_middle_distal_coacd_007" content_type="model/stl" file="coacd_v2/v2_middle_distal_coacd_007.stl"/>
+    <mesh name="v2_middle_distal_coacd_008" content_type="model/stl" file="coacd_v2/v2_middle_distal_coacd_008.stl"/>
+    <mesh name="v2_middle_distal_coacd_009" content_type="model/stl" file="coacd_v2/v2_middle_distal_coacd_009.stl"/>
+    <mesh name="v2_middle_distal_coacd_010" content_type="model/stl" file="coacd_v2/v2_middle_distal_coacd_010.stl"/>
+    <mesh name="v2_middle_distal_coacd_011" content_type="model/stl" file="coacd_v2/v2_middle_distal_coacd_011.stl"/>
+    <mesh name="v2_middle_distal_coacd_012" content_type="model/stl" file="coacd_v2/v2_middle_distal_coacd_012.stl"/>
+    <mesh name="v2_middle_distal_coacd_013" content_type="model/stl" file="coacd_v2/v2_middle_distal_coacd_013.stl"/>
+    <mesh name="v2_middle_distal_coacd_014" content_type="model/stl" file="coacd_v2/v2_middle_distal_coacd_014.stl"/>
+    <mesh name="v2_middle_distal_coacd_015" content_type="model/stl" file="coacd_v2/v2_middle_distal_coacd_015.stl"/>
+    <mesh name="v2_middle_distal_coacd_016" content_type="model/stl" file="coacd_v2/v2_middle_distal_coacd_016.stl"/>
+    <mesh name="v2_middle_distal_coacd_017" content_type="model/stl" file="coacd_v2/v2_middle_distal_coacd_017.stl"/>
+    <mesh name="v2_middle_distal_coacd_018" content_type="model/stl" file="coacd_v2/v2_middle_distal_coacd_018.stl"/>
+    <mesh name="v2_middle_distal_coacd_019" content_type="model/stl" file="coacd_v2/v2_middle_distal_coacd_019.stl"/>
+    <mesh name="v2_middle_distal_coacd_020" content_type="model/stl" file="coacd_v2/v2_middle_distal_coacd_020.stl"/>
+    <mesh name="v2_middle_distal_coacd_021" content_type="model/stl" file="coacd_v2/v2_middle_distal_coacd_021.stl"/>
+    <mesh name="v2_middle_distal_coacd_022" content_type="model/stl" file="coacd_v2/v2_middle_distal_coacd_022.stl"/>
+    <mesh name="v2_middle_distal_coacd_023" content_type="model/stl" file="coacd_v2/v2_middle_distal_coacd_023.stl"/>
+    <mesh name="v2_ring_proximal_coacd_000" content_type="model/stl" file="coacd_v2/v2_ring_proximal_coacd_000.stl"/>
+    <mesh name="v2_ring_proximal_coacd_001" content_type="model/stl" file="coacd_v2/v2_ring_proximal_coacd_001.stl"/>
+    <mesh name="v2_ring_proximal_coacd_002" content_type="model/stl" file="coacd_v2/v2_ring_proximal_coacd_002.stl"/>
+    <mesh name="v2_ring_proximal_coacd_003" content_type="model/stl" file="coacd_v2/v2_ring_proximal_coacd_003.stl"/>
+    <mesh name="v2_ring_proximal_coacd_004" content_type="model/stl" file="coacd_v2/v2_ring_proximal_coacd_004.stl"/>
+    <mesh name="v2_ring_proximal_coacd_005" content_type="model/stl" file="coacd_v2/v2_ring_proximal_coacd_005.stl"/>
+    <mesh name="v2_ring_proximal_coacd_006" content_type="model/stl" file="coacd_v2/v2_ring_proximal_coacd_006.stl"/>
+    <mesh name="v2_ring_proximal_coacd_007" content_type="model/stl" file="coacd_v2/v2_ring_proximal_coacd_007.stl"/>
+    <mesh name="v2_ring_proximal_coacd_008" content_type="model/stl" file="coacd_v2/v2_ring_proximal_coacd_008.stl"/>
+    <mesh name="v2_ring_proximal_coacd_009" content_type="model/stl" file="coacd_v2/v2_ring_proximal_coacd_009.stl"/>
+    <mesh name="v2_ring_proximal_coacd_010" content_type="model/stl" file="coacd_v2/v2_ring_proximal_coacd_010.stl"/>
+    <mesh name="v2_ring_proximal_coacd_011" content_type="model/stl" file="coacd_v2/v2_ring_proximal_coacd_011.stl"/>
+    <mesh name="v2_ring_proximal_coacd_012" content_type="model/stl" file="coacd_v2/v2_ring_proximal_coacd_012.stl"/>
+    <mesh name="v2_ring_proximal_coacd_013" content_type="model/stl" file="coacd_v2/v2_ring_proximal_coacd_013.stl"/>
+    <mesh name="v2_ring_proximal_coacd_014" content_type="model/stl" file="coacd_v2/v2_ring_proximal_coacd_014.stl"/>
+    <mesh name="v2_ring_proximal_coacd_015" content_type="model/stl" file="coacd_v2/v2_ring_proximal_coacd_015.stl"/>
+    <mesh name="v2_ring_proximal_coacd_016" content_type="model/stl" file="coacd_v2/v2_ring_proximal_coacd_016.stl"/>
+    <mesh name="v2_ring_proximal_coacd_017" content_type="model/stl" file="coacd_v2/v2_ring_proximal_coacd_017.stl"/>
+    <mesh name="v2_ring_distal_coacd_000" content_type="model/stl" file="coacd_v2/v2_ring_distal_coacd_000.stl"/>
+    <mesh name="v2_ring_distal_coacd_001" content_type="model/stl" file="coacd_v2/v2_ring_distal_coacd_001.stl"/>
+    <mesh name="v2_ring_distal_coacd_002" content_type="model/stl" file="coacd_v2/v2_ring_distal_coacd_002.stl"/>
+    <mesh name="v2_ring_distal_coacd_003" content_type="model/stl" file="coacd_v2/v2_ring_distal_coacd_003.stl"/>
+    <mesh name="v2_ring_distal_coacd_004" content_type="model/stl" file="coacd_v2/v2_ring_distal_coacd_004.stl"/>
+    <mesh name="v2_ring_distal_coacd_005" content_type="model/stl" file="coacd_v2/v2_ring_distal_coacd_005.stl"/>
+    <mesh name="v2_ring_distal_coacd_006" content_type="model/stl" file="coacd_v2/v2_ring_distal_coacd_006.stl"/>
+    <mesh name="v2_ring_distal_coacd_007" content_type="model/stl" file="coacd_v2/v2_ring_distal_coacd_007.stl"/>
+    <mesh name="v2_ring_distal_coacd_008" content_type="model/stl" file="coacd_v2/v2_ring_distal_coacd_008.stl"/>
+    <mesh name="v2_ring_distal_coacd_009" content_type="model/stl" file="coacd_v2/v2_ring_distal_coacd_009.stl"/>
+    <mesh name="v2_ring_distal_coacd_010" content_type="model/stl" file="coacd_v2/v2_ring_distal_coacd_010.stl"/>
+    <mesh name="v2_ring_distal_coacd_011" content_type="model/stl" file="coacd_v2/v2_ring_distal_coacd_011.stl"/>
+    <mesh name="v2_ring_distal_coacd_012" content_type="model/stl" file="coacd_v2/v2_ring_distal_coacd_012.stl"/>
+    <mesh name="v2_ring_distal_coacd_013" content_type="model/stl" file="coacd_v2/v2_ring_distal_coacd_013.stl"/>
+    <mesh name="v2_ring_distal_coacd_014" content_type="model/stl" file="coacd_v2/v2_ring_distal_coacd_014.stl"/>
+    <mesh name="v2_ring_distal_coacd_015" content_type="model/stl" file="coacd_v2/v2_ring_distal_coacd_015.stl"/>
+    <mesh name="v2_ring_distal_coacd_016" content_type="model/stl" file="coacd_v2/v2_ring_distal_coacd_016.stl"/>
+    <mesh name="v2_ring_distal_coacd_017" content_type="model/stl" file="coacd_v2/v2_ring_distal_coacd_017.stl"/>
+    <mesh name="v2_ring_distal_coacd_018" content_type="model/stl" file="coacd_v2/v2_ring_distal_coacd_018.stl"/>
+    <mesh name="v2_ring_distal_coacd_019" content_type="model/stl" file="coacd_v2/v2_ring_distal_coacd_019.stl"/>
+    <mesh name="v2_ring_distal_coacd_020" content_type="model/stl" file="coacd_v2/v2_ring_distal_coacd_020.stl"/>
+    <mesh name="v2_ring_distal_coacd_021" content_type="model/stl" file="coacd_v2/v2_ring_distal_coacd_021.stl"/>
+    <mesh name="v2_ring_distal_coacd_022" content_type="model/stl" file="coacd_v2/v2_ring_distal_coacd_022.stl"/>
+    <mesh name="v2_ring_distal_coacd_023" content_type="model/stl" file="coacd_v2/v2_ring_distal_coacd_023.stl"/>
+    <mesh name="v2_pinky_proximal_coacd_000" content_type="model/stl" file="coacd_v2/v2_pinky_proximal_coacd_000.stl"/>
+    <mesh name="v2_pinky_proximal_coacd_001" content_type="model/stl" file="coacd_v2/v2_pinky_proximal_coacd_001.stl"/>
+    <mesh name="v2_pinky_proximal_coacd_002" content_type="model/stl" file="coacd_v2/v2_pinky_proximal_coacd_002.stl"/>
+    <mesh name="v2_pinky_proximal_coacd_003" content_type="model/stl" file="coacd_v2/v2_pinky_proximal_coacd_003.stl"/>
+    <mesh name="v2_pinky_proximal_coacd_004" content_type="model/stl" file="coacd_v2/v2_pinky_proximal_coacd_004.stl"/>
+    <mesh name="v2_pinky_proximal_coacd_005" content_type="model/stl" file="coacd_v2/v2_pinky_proximal_coacd_005.stl"/>
+    <mesh name="v2_pinky_proximal_coacd_006" content_type="model/stl" file="coacd_v2/v2_pinky_proximal_coacd_006.stl"/>
+    <mesh name="v2_pinky_proximal_coacd_007" content_type="model/stl" file="coacd_v2/v2_pinky_proximal_coacd_007.stl"/>
+    <mesh name="v2_pinky_proximal_coacd_008" content_type="model/stl" file="coacd_v2/v2_pinky_proximal_coacd_008.stl"/>
+    <mesh name="v2_pinky_proximal_coacd_009" content_type="model/stl" file="coacd_v2/v2_pinky_proximal_coacd_009.stl"/>
+    <mesh name="v2_pinky_proximal_coacd_010" content_type="model/stl" file="coacd_v2/v2_pinky_proximal_coacd_010.stl"/>
+    <mesh name="v2_pinky_proximal_coacd_011" content_type="model/stl" file="coacd_v2/v2_pinky_proximal_coacd_011.stl"/>
+    <mesh name="v2_pinky_proximal_coacd_012" content_type="model/stl" file="coacd_v2/v2_pinky_proximal_coacd_012.stl"/>
+    <mesh name="v2_pinky_proximal_coacd_013" content_type="model/stl" file="coacd_v2/v2_pinky_proximal_coacd_013.stl"/>
+    <mesh name="v2_pinky_proximal_coacd_014" content_type="model/stl" file="coacd_v2/v2_pinky_proximal_coacd_014.stl"/>
+    <mesh name="v2_pinky_proximal_coacd_015" content_type="model/stl" file="coacd_v2/v2_pinky_proximal_coacd_015.stl"/>
+    <mesh name="v2_pinky_distal_coacd_000" content_type="model/stl" file="coacd_v2/v2_pinky_distal_coacd_000.stl"/>
+    <mesh name="v2_pinky_distal_coacd_001" content_type="model/stl" file="coacd_v2/v2_pinky_distal_coacd_001.stl"/>
+    <mesh name="v2_pinky_distal_coacd_002" content_type="model/stl" file="coacd_v2/v2_pinky_distal_coacd_002.stl"/>
+    <mesh name="v2_pinky_distal_coacd_003" content_type="model/stl" file="coacd_v2/v2_pinky_distal_coacd_003.stl"/>
+    <mesh name="v2_pinky_distal_coacd_004" content_type="model/stl" file="coacd_v2/v2_pinky_distal_coacd_004.stl"/>
+    <mesh name="v2_pinky_distal_coacd_005" content_type="model/stl" file="coacd_v2/v2_pinky_distal_coacd_005.stl"/>
+    <mesh name="v2_pinky_distal_coacd_006" content_type="model/stl" file="coacd_v2/v2_pinky_distal_coacd_006.stl"/>
+    <mesh name="v2_pinky_distal_coacd_007" content_type="model/stl" file="coacd_v2/v2_pinky_distal_coacd_007.stl"/>
+    <mesh name="v2_pinky_distal_coacd_008" content_type="model/stl" file="coacd_v2/v2_pinky_distal_coacd_008.stl"/>
+    <mesh name="v2_pinky_distal_coacd_009" content_type="model/stl" file="coacd_v2/v2_pinky_distal_coacd_009.stl"/>
+    <mesh name="v2_pinky_distal_coacd_010" content_type="model/stl" file="coacd_v2/v2_pinky_distal_coacd_010.stl"/>
+    <mesh name="v2_pinky_distal_coacd_011" content_type="model/stl" file="coacd_v2/v2_pinky_distal_coacd_011.stl"/>
+    <mesh name="v2_pinky_distal_coacd_012" content_type="model/stl" file="coacd_v2/v2_pinky_distal_coacd_012.stl"/>
+    <mesh name="v2_pinky_distal_coacd_013" content_type="model/stl" file="coacd_v2/v2_pinky_distal_coacd_013.stl"/>
+    <mesh name="v2_pinky_distal_coacd_014" content_type="model/stl" file="coacd_v2/v2_pinky_distal_coacd_014.stl"/>
+    <mesh name="v2_pinky_distal_coacd_015" content_type="model/stl" file="coacd_v2/v2_pinky_distal_coacd_015.stl"/>
+    <mesh name="v2_pinky_distal_coacd_016" content_type="model/stl" file="coacd_v2/v2_pinky_distal_coacd_016.stl"/>
+    <mesh name="v2_pinky_distal_coacd_017" content_type="model/stl" file="coacd_v2/v2_pinky_distal_coacd_017.stl"/>
+    <mesh name="v2_pinky_distal_coacd_018" content_type="model/stl" file="coacd_v2/v2_pinky_distal_coacd_018.stl"/>
+    <mesh name="v2_pinky_distal_coacd_019" content_type="model/stl" file="coacd_v2/v2_pinky_distal_coacd_019.stl"/>
+    <mesh name="v2_pinky_distal_coacd_020" content_type="model/stl" file="coacd_v2/v2_pinky_distal_coacd_020.stl"/>
+    <mesh name="v2_pinky_distal_coacd_021" content_type="model/stl" file="coacd_v2/v2_pinky_distal_coacd_021.stl"/>
+    <mesh name="v2_pinky_distal_coacd_022" content_type="model/stl" file="coacd_v2/v2_pinky_distal_coacd_022.stl"/>
+    <mesh name="v2_pinky_distal_coacd_023" content_type="model/stl" file="coacd_v2/v2_pinky_distal_coacd_023.stl"/>
+    <mesh name="v2_thumb_base_coacd_000" content_type="model/stl" file="coacd_v2/v2_thumb_base_coacd_000.stl"/>
+    <mesh name="v2_thumb_base_coacd_001" content_type="model/stl" file="coacd_v2/v2_thumb_base_coacd_001.stl"/>
+    <mesh name="v2_thumb_base_coacd_002" content_type="model/stl" file="coacd_v2/v2_thumb_base_coacd_002.stl"/>
+    <mesh name="v2_thumb_base_coacd_003" content_type="model/stl" file="coacd_v2/v2_thumb_base_coacd_003.stl"/>
+    <mesh name="v2_thumb_base_coacd_004" content_type="model/stl" file="coacd_v2/v2_thumb_base_coacd_004.stl"/>
+    <mesh name="v2_thumb_base_coacd_005" content_type="model/stl" file="coacd_v2/v2_thumb_base_coacd_005.stl"/>
+    <mesh name="v2_thumb_base_coacd_006" content_type="model/stl" file="coacd_v2/v2_thumb_base_coacd_006.stl"/>
+    <mesh name="v2_thumb_base_coacd_007" content_type="model/stl" file="coacd_v2/v2_thumb_base_coacd_007.stl"/>
+    <mesh name="v2_thumb_base_coacd_008" content_type="model/stl" file="coacd_v2/v2_thumb_base_coacd_008.stl"/>
+    <mesh name="v2_thumb_base_coacd_009" content_type="model/stl" file="coacd_v2/v2_thumb_base_coacd_009.stl"/>
+    <mesh name="v2_thumb_base_coacd_010" content_type="model/stl" file="coacd_v2/v2_thumb_base_coacd_010.stl"/>
+    <mesh name="v2_thumb_base_coacd_011" content_type="model/stl" file="coacd_v2/v2_thumb_base_coacd_011.stl"/>
+    <mesh name="v2_thumb_base_coacd_012" content_type="model/stl" file="coacd_v2/v2_thumb_base_coacd_012.stl"/>
+    <mesh name="v2_thumb_base_coacd_013" content_type="model/stl" file="coacd_v2/v2_thumb_base_coacd_013.stl"/>
+    <mesh name="v2_thumb_base_coacd_014" content_type="model/stl" file="coacd_v2/v2_thumb_base_coacd_014.stl"/>
+    <mesh name="v2_thumb_base_coacd_015" content_type="model/stl" file="coacd_v2/v2_thumb_base_coacd_015.stl"/>
+    <mesh name="v2_thumb_base_coacd_016" content_type="model/stl" file="coacd_v2/v2_thumb_base_coacd_016.stl"/>
+    <mesh name="v2_thumb_base_coacd_017" content_type="model/stl" file="coacd_v2/v2_thumb_base_coacd_017.stl"/>
+    <mesh name="v2_thumb_base_coacd_018" content_type="model/stl" file="coacd_v2/v2_thumb_base_coacd_018.stl"/>
+    <mesh name="v2_thumb_base_coacd_019" content_type="model/stl" file="coacd_v2/v2_thumb_base_coacd_019.stl"/>
+    <mesh name="v2_thumb_base_coacd_020" content_type="model/stl" file="coacd_v2/v2_thumb_base_coacd_020.stl"/>
+    <mesh name="v2_thumb_base_coacd_021" content_type="model/stl" file="coacd_v2/v2_thumb_base_coacd_021.stl"/>
+    <mesh name="v2_thumb_base_coacd_022" content_type="model/stl" file="coacd_v2/v2_thumb_base_coacd_022.stl"/>
+    <mesh name="v2_thumb_base_coacd_023" content_type="model/stl" file="coacd_v2/v2_thumb_base_coacd_023.stl"/>
+    <mesh name="v2_thumb_mid_coacd_000" content_type="model/stl" file="coacd_v2/v2_thumb_mid_coacd_000.stl"/>
+    <mesh name="v2_thumb_mid_coacd_001" content_type="model/stl" file="coacd_v2/v2_thumb_mid_coacd_001.stl"/>
+    <mesh name="v2_thumb_mid_coacd_002" content_type="model/stl" file="coacd_v2/v2_thumb_mid_coacd_002.stl"/>
+    <mesh name="v2_thumb_mid_coacd_003" content_type="model/stl" file="coacd_v2/v2_thumb_mid_coacd_003.stl"/>
+    <mesh name="v2_thumb_mid_coacd_004" content_type="model/stl" file="coacd_v2/v2_thumb_mid_coacd_004.stl"/>
+    <mesh name="v2_thumb_mid_coacd_005" content_type="model/stl" file="coacd_v2/v2_thumb_mid_coacd_005.stl"/>
+    <mesh name="v2_thumb_mid_coacd_006" content_type="model/stl" file="coacd_v2/v2_thumb_mid_coacd_006.stl"/>
+    <mesh name="v2_thumb_mid_coacd_007" content_type="model/stl" file="coacd_v2/v2_thumb_mid_coacd_007.stl"/>
+    <mesh name="v2_thumb_mid_coacd_008" content_type="model/stl" file="coacd_v2/v2_thumb_mid_coacd_008.stl"/>
+    <mesh name="v2_thumb_mid_coacd_009" content_type="model/stl" file="coacd_v2/v2_thumb_mid_coacd_009.stl"/>
+    <mesh name="v2_thumb_mid_coacd_010" content_type="model/stl" file="coacd_v2/v2_thumb_mid_coacd_010.stl"/>
+    <mesh name="v2_thumb_mid_coacd_011" content_type="model/stl" file="coacd_v2/v2_thumb_mid_coacd_011.stl"/>
+    <mesh name="v2_thumb_mid_coacd_012" content_type="model/stl" file="coacd_v2/v2_thumb_mid_coacd_012.stl"/>
+    <mesh name="v2_thumb_mid_coacd_013" content_type="model/stl" file="coacd_v2/v2_thumb_mid_coacd_013.stl"/>
+    <mesh name="v2_thumb_mid_coacd_014" content_type="model/stl" file="coacd_v2/v2_thumb_mid_coacd_014.stl"/>
+    <mesh name="v2_thumb_mid_coacd_015" content_type="model/stl" file="coacd_v2/v2_thumb_mid_coacd_015.stl"/>
+    <mesh name="v2_thumb_mid_coacd_016" content_type="model/stl" file="coacd_v2/v2_thumb_mid_coacd_016.stl"/>
+    <mesh name="v2_thumb_mid_coacd_017" content_type="model/stl" file="coacd_v2/v2_thumb_mid_coacd_017.stl"/>
+    <mesh name="v2_thumb_mid_coacd_018" content_type="model/stl" file="coacd_v2/v2_thumb_mid_coacd_018.stl"/>
+    <mesh name="v2_thumb_mid_coacd_019" content_type="model/stl" file="coacd_v2/v2_thumb_mid_coacd_019.stl"/>
+    <mesh name="v2_thumb_mid_coacd_020" content_type="model/stl" file="coacd_v2/v2_thumb_mid_coacd_020.stl"/>
+    <mesh name="v2_thumb_mid_coacd_021" content_type="model/stl" file="coacd_v2/v2_thumb_mid_coacd_021.stl"/>
+    <mesh name="v2_thumb_mid_coacd_022" content_type="model/stl" file="coacd_v2/v2_thumb_mid_coacd_022.stl"/>
+    <mesh name="v2_thumb_mid_coacd_023" content_type="model/stl" file="coacd_v2/v2_thumb_mid_coacd_023.stl"/>
+    <mesh name="v2_thumb_tip_coacd_000" content_type="model/stl" file="coacd_v2/v2_thumb_tip_coacd_000.stl"/>
+    <mesh name="v2_thumb_tip_coacd_001" content_type="model/stl" file="coacd_v2/v2_thumb_tip_coacd_001.stl"/>
+    <mesh name="v2_thumb_tip_coacd_002" content_type="model/stl" file="coacd_v2/v2_thumb_tip_coacd_002.stl"/>
+    <mesh name="v2_thumb_tip_coacd_003" content_type="model/stl" file="coacd_v2/v2_thumb_tip_coacd_003.stl"/>
+    <mesh name="v2_thumb_tip_coacd_004" content_type="model/stl" file="coacd_v2/v2_thumb_tip_coacd_004.stl"/>
+    <mesh name="v2_thumb_tip_coacd_005" content_type="model/stl" file="coacd_v2/v2_thumb_tip_coacd_005.stl"/>
+    <mesh name="v2_thumb_tip_coacd_006" content_type="model/stl" file="coacd_v2/v2_thumb_tip_coacd_006.stl"/>
+    <mesh name="v2_thumb_tip_coacd_007" content_type="model/stl" file="coacd_v2/v2_thumb_tip_coacd_007.stl"/>
+    <mesh name="v2_thumb_tip_coacd_008" content_type="model/stl" file="coacd_v2/v2_thumb_tip_coacd_008.stl"/>
+    <mesh name="v2_thumb_tip_coacd_009" content_type="model/stl" file="coacd_v2/v2_thumb_tip_coacd_009.stl"/>
+    <mesh name="v2_thumb_tip_coacd_010" content_type="model/stl" file="coacd_v2/v2_thumb_tip_coacd_010.stl"/>
+    <mesh name="v2_thumb_tip_coacd_011" content_type="model/stl" file="coacd_v2/v2_thumb_tip_coacd_011.stl"/>
+    <mesh name="v2_thumb_tip_coacd_012" content_type="model/stl" file="coacd_v2/v2_thumb_tip_coacd_012.stl"/>
+    <mesh name="v2_thumb_tip_coacd_013" content_type="model/stl" file="coacd_v2/v2_thumb_tip_coacd_013.stl"/>
+    <mesh name="v2_thumb_tip_coacd_014" content_type="model/stl" file="coacd_v2/v2_thumb_tip_coacd_014.stl"/>
+    <mesh name="v2_thumb_tip_coacd_015" content_type="model/stl" file="coacd_v2/v2_thumb_tip_coacd_015.stl"/>
+    <mesh name="v2_thumb_tip_coacd_016" content_type="model/stl" file="coacd_v2/v2_thumb_tip_coacd_016.stl"/>
+    <mesh name="v2_thumb_tip_coacd_017" content_type="model/stl" file="coacd_v2/v2_thumb_tip_coacd_017.stl"/>
+    <mesh name="v2_thumb_tip_coacd_018" content_type="model/stl" file="coacd_v2/v2_thumb_tip_coacd_018.stl"/>
+    <mesh name="v2_thumb_tip_coacd_019" content_type="model/stl" file="coacd_v2/v2_thumb_tip_coacd_019.stl"/>
+    <mesh name="v2_thumb_tip_coacd_020" content_type="model/stl" file="coacd_v2/v2_thumb_tip_coacd_020.stl"/>
+    <mesh name="v2_thumb_tip_coacd_021" content_type="model/stl" file="coacd_v2/v2_thumb_tip_coacd_021.stl"/>
+    <mesh name="v2_thumb_tip_coacd_022" content_type="model/stl" file="coacd_v2/v2_thumb_tip_coacd_022.stl"/>
+    <mesh name="v2_thumb_tip_coacd_023" content_type="model/stl" file="coacd_v2/v2_thumb_tip_coacd_023.stl"/>
+  </asset>
+
+  <worldbody>
+    <geom name="floor" size="0 0 0.01" pos="0 0 -0.25" type="plane" contype="2" conaffinity="2" material="groundplane" rgba="0.85 0.85 0.85 0.06"/>
+    <camera name="side" pos="-0.314 -0.181 0.249" quat="0.730399 0.46532 -0.268649 -0.42169"/>
+    <camera name="palm" pos="-0.376 0 0.217" quat="0.579203 0.405616 -0.405616 -0.579203"/>
+    <body name="v2_mount" childclass="v2_hand" quat="0.707105 0.707108 0 0">
+      <body name="palm">
+        <geom class="visual" rgba="0.05 0.45 1 0.32" mesh="v2_palm"/>
+        <geom name="palm_coacd_000" type="mesh" group="3" friction="1.5" solref="0.01 1.2" solimp="0.95 0.995 0.0005" rgba="1 0.12 0.04 0.55" mesh="v2_palm_coacd_000"/>
+        <geom name="palm_coacd_001" type="mesh" group="3" friction="1.5" solref="0.01 1.2" solimp="0.95 0.995 0.0005" rgba="1 0.12 0.04 0.55" mesh="v2_palm_coacd_001"/>
+        <geom name="palm_coacd_002" type="mesh" group="3" friction="1.5" solref="0.01 1.2" solimp="0.95 0.995 0.0005" rgba="1 0.12 0.04 0.55" mesh="v2_palm_coacd_002"/>
+        <geom name="palm_coacd_003" type="mesh" group="3" friction="1.5" solref="0.01 1.2" solimp="0.95 0.995 0.0005" rgba="1 0.12 0.04 0.55" mesh="v2_palm_coacd_003"/>
+        <geom name="palm_coacd_004" type="mesh" group="3" friction="1.5" solref="0.01 1.2" solimp="0.95 0.995 0.0005" rgba="1 0.12 0.04 0.55" mesh="v2_palm_coacd_004"/>
+        <geom name="palm_coacd_005" type="mesh" group="3" friction="1.5" solref="0.01 1.2" solimp="0.95 0.995 0.0005" rgba="1 0.12 0.04 0.55" mesh="v2_palm_coacd_005"/>
+        <geom name="palm_coacd_006" type="mesh" group="3" friction="1.5" solref="0.01 1.2" solimp="0.95 0.995 0.0005" rgba="1 0.12 0.04 0.55" mesh="v2_palm_coacd_006"/>
+        <geom name="palm_coacd_007" type="mesh" group="3" friction="1.5" solref="0.01 1.2" solimp="0.95 0.995 0.0005" rgba="1 0.12 0.04 0.55" mesh="v2_palm_coacd_007"/>
+        <geom name="palm_coacd_008" type="mesh" group="3" friction="1.5" solref="0.01 1.2" solimp="0.95 0.995 0.0005" rgba="1 0.12 0.04 0.55" mesh="v2_palm_coacd_008"/>
+        <geom name="palm_coacd_009" type="mesh" group="3" friction="1.5" solref="0.01 1.2" solimp="0.95 0.995 0.0005" rgba="1 0.12 0.04 0.55" mesh="v2_palm_coacd_009"/>
+        <geom name="palm_coacd_010" type="mesh" group="3" friction="1.5" solref="0.01 1.2" solimp="0.95 0.995 0.0005" rgba="1 0.12 0.04 0.55" mesh="v2_palm_coacd_010"/>
+        <geom name="palm_coacd_011" type="mesh" group="3" friction="1.5" solref="0.01 1.2" solimp="0.95 0.995 0.0005" rgba="1 0.12 0.04 0.55" mesh="v2_palm_coacd_011"/>
+        <geom name="palm_coacd_012" type="mesh" group="3" friction="1.5" solref="0.01 1.2" solimp="0.95 0.995 0.0005" rgba="1 0.12 0.04 0.55" mesh="v2_palm_coacd_012"/>
+        <geom name="palm_coacd_013" type="mesh" group="3" friction="1.5" solref="0.01 1.2" solimp="0.95 0.995 0.0005" rgba="1 0.12 0.04 0.55" mesh="v2_palm_coacd_013"/>
+        <geom name="palm_coacd_014" type="mesh" group="3" friction="1.5" solref="0.01 1.2" solimp="0.95 0.995 0.0005" rgba="1 0.12 0.04 0.55" mesh="v2_palm_coacd_014"/>
+        <geom name="palm_coacd_015" type="mesh" group="3" friction="1.5" solref="0.01 1.2" solimp="0.95 0.995 0.0005" rgba="1 0.12 0.04 0.55" mesh="v2_palm_coacd_015"/>
+        <geom name="palm_coacd_016" type="mesh" group="3" friction="1.5" solref="0.01 1.2" solimp="0.95 0.995 0.0005" rgba="1 0.12 0.04 0.55" mesh="v2_palm_coacd_016"/>
+        <geom name="palm_coacd_017" type="mesh" group="3" friction="1.5" solref="0.01 1.2" solimp="0.95 0.995 0.0005" rgba="1 0.12 0.04 0.55" mesh="v2_palm_coacd_017"/>
+        <geom name="palm_coacd_018" type="mesh" group="3" friction="1.5" solref="0.01 1.2" solimp="0.95 0.995 0.0005" rgba="1 0.12 0.04 0.55" mesh="v2_palm_coacd_018"/>
+        <geom name="palm_coacd_019" type="mesh" group="3" friction="1.5" solref="0.01 1.2" solimp="0.95 0.995 0.0005" rgba="1 0.12 0.04 0.55" mesh="v2_palm_coacd_019"/>
+        <geom name="palm_coacd_020" type="mesh" group="3" friction="1.5" solref="0.01 1.2" solimp="0.95 0.995 0.0005" rgba="1 0.12 0.04 0.55" mesh="v2_palm_coacd_020"/>
+        <geom name="palm_coacd_021" type="mesh" group="3" friction="1.5" solref="0.01 1.2" solimp="0.95 0.995 0.0005" rgba="1 0.12 0.04 0.55" mesh="v2_palm_coacd_021"/>
+        <geom name="palm_coacd_022" type="mesh" group="3" friction="1.5" solref="0.01 1.2" solimp="0.95 0.995 0.0005" rgba="1 0.12 0.04 0.55" mesh="v2_palm_coacd_022"/>
+        <geom name="palm_coacd_023" type="mesh" group="3" friction="1.5" solref="0.01 1.2" solimp="0.95 0.995 0.0005" rgba="1 0.12 0.04 0.55" mesh="v2_palm_coacd_023"/>
+        <geom name="palm_coacd_024" type="mesh" group="3" friction="1.5" solref="0.01 1.2" solimp="0.95 0.995 0.0005" rgba="1 0.12 0.04 0.55" mesh="v2_palm_coacd_024"/>
+        <geom name="palm_coacd_025" type="mesh" group="3" friction="1.5" solref="0.01 1.2" solimp="0.95 0.995 0.0005" rgba="1 0.12 0.04 0.55" mesh="v2_palm_coacd_025"/>
+        <geom name="palm_coacd_026" type="mesh" group="3" friction="1.5" solref="0.01 1.2" solimp="0.95 0.995 0.0005" rgba="1 0.12 0.04 0.55" mesh="v2_palm_coacd_026"/>
+        <geom name="palm_coacd_027" type="mesh" group="3" friction="1.5" solref="0.01 1.2" solimp="0.95 0.995 0.0005" rgba="1 0.12 0.04 0.55" mesh="v2_palm_coacd_027"/>
+        <geom name="palm_coacd_028" type="mesh" group="3" friction="1.5" solref="0.01 1.2" solimp="0.95 0.995 0.0005" rgba="1 0.12 0.04 0.55" mesh="v2_palm_coacd_028"/>
+        <geom name="palm_coacd_029" type="mesh" group="3" friction="1.5" solref="0.01 1.2" solimp="0.95 0.995 0.0005" rgba="1 0.12 0.04 0.55" mesh="v2_palm_coacd_029"/>
+        <geom name="palm_coacd_030" type="mesh" group="3" friction="1.5" solref="0.01 1.2" solimp="0.95 0.995 0.0005" rgba="1 0.12 0.04 0.55" mesh="v2_palm_coacd_030"/>
+        <geom name="palm_coacd_031" type="mesh" group="3" friction="1.5" solref="0.01 1.2" solimp="0.95 0.995 0.0005" rgba="1 0.12 0.04 0.55" mesh="v2_palm_coacd_031"/>
+        <geom name="palm_coacd_032" type="mesh" group="3" friction="1.5" solref="0.01 1.2" solimp="0.95 0.995 0.0005" rgba="1 0.12 0.04 0.55" mesh="v2_palm_coacd_032"/>
+        <geom name="palm_coacd_033" type="mesh" group="3" friction="1.5" solref="0.01 1.2" solimp="0.95 0.995 0.0005" rgba="1 0.12 0.04 0.55" mesh="v2_palm_coacd_033"/>
+        <geom name="palm_coacd_034" type="mesh" group="3" friction="1.5" solref="0.01 1.2" solimp="0.95 0.995 0.0005" rgba="1 0.12 0.04 0.55" mesh="v2_palm_coacd_034"/>
+        <geom name="palm_coacd_035" type="mesh" group="3" friction="1.5" solref="0.01 1.2" solimp="0.95 0.995 0.0005" rgba="1 0.12 0.04 0.55" mesh="v2_palm_coacd_035"/>
+        <geom name="palm_coacd_036" type="mesh" group="3" friction="1.5" solref="0.01 1.2" solimp="0.95 0.995 0.0005" rgba="1 0.12 0.04 0.55" mesh="v2_palm_coacd_036"/>
+        <geom name="palm_coacd_037" type="mesh" group="3" friction="1.5" solref="0.01 1.2" solimp="0.95 0.995 0.0005" rgba="1 0.12 0.04 0.55" mesh="v2_palm_coacd_037"/>
+        <geom name="palm_coacd_038" type="mesh" group="3" friction="1.5" solref="0.01 1.2" solimp="0.95 0.995 0.0005" rgba="1 0.12 0.04 0.55" mesh="v2_palm_coacd_038"/>
+        <geom name="palm_coacd_039" type="mesh" group="3" friction="1.5" solref="0.01 1.2" solimp="0.95 0.995 0.0005" rgba="1 0.12 0.04 0.55" mesh="v2_palm_coacd_039"/>
+        <geom name="palm_coacd_040" type="mesh" group="3" friction="1.5" solref="0.01 1.2" solimp="0.95 0.995 0.0005" rgba="1 0.12 0.04 0.55" mesh="v2_palm_coacd_040"/>
+        <geom name="palm_coacd_041" type="mesh" group="3" friction="1.5" solref="0.01 1.2" solimp="0.95 0.995 0.0005" rgba="1 0.12 0.04 0.55" mesh="v2_palm_coacd_041"/>
+        <geom name="palm_coacd_042" type="mesh" group="3" friction="1.5" solref="0.01 1.2" solimp="0.95 0.995 0.0005" rgba="1 0.12 0.04 0.55" mesh="v2_palm_coacd_042"/>
+        <geom name="palm_coacd_043" type="mesh" group="3" friction="1.5" solref="0.01 1.2" solimp="0.95 0.995 0.0005" rgba="1 0.12 0.04 0.55" mesh="v2_palm_coacd_043"/>
+        <geom name="palm_coacd_044" type="mesh" group="3" friction="1.5" solref="0.01 1.2" solimp="0.95 0.995 0.0005" rgba="1 0.12 0.04 0.55" mesh="v2_palm_coacd_044"/>
+        <geom name="palm_coacd_045" type="mesh" group="3" friction="1.5" solref="0.01 1.2" solimp="0.95 0.995 0.0005" rgba="1 0.12 0.04 0.55" mesh="v2_palm_coacd_045"/>
+        <geom name="palm_coacd_046" type="mesh" group="3" friction="1.5" solref="0.01 1.2" solimp="0.95 0.995 0.0005" rgba="1 0.12 0.04 0.55" mesh="v2_palm_coacd_046"/>
+        <geom name="palm_coacd_047" type="mesh" group="3" friction="1.5" solref="0.01 1.2" solimp="0.95 0.995 0.0005" rgba="1 0.12 0.04 0.55" mesh="v2_palm_coacd_047"/>
+        <site name="grasp_site" pos="0 0.085 -0.02"/>
+        <body name="right_index_proximal" pos="0.034276 0.1374 0.001">
+          <inertial pos="-0.003657 0.0162 0.000274" mass="0.0686" diaginertia="7.49e-06 7.33e-06 2.82e-06"/>
+          <joint name="right_index_mcp" class="mcp" pos="0 0 0" axis="1 0 0"/>
+          <geom class="visual" rgba="0.05 0.45 1 0.32" mesh="v2_index_proximal"/>
+          <geom name="right_index_proximal_coacd_000" type="mesh" group="3" friction="1.5" solref="0.01 1.2" solimp="0.95 0.995 0.0005" rgba="1 0.12 0.04 0.55" mesh="v2_index_proximal_coacd_000"/>
+          <geom name="right_index_proximal_coacd_001" type="mesh" group="3" friction="1.5" solref="0.01 1.2" solimp="0.95 0.995 0.0005" rgba="1 0.12 0.04 0.55" mesh="v2_index_proximal_coacd_001"/>
+          <geom name="right_index_proximal_coacd_002" type="mesh" group="3" friction="1.5" solref="0.01 1.2" solimp="0.95 0.995 0.0005" rgba="1 0.12 0.04 0.55" mesh="v2_index_proximal_coacd_002"/>
+          <geom name="right_index_proximal_coacd_003" type="mesh" group="3" friction="1.5" solref="0.01 1.2" solimp="0.95 0.995 0.0005" rgba="1 0.12 0.04 0.55" mesh="v2_index_proximal_coacd_003"/>
+          <geom name="right_index_proximal_coacd_004" type="mesh" group="3" friction="1.5" solref="0.01 1.2" solimp="0.95 0.995 0.0005" rgba="1 0.12 0.04 0.55" mesh="v2_index_proximal_coacd_004"/>
+          <geom name="right_index_proximal_coacd_005" type="mesh" group="3" friction="1.5" solref="0.01 1.2" solimp="0.95 0.995 0.0005" rgba="1 0.12 0.04 0.55" mesh="v2_index_proximal_coacd_005"/>
+          <geom name="right_index_proximal_coacd_006" type="mesh" group="3" friction="1.5" solref="0.01 1.2" solimp="0.95 0.995 0.0005" rgba="1 0.12 0.04 0.55" mesh="v2_index_proximal_coacd_006"/>
+          <geom name="right_index_proximal_coacd_007" type="mesh" group="3" friction="1.5" solref="0.01 1.2" solimp="0.95 0.995 0.0005" rgba="1 0.12 0.04 0.55" mesh="v2_index_proximal_coacd_007"/>
+          <geom name="right_index_proximal_coacd_008" type="mesh" group="3" friction="1.5" solref="0.01 1.2" solimp="0.95 0.995 0.0005" rgba="1 0.12 0.04 0.55" mesh="v2_index_proximal_coacd_008"/>
+          <geom name="right_index_proximal_coacd_009" type="mesh" group="3" friction="1.5" solref="0.01 1.2" solimp="0.95 0.995 0.0005" rgba="1 0.12 0.04 0.55" mesh="v2_index_proximal_coacd_009"/>
+          <geom name="right_index_proximal_coacd_010" type="mesh" group="3" friction="1.5" solref="0.01 1.2" solimp="0.95 0.995 0.0005" rgba="1 0.12 0.04 0.55" mesh="v2_index_proximal_coacd_010"/>
+          <geom name="right_index_proximal_coacd_011" type="mesh" group="3" friction="1.5" solref="0.01 1.2" solimp="0.95 0.995 0.0005" rgba="1 0.12 0.04 0.55" mesh="v2_index_proximal_coacd_011"/>
+          <geom name="right_index_proximal_coacd_012" type="mesh" group="3" friction="1.5" solref="0.01 1.2" solimp="0.95 0.995 0.0005" rgba="1 0.12 0.04 0.55" mesh="v2_index_proximal_coacd_012"/>
+          <geom name="right_index_proximal_coacd_013" type="mesh" group="3" friction="1.5" solref="0.01 1.2" solimp="0.95 0.995 0.0005" rgba="1 0.12 0.04 0.55" mesh="v2_index_proximal_coacd_013"/>
+          <geom name="right_index_proximal_coacd_014" type="mesh" group="3" friction="1.5" solref="0.01 1.2" solimp="0.95 0.995 0.0005" rgba="1 0.12 0.04 0.55" mesh="v2_index_proximal_coacd_014"/>
+          <geom name="right_index_proximal_coacd_015" type="mesh" group="3" friction="1.5" solref="0.01 1.2" solimp="0.95 0.995 0.0005" rgba="1 0.12 0.04 0.55" mesh="v2_index_proximal_coacd_015"/>
+          <geom name="right_index_proximal_coacd_016" type="mesh" group="3" friction="1.5" solref="0.01 1.2" solimp="0.95 0.995 0.0005" rgba="1 0.12 0.04 0.55" mesh="v2_index_proximal_coacd_016"/>
+          <geom name="right_index_proximal_coacd_017" type="mesh" group="3" friction="1.5" solref="0.01 1.2" solimp="0.95 0.995 0.0005" rgba="1 0.12 0.04 0.55" mesh="v2_index_proximal_coacd_017"/>
+          <geom name="right_index_proximal_coacd_018" type="mesh" group="3" friction="1.5" solref="0.01 1.2" solimp="0.95 0.995 0.0005" rgba="1 0.12 0.04 0.55" mesh="v2_index_proximal_coacd_018"/>
+          <geom name="right_index_proximal_coacd_019" type="mesh" group="3" friction="1.5" solref="0.01 1.2" solimp="0.95 0.995 0.0005" rgba="1 0.12 0.04 0.55" mesh="v2_index_proximal_coacd_019"/>
+          <geom name="right_index_proximal_coacd_020" type="mesh" group="3" friction="1.5" solref="0.01 1.2" solimp="0.95 0.995 0.0005" rgba="1 0.12 0.04 0.55" mesh="v2_index_proximal_coacd_020"/>
+          <geom name="right_index_proximal_coacd_021" type="mesh" group="3" friction="1.5" solref="0.01 1.2" solimp="0.95 0.995 0.0005" rgba="1 0.12 0.04 0.55" mesh="v2_index_proximal_coacd_021"/>
+          <geom name="right_index_proximal_coacd_022" type="mesh" group="3" friction="1.5" solref="0.01 1.2" solimp="0.95 0.995 0.0005" rgba="1 0.12 0.04 0.55" mesh="v2_index_proximal_coacd_022"/>
+          <geom name="right_index_proximal_coacd_023" type="mesh" group="3" friction="1.5" solref="0.01 1.2" solimp="0.95 0.995 0.0005" rgba="1 0.12 0.04 0.55" mesh="v2_index_proximal_coacd_023"/>
+          <geom name="right_index_proximal_coacd_024" type="mesh" group="3" friction="1.5" solref="0.01 1.2" solimp="0.95 0.995 0.0005" rgba="1 0.12 0.04 0.55" mesh="v2_index_proximal_coacd_024"/>
+          <geom name="right_index_proximal_coacd_025" type="mesh" group="3" friction="1.5" solref="0.01 1.2" solimp="0.95 0.995 0.0005" rgba="1 0.12 0.04 0.55" mesh="v2_index_proximal_coacd_025"/>
+          <geom name="right_index_proximal_coacd_026" type="mesh" group="3" friction="1.5" solref="0.01 1.2" solimp="0.95 0.995 0.0005" rgba="1 0.12 0.04 0.55" mesh="v2_index_proximal_coacd_026"/>
+          <geom name="right_index_proximal_coacd_027" type="mesh" group="3" friction="1.5" solref="0.01 1.2" solimp="0.95 0.995 0.0005" rgba="1 0.12 0.04 0.55" mesh="v2_index_proximal_coacd_027"/>
+          <geom name="right_index_proximal_coacd_028" type="mesh" group="3" friction="1.5" solref="0.01 1.2" solimp="0.95 0.995 0.0005" rgba="1 0.12 0.04 0.55" mesh="v2_index_proximal_coacd_028"/>
+          <geom name="right_index_proximal_coacd_029" type="mesh" group="3" friction="1.5" solref="0.01 1.2" solimp="0.95 0.995 0.0005" rgba="1 0.12 0.04 0.55" mesh="v2_index_proximal_coacd_029"/>
+          <geom name="right_index_proximal_coacd_030" type="mesh" group="3" friction="1.5" solref="0.01 1.2" solimp="0.95 0.995 0.0005" rgba="1 0.12 0.04 0.55" mesh="v2_index_proximal_coacd_030"/>
+          <geom name="right_index_proximal_coacd_031" type="mesh" group="3" friction="1.5" solref="0.01 1.2" solimp="0.95 0.995 0.0005" rgba="1 0.12 0.04 0.55" mesh="v2_index_proximal_coacd_031"/>
+          <geom name="right_index_proximal_coacd_032" type="mesh" group="3" friction="1.5" solref="0.01 1.2" solimp="0.95 0.995 0.0005" rgba="1 0.12 0.04 0.55" mesh="v2_index_proximal_coacd_032"/>
+          <geom name="right_index_proximal_coacd_033" type="mesh" group="3" friction="1.5" solref="0.01 1.2" solimp="0.95 0.995 0.0005" rgba="1 0.12 0.04 0.55" mesh="v2_index_proximal_coacd_033"/>
+          <geom name="right_index_proximal_coacd_034" type="mesh" group="3" friction="1.5" solref="0.01 1.2" solimp="0.95 0.995 0.0005" rgba="1 0.12 0.04 0.55" mesh="v2_index_proximal_coacd_034"/>
+          <geom name="right_index_proximal_coacd_035" type="mesh" group="3" friction="1.5" solref="0.01 1.2" solimp="0.95 0.995 0.0005" rgba="1 0.12 0.04 0.55" mesh="v2_index_proximal_coacd_035"/>
+          <geom name="right_index_proximal_coacd_036" type="mesh" group="3" friction="1.5" solref="0.01 1.2" solimp="0.95 0.995 0.0005" rgba="1 0.12 0.04 0.55" mesh="v2_index_proximal_coacd_036"/>
+          <geom name="right_index_proximal_coacd_037" type="mesh" group="3" friction="1.5" solref="0.01 1.2" solimp="0.95 0.995 0.0005" rgba="1 0.12 0.04 0.55" mesh="v2_index_proximal_coacd_037"/>
+          <geom name="right_index_proximal_coacd_038" type="mesh" group="3" friction="1.5" solref="0.01 1.2" solimp="0.95 0.995 0.0005" rgba="1 0.12 0.04 0.55" mesh="v2_index_proximal_coacd_038"/>
+          <geom name="right_index_proximal_coacd_039" type="mesh" group="3" friction="1.5" solref="0.01 1.2" solimp="0.95 0.995 0.0005" rgba="1 0.12 0.04 0.55" mesh="v2_index_proximal_coacd_039"/>
+          <geom name="right_index_proximal_coacd_040" type="mesh" group="3" friction="1.5" solref="0.01 1.2" solimp="0.95 0.995 0.0005" rgba="1 0.12 0.04 0.55" mesh="v2_index_proximal_coacd_040"/>
+          <geom name="right_index_proximal_coacd_041" type="mesh" group="3" friction="1.5" solref="0.01 1.2" solimp="0.95 0.995 0.0005" rgba="1 0.12 0.04 0.55" mesh="v2_index_proximal_coacd_041"/>
+          <geom name="right_index_proximal_coacd_042" type="mesh" group="3" friction="1.5" solref="0.01 1.2" solimp="0.95 0.995 0.0005" rgba="1 0.12 0.04 0.55" mesh="v2_index_proximal_coacd_042"/>
+          <geom name="right_index_proximal_coacd_043" type="mesh" group="3" friction="1.5" solref="0.01 1.2" solimp="0.95 0.995 0.0005" rgba="1 0.12 0.04 0.55" mesh="v2_index_proximal_coacd_043"/>
+          <geom name="right_index_proximal_coacd_044" type="mesh" group="3" friction="1.5" solref="0.01 1.2" solimp="0.95 0.995 0.0005" rgba="1 0.12 0.04 0.55" mesh="v2_index_proximal_coacd_044"/>
+          <geom name="right_index_proximal_coacd_045" type="mesh" group="3" friction="1.5" solref="0.01 1.2" solimp="0.95 0.995 0.0005" rgba="1 0.12 0.04 0.55" mesh="v2_index_proximal_coacd_045"/>
+          <geom name="right_index_proximal_coacd_046" type="mesh" group="3" friction="1.5" solref="0.01 1.2" solimp="0.95 0.995 0.0005" rgba="1 0.12 0.04 0.55" mesh="v2_index_proximal_coacd_046"/>
+          <geom name="right_index_proximal_coacd_047" type="mesh" group="3" friction="1.5" solref="0.01 1.2" solimp="0.95 0.995 0.0005" rgba="1 0.12 0.04 0.55" mesh="v2_index_proximal_coacd_047"/>
+          <body name="right_index_distal" pos="0.00084336 0.031988 -0.0026473">
+            <inertial pos="-0.0045 0.0246 0.00927" mass="0.0755" diaginertia="1.58e-05 1.57e-05 2.47e-06"/>
+            <joint name="right_index_pip" class="pip" pos="0 0 0" axis="1 0 0"/>
+            <geom class="visual" rgba="0.05 0.45 1 0.32" mesh="v2_index_distal"/>
+            <geom name="right_index_distal_coacd_000" type="mesh" group="3" friction="1.5" solref="0.01 1.2" solimp="0.95 0.995 0.0005" rgba="1 0.12 0.04 0.55" mesh="v2_index_distal_coacd_000"/>
+            <geom name="right_index_distal_coacd_001" type="mesh" group="3" friction="1.5" solref="0.01 1.2" solimp="0.95 0.995 0.0005" rgba="1 0.12 0.04 0.55" mesh="v2_index_distal_coacd_001"/>
+            <geom name="right_index_distal_coacd_002" type="mesh" group="3" friction="1.5" solref="0.01 1.2" solimp="0.95 0.995 0.0005" rgba="1 0.12 0.04 0.55" mesh="v2_index_distal_coacd_002"/>
+            <geom name="right_index_distal_coacd_003" type="mesh" group="3" friction="1.5" solref="0.01 1.2" solimp="0.95 0.995 0.0005" rgba="1 0.12 0.04 0.55" mesh="v2_index_distal_coacd_003"/>
+            <geom name="right_index_distal_coacd_004" type="mesh" group="3" friction="1.5" solref="0.01 1.2" solimp="0.95 0.995 0.0005" rgba="1 0.12 0.04 0.55" mesh="v2_index_distal_coacd_004"/>
+            <geom name="right_index_distal_coacd_005" type="mesh" group="3" friction="1.5" solref="0.01 1.2" solimp="0.95 0.995 0.0005" rgba="1 0.12 0.04 0.55" mesh="v2_index_distal_coacd_005"/>
+            <geom name="right_index_distal_coacd_006" type="mesh" group="3" friction="1.5" solref="0.01 1.2" solimp="0.95 0.995 0.0005" rgba="1 0.12 0.04 0.55" mesh="v2_index_distal_coacd_006"/>
+            <geom name="right_index_distal_coacd_007" type="mesh" group="3" friction="1.5" solref="0.01 1.2" solimp="0.95 0.995 0.0005" rgba="1 0.12 0.04 0.55" mesh="v2_index_distal_coacd_007"/>
+            <geom name="right_index_distal_coacd_008" type="mesh" group="3" friction="1.5" solref="0.01 1.2" solimp="0.95 0.995 0.0005" rgba="1 0.12 0.04 0.55" mesh="v2_index_distal_coacd_008"/>
+            <geom name="right_index_distal_coacd_009" type="mesh" group="3" friction="1.5" solref="0.01 1.2" solimp="0.95 0.995 0.0005" rgba="1 0.12 0.04 0.55" mesh="v2_index_distal_coacd_009"/>
+            <geom name="right_index_distal_coacd_010" type="mesh" group="3" friction="1.5" solref="0.01 1.2" solimp="0.95 0.995 0.0005" rgba="1 0.12 0.04 0.55" mesh="v2_index_distal_coacd_010"/>
+            <geom name="right_index_distal_coacd_011" type="mesh" group="3" friction="1.5" solref="0.01 1.2" solimp="0.95 0.995 0.0005" rgba="1 0.12 0.04 0.55" mesh="v2_index_distal_coacd_011"/>
+            <geom name="right_index_distal_coacd_012" type="mesh" group="3" friction="1.5" solref="0.01 1.2" solimp="0.95 0.995 0.0005" rgba="1 0.12 0.04 0.55" mesh="v2_index_distal_coacd_012"/>
+            <geom name="right_index_distal_coacd_013" type="mesh" group="3" friction="1.5" solref="0.01 1.2" solimp="0.95 0.995 0.0005" rgba="1 0.12 0.04 0.55" mesh="v2_index_distal_coacd_013"/>
+            <geom name="right_index_distal_coacd_014" type="mesh" group="3" friction="1.5" solref="0.01 1.2" solimp="0.95 0.995 0.0005" rgba="1 0.12 0.04 0.55" mesh="v2_index_distal_coacd_014"/>
+            <geom name="right_index_distal_coacd_015" type="mesh" group="3" friction="1.5" solref="0.01 1.2" solimp="0.95 0.995 0.0005" rgba="1 0.12 0.04 0.55" mesh="v2_index_distal_coacd_015"/>
+            <geom name="right_index_distal_coacd_016" type="mesh" group="3" friction="1.5" solref="0.01 1.2" solimp="0.95 0.995 0.0005" rgba="1 0.12 0.04 0.55" mesh="v2_index_distal_coacd_016"/>
+            <geom name="right_index_distal_coacd_017" type="mesh" group="3" friction="1.5" solref="0.01 1.2" solimp="0.95 0.995 0.0005" rgba="1 0.12 0.04 0.55" mesh="v2_index_distal_coacd_017"/>
+            <geom name="right_index_distal_coacd_018" type="mesh" group="3" friction="1.5" solref="0.01 1.2" solimp="0.95 0.995 0.0005" rgba="1 0.12 0.04 0.55" mesh="v2_index_distal_coacd_018"/>
+            <geom name="right_index_distal_coacd_019" type="mesh" group="3" friction="1.5" solref="0.01 1.2" solimp="0.95 0.995 0.0005" rgba="1 0.12 0.04 0.55" mesh="v2_index_distal_coacd_019"/>
+            <geom name="right_index_distal_coacd_020" type="mesh" group="3" friction="1.5" solref="0.01 1.2" solimp="0.95 0.995 0.0005" rgba="1 0.12 0.04 0.55" mesh="v2_index_distal_coacd_020"/>
+            <geom name="right_index_distal_coacd_021" type="mesh" group="3" friction="1.5" solref="0.01 1.2" solimp="0.95 0.995 0.0005" rgba="1 0.12 0.04 0.55" mesh="v2_index_distal_coacd_021"/>
+            <geom name="right_index_distal_coacd_022" type="mesh" group="3" friction="1.5" solref="0.01 1.2" solimp="0.95 0.995 0.0005" rgba="1 0.12 0.04 0.55" mesh="v2_index_distal_coacd_022"/>
+            <geom name="right_index_distal_coacd_023" type="mesh" group="3" friction="1.5" solref="0.01 1.2" solimp="0.95 0.995 0.0005" rgba="1 0.12 0.04 0.55" mesh="v2_index_distal_coacd_023"/>
+            <geom name="right_index_distal_coacd_024" type="mesh" group="3" friction="1.5" solref="0.01 1.2" solimp="0.95 0.995 0.0005" rgba="1 0.12 0.04 0.55" mesh="v2_index_distal_coacd_024"/>
+            <geom name="right_index_distal_coacd_025" type="mesh" group="3" friction="1.5" solref="0.01 1.2" solimp="0.95 0.995 0.0005" rgba="1 0.12 0.04 0.55" mesh="v2_index_distal_coacd_025"/>
+            <geom name="right_index_distal_coacd_026" type="mesh" group="3" friction="1.5" solref="0.01 1.2" solimp="0.95 0.995 0.0005" rgba="1 0.12 0.04 0.55" mesh="v2_index_distal_coacd_026"/>
+            <geom name="right_index_distal_coacd_027" type="mesh" group="3" friction="1.5" solref="0.01 1.2" solimp="0.95 0.995 0.0005" rgba="1 0.12 0.04 0.55" mesh="v2_index_distal_coacd_027"/>
+            <geom name="right_index_distal_coacd_028" type="mesh" group="3" friction="1.5" solref="0.01 1.2" solimp="0.95 0.995 0.0005" rgba="1 0.12 0.04 0.55" mesh="v2_index_distal_coacd_028"/>
+            <geom name="right_index_distal_coacd_029" type="mesh" group="3" friction="1.5" solref="0.01 1.2" solimp="0.95 0.995 0.0005" rgba="1 0.12 0.04 0.55" mesh="v2_index_distal_coacd_029"/>
+            <geom name="right_index_distal_coacd_030" type="mesh" group="3" friction="1.5" solref="0.01 1.2" solimp="0.95 0.995 0.0005" rgba="1 0.12 0.04 0.55" mesh="v2_index_distal_coacd_030"/>
+            <geom name="right_index_distal_coacd_031" type="mesh" group="3" friction="1.5" solref="0.01 1.2" solimp="0.95 0.995 0.0005" rgba="1 0.12 0.04 0.55" mesh="v2_index_distal_coacd_031"/>
+            <geom name="right_index_distal_coacd_032" type="mesh" group="3" friction="1.5" solref="0.01 1.2" solimp="0.95 0.995 0.0005" rgba="1 0.12 0.04 0.55" mesh="v2_index_distal_coacd_032"/>
+            <geom name="right_index_distal_coacd_033" type="mesh" group="3" friction="1.5" solref="0.01 1.2" solimp="0.95 0.995 0.0005" rgba="1 0.12 0.04 0.55" mesh="v2_index_distal_coacd_033"/>
+            <geom name="right_index_distal_coacd_034" type="mesh" group="3" friction="1.5" solref="0.01 1.2" solimp="0.95 0.995 0.0005" rgba="1 0.12 0.04 0.55" mesh="v2_index_distal_coacd_034"/>
+            <geom name="right_index_distal_coacd_035" type="mesh" group="3" friction="1.5" solref="0.01 1.2" solimp="0.95 0.995 0.0005" rgba="1 0.12 0.04 0.55" mesh="v2_index_distal_coacd_035"/>
+            <geom name="right_index_distal_coacd_036" type="mesh" group="3" friction="1.5" solref="0.01 1.2" solimp="0.95 0.995 0.0005" rgba="1 0.12 0.04 0.55" mesh="v2_index_distal_coacd_036"/>
+            <geom name="right_index_distal_coacd_037" type="mesh" group="3" friction="1.5" solref="0.01 1.2" solimp="0.95 0.995 0.0005" rgba="1 0.12 0.04 0.55" mesh="v2_index_distal_coacd_037"/>
+            <geom name="right_index_distal_coacd_038" type="mesh" group="3" friction="1.5" solref="0.01 1.2" solimp="0.95 0.995 0.0005" rgba="1 0.12 0.04 0.55" mesh="v2_index_distal_coacd_038"/>
+            <geom name="right_index_distal_coacd_039" type="mesh" group="3" friction="1.5" solref="0.01 1.2" solimp="0.95 0.995 0.0005" rgba="1 0.12 0.04 0.55" mesh="v2_index_distal_coacd_039"/>
+            <geom name="right_index_distal_coacd_040" type="mesh" group="3" friction="1.5" solref="0.01 1.2" solimp="0.95 0.995 0.0005" rgba="1 0.12 0.04 0.55" mesh="v2_index_distal_coacd_040"/>
+            <geom name="right_index_distal_coacd_041" type="mesh" group="3" friction="1.5" solref="0.01 1.2" solimp="0.95 0.995 0.0005" rgba="1 0.12 0.04 0.55" mesh="v2_index_distal_coacd_041"/>
+            <geom name="right_index_distal_coacd_042" type="mesh" group="3" friction="1.5" solref="0.01 1.2" solimp="0.95 0.995 0.0005" rgba="1 0.12 0.04 0.55" mesh="v2_index_distal_coacd_042"/>
+            <geom name="right_index_distal_coacd_043" type="mesh" group="3" friction="1.5" solref="0.01 1.2" solimp="0.95 0.995 0.0005" rgba="1 0.12 0.04 0.55" mesh="v2_index_distal_coacd_043"/>
+            <geom name="right_index_distal_coacd_044" type="mesh" group="3" friction="1.5" solref="0.01 1.2" solimp="0.95 0.995 0.0005" rgba="1 0.12 0.04 0.55" mesh="v2_index_distal_coacd_044"/>
+            <geom name="right_index_distal_coacd_045" type="mesh" group="3" friction="1.5" solref="0.01 1.2" solimp="0.95 0.995 0.0005" rgba="1 0.12 0.04 0.55" mesh="v2_index_distal_coacd_045"/>
+            <geom name="right_index_distal_coacd_046" type="mesh" group="3" friction="1.5" solref="0.01 1.2" solimp="0.95 0.995 0.0005" rgba="1 0.12 0.04 0.55" mesh="v2_index_distal_coacd_046"/>
+            <geom name="right_index_distal_coacd_047" type="mesh" group="3" friction="1.5" solref="0.01 1.2" solimp="0.95 0.995 0.0005" rgba="1 0.12 0.04 0.55" mesh="v2_index_distal_coacd_047"/>
+            <site name="if_tip" pos="-0.004 0.052 0.005"/>
+            <site name="if_tip_t00" pos="-0.007 0.042 0.005" size="0.003"/>
+            <site name="if_tip_t01" pos="-0.005 0.042 0.005" size="0.003"/>
+            <site name="if_tip_t02" pos="-0.003 0.042 0.005" size="0.003"/>
+            <site name="if_tip_t03" pos="-0.001 0.042 0.005" size="0.003"/>
+            <site name="if_tip_t04" pos="-0.007 0.045 0.005" size="0.003"/>
+            <site name="if_tip_t05" pos="-0.005 0.045 0.005" size="0.003"/>
+            <site name="if_tip_t06" pos="-0.003 0.045 0.005" size="0.003"/>
+            <site name="if_tip_t07" pos="-0.001 0.045 0.005" size="0.003"/>
+            <site name="if_tip_t08" pos="-0.007 0.048 0.005" size="0.003"/>
+            <site name="if_tip_t09" pos="-0.005 0.048 0.005" size="0.003"/>
+            <site name="if_tip_t10" pos="-0.003 0.048 0.005" size="0.003"/>
+            <site name="if_tip_t11" pos="-0.001 0.048 0.005" size="0.003"/>
+            <site name="if_tip_t12" pos="-0.007 0.051 0.005" size="0.003"/>
+            <site name="if_tip_t13" pos="-0.005 0.051 0.005" size="0.003"/>
+            <site name="if_tip_t14" pos="-0.003 0.051 0.005" size="0.003"/>
+            <site name="if_tip_t15" pos="-0.001 0.051 0.005" size="0.003"/>
+          </body>
+        </body>
+        <body name="right_middle_proximal" pos="0.012276 0.14055 0.001">
+          <inertial pos="-0.003657 0.0162 0.000274" mass="0.0686" diaginertia="7.49e-06 7.33e-06 2.82e-06"/>
+          <joint name="right_middle_mcp" class="mcp" pos="0 0 0" axis="1 0 0"/>
+          <geom class="visual" rgba="0.05 0.45 1 0.32" mesh="v2_middle_proximal"/>
+          <geom name="right_middle_proximal_coacd_000" type="mesh" group="3" friction="1.5" solref="0.01 1.2" solimp="0.95 0.995 0.0005" rgba="1 0.12 0.04 0.55" mesh="v2_middle_proximal_coacd_000"/>
+          <geom name="right_middle_proximal_coacd_001" type="mesh" group="3" friction="1.5" solref="0.01 1.2" solimp="0.95 0.995 0.0005" rgba="1 0.12 0.04 0.55" mesh="v2_middle_proximal_coacd_001"/>
+          <geom name="right_middle_proximal_coacd_002" type="mesh" group="3" friction="1.5" solref="0.01 1.2" solimp="0.95 0.995 0.0005" rgba="1 0.12 0.04 0.55" mesh="v2_middle_proximal_coacd_002"/>
+          <geom name="right_middle_proximal_coacd_003" type="mesh" group="3" friction="1.5" solref="0.01 1.2" solimp="0.95 0.995 0.0005" rgba="1 0.12 0.04 0.55" mesh="v2_middle_proximal_coacd_003"/>
+          <geom name="right_middle_proximal_coacd_004" type="mesh" group="3" friction="1.5" solref="0.01 1.2" solimp="0.95 0.995 0.0005" rgba="1 0.12 0.04 0.55" mesh="v2_middle_proximal_coacd_004"/>
+          <geom name="right_middle_proximal_coacd_005" type="mesh" group="3" friction="1.5" solref="0.01 1.2" solimp="0.95 0.995 0.0005" rgba="1 0.12 0.04 0.55" mesh="v2_middle_proximal_coacd_005"/>
+          <geom name="right_middle_proximal_coacd_006" type="mesh" group="3" friction="1.5" solref="0.01 1.2" solimp="0.95 0.995 0.0005" rgba="1 0.12 0.04 0.55" mesh="v2_middle_proximal_coacd_006"/>
+          <geom name="right_middle_proximal_coacd_007" type="mesh" group="3" friction="1.5" solref="0.01 1.2" solimp="0.95 0.995 0.0005" rgba="1 0.12 0.04 0.55" mesh="v2_middle_proximal_coacd_007"/>
+          <geom name="right_middle_proximal_coacd_008" type="mesh" group="3" friction="1.5" solref="0.01 1.2" solimp="0.95 0.995 0.0005" rgba="1 0.12 0.04 0.55" mesh="v2_middle_proximal_coacd_008"/>
+          <geom name="right_middle_proximal_coacd_009" type="mesh" group="3" friction="1.5" solref="0.01 1.2" solimp="0.95 0.995 0.0005" rgba="1 0.12 0.04 0.55" mesh="v2_middle_proximal_coacd_009"/>
+          <geom name="right_middle_proximal_coacd_010" type="mesh" group="3" friction="1.5" solref="0.01 1.2" solimp="0.95 0.995 0.0005" rgba="1 0.12 0.04 0.55" mesh="v2_middle_proximal_coacd_010"/>
+          <geom name="right_middle_proximal_coacd_011" type="mesh" group="3" friction="1.5" solref="0.01 1.2" solimp="0.95 0.995 0.0005" rgba="1 0.12 0.04 0.55" mesh="v2_middle_proximal_coacd_011"/>
+          <geom name="right_middle_proximal_coacd_012" type="mesh" group="3" friction="1.5" solref="0.01 1.2" solimp="0.95 0.995 0.0005" rgba="1 0.12 0.04 0.55" mesh="v2_middle_proximal_coacd_012"/>
+          <geom name="right_middle_proximal_coacd_013" type="mesh" group="3" friction="1.5" solref="0.01 1.2" solimp="0.95 0.995 0.0005" rgba="1 0.12 0.04 0.55" mesh="v2_middle_proximal_coacd_013"/>
+          <geom name="right_middle_proximal_coacd_014" type="mesh" group="3" friction="1.5" solref="0.01 1.2" solimp="0.95 0.995 0.0005" rgba="1 0.12 0.04 0.55" mesh="v2_middle_proximal_coacd_014"/>
+          <geom name="right_middle_proximal_coacd_015" type="mesh" group="3" friction="1.5" solref="0.01 1.2" solimp="0.95 0.995 0.0005" rgba="1 0.12 0.04 0.55" mesh="v2_middle_proximal_coacd_015"/>
+          <geom name="right_middle_proximal_coacd_016" type="mesh" group="3" friction="1.5" solref="0.01 1.2" solimp="0.95 0.995 0.0005" rgba="1 0.12 0.04 0.55" mesh="v2_middle_proximal_coacd_016"/>
+          <geom name="right_middle_proximal_coacd_017" type="mesh" group="3" friction="1.5" solref="0.01 1.2" solimp="0.95 0.995 0.0005" rgba="1 0.12 0.04 0.55" mesh="v2_middle_proximal_coacd_017"/>
+          <geom name="right_middle_proximal_coacd_018" type="mesh" group="3" friction="1.5" solref="0.01 1.2" solimp="0.95 0.995 0.0005" rgba="1 0.12 0.04 0.55" mesh="v2_middle_proximal_coacd_018"/>
+          <geom name="right_middle_proximal_coacd_019" type="mesh" group="3" friction="1.5" solref="0.01 1.2" solimp="0.95 0.995 0.0005" rgba="1 0.12 0.04 0.55" mesh="v2_middle_proximal_coacd_019"/>
+          <body name="right_middle_distal" pos="0 0.02968 -0.0024563">
+            <inertial pos="-0.00366 0.0269 0.00908" mass="0.0755" diaginertia="1.58e-05 1.57e-05 2.47e-06"/>
+            <joint name="right_middle_pip" class="pip" pos="0 0 0" axis="1 0 0"/>
+            <geom class="visual" rgba="0.05 0.45 1 0.32" mesh="v2_middle_distal"/>
+            <geom name="right_middle_distal_coacd_000" type="mesh" group="3" friction="1.5" solref="0.01 1.2" solimp="0.95 0.995 0.0005" rgba="1 0.12 0.04 0.55" mesh="v2_middle_distal_coacd_000"/>
+            <geom name="right_middle_distal_coacd_001" type="mesh" group="3" friction="1.5" solref="0.01 1.2" solimp="0.95 0.995 0.0005" rgba="1 0.12 0.04 0.55" mesh="v2_middle_distal_coacd_001"/>
+            <geom name="right_middle_distal_coacd_002" type="mesh" group="3" friction="1.5" solref="0.01 1.2" solimp="0.95 0.995 0.0005" rgba="1 0.12 0.04 0.55" mesh="v2_middle_distal_coacd_002"/>
+            <geom name="right_middle_distal_coacd_003" type="mesh" group="3" friction="1.5" solref="0.01 1.2" solimp="0.95 0.995 0.0005" rgba="1 0.12 0.04 0.55" mesh="v2_middle_distal_coacd_003"/>
+            <geom name="right_middle_distal_coacd_004" type="mesh" group="3" friction="1.5" solref="0.01 1.2" solimp="0.95 0.995 0.0005" rgba="1 0.12 0.04 0.55" mesh="v2_middle_distal_coacd_004"/>
+            <geom name="right_middle_distal_coacd_005" type="mesh" group="3" friction="1.5" solref="0.01 1.2" solimp="0.95 0.995 0.0005" rgba="1 0.12 0.04 0.55" mesh="v2_middle_distal_coacd_005"/>
+            <geom name="right_middle_distal_coacd_006" type="mesh" group="3" friction="1.5" solref="0.01 1.2" solimp="0.95 0.995 0.0005" rgba="1 0.12 0.04 0.55" mesh="v2_middle_distal_coacd_006"/>
+            <geom name="right_middle_distal_coacd_007" type="mesh" group="3" friction="1.5" solref="0.01 1.2" solimp="0.95 0.995 0.0005" rgba="1 0.12 0.04 0.55" mesh="v2_middle_distal_coacd_007"/>
+            <geom name="right_middle_distal_coacd_008" type="mesh" group="3" friction="1.5" solref="0.01 1.2" solimp="0.95 0.995 0.0005" rgba="1 0.12 0.04 0.55" mesh="v2_middle_distal_coacd_008"/>
+            <geom name="right_middle_distal_coacd_009" type="mesh" group="3" friction="1.5" solref="0.01 1.2" solimp="0.95 0.995 0.0005" rgba="1 0.12 0.04 0.55" mesh="v2_middle_distal_coacd_009"/>
+            <geom name="right_middle_distal_coacd_010" type="mesh" group="3" friction="1.5" solref="0.01 1.2" solimp="0.95 0.995 0.0005" rgba="1 0.12 0.04 0.55" mesh="v2_middle_distal_coacd_010"/>
+            <geom name="right_middle_distal_coacd_011" type="mesh" group="3" friction="1.5" solref="0.01 1.2" solimp="0.95 0.995 0.0005" rgba="1 0.12 0.04 0.55" mesh="v2_middle_distal_coacd_011"/>
+            <geom name="right_middle_distal_coacd_012" type="mesh" group="3" friction="1.5" solref="0.01 1.2" solimp="0.95 0.995 0.0005" rgba="1 0.12 0.04 0.55" mesh="v2_middle_distal_coacd_012"/>
+            <geom name="right_middle_distal_coacd_013" type="mesh" group="3" friction="1.5" solref="0.01 1.2" solimp="0.95 0.995 0.0005" rgba="1 0.12 0.04 0.55" mesh="v2_middle_distal_coacd_013"/>
+            <geom name="right_middle_distal_coacd_014" type="mesh" group="3" friction="1.5" solref="0.01 1.2" solimp="0.95 0.995 0.0005" rgba="1 0.12 0.04 0.55" mesh="v2_middle_distal_coacd_014"/>
+            <geom name="right_middle_distal_coacd_015" type="mesh" group="3" friction="1.5" solref="0.01 1.2" solimp="0.95 0.995 0.0005" rgba="1 0.12 0.04 0.55" mesh="v2_middle_distal_coacd_015"/>
+            <geom name="right_middle_distal_coacd_016" type="mesh" group="3" friction="1.5" solref="0.01 1.2" solimp="0.95 0.995 0.0005" rgba="1 0.12 0.04 0.55" mesh="v2_middle_distal_coacd_016"/>
+            <geom name="right_middle_distal_coacd_017" type="mesh" group="3" friction="1.5" solref="0.01 1.2" solimp="0.95 0.995 0.0005" rgba="1 0.12 0.04 0.55" mesh="v2_middle_distal_coacd_017"/>
+            <geom name="right_middle_distal_coacd_018" type="mesh" group="3" friction="1.5" solref="0.01 1.2" solimp="0.95 0.995 0.0005" rgba="1 0.12 0.04 0.55" mesh="v2_middle_distal_coacd_018"/>
+            <geom name="right_middle_distal_coacd_019" type="mesh" group="3" friction="1.5" solref="0.01 1.2" solimp="0.95 0.995 0.0005" rgba="1 0.12 0.04 0.55" mesh="v2_middle_distal_coacd_019"/>
+            <geom name="right_middle_distal_coacd_020" type="mesh" group="3" friction="1.5" solref="0.01 1.2" solimp="0.95 0.995 0.0005" rgba="1 0.12 0.04 0.55" mesh="v2_middle_distal_coacd_020"/>
+            <geom name="right_middle_distal_coacd_021" type="mesh" group="3" friction="1.5" solref="0.01 1.2" solimp="0.95 0.995 0.0005" rgba="1 0.12 0.04 0.55" mesh="v2_middle_distal_coacd_021"/>
+            <geom name="right_middle_distal_coacd_022" type="mesh" group="3" friction="1.5" solref="0.01 1.2" solimp="0.95 0.995 0.0005" rgba="1 0.12 0.04 0.55" mesh="v2_middle_distal_coacd_022"/>
+            <geom name="right_middle_distal_coacd_023" type="mesh" group="3" friction="1.5" solref="0.01 1.2" solimp="0.95 0.995 0.0005" rgba="1 0.12 0.04 0.55" mesh="v2_middle_distal_coacd_023"/>
+            <site name="mf_tip" pos="-0.004 0.052 0.005"/>
+            <site name="mf_tip_t00" pos="-0.007 0.042 0.005" size="0.003"/>
+            <site name="mf_tip_t01" pos="-0.005 0.042 0.005" size="0.003"/>
+            <site name="mf_tip_t02" pos="-0.003 0.042 0.005" size="0.003"/>
+            <site name="mf_tip_t03" pos="-0.001 0.042 0.005" size="0.003"/>
+            <site name="mf_tip_t04" pos="-0.007 0.045 0.005" size="0.003"/>
+            <site name="mf_tip_t05" pos="-0.005 0.045 0.005" size="0.003"/>
+            <site name="mf_tip_t06" pos="-0.003 0.045 0.005" size="0.003"/>
+            <site name="mf_tip_t07" pos="-0.001 0.045 0.005" size="0.003"/>
+            <site name="mf_tip_t08" pos="-0.007 0.048 0.005" size="0.003"/>
+            <site name="mf_tip_t09" pos="-0.005 0.048 0.005" size="0.003"/>
+            <site name="mf_tip_t10" pos="-0.003 0.048 0.005" size="0.003"/>
+            <site name="mf_tip_t11" pos="-0.001 0.048 0.005" size="0.003"/>
+            <site name="mf_tip_t12" pos="-0.007 0.051 0.005" size="0.003"/>
+            <site name="mf_tip_t13" pos="-0.005 0.051 0.005" size="0.003"/>
+            <site name="mf_tip_t14" pos="-0.003 0.051 0.005" size="0.003"/>
+            <site name="mf_tip_t15" pos="-0.001 0.051 0.005" size="0.003"/>
+          </body>
+        </body>
+        <body name="right_ring_proximal" pos="-0.009724 0.1374 0.001">
+          <inertial pos="-0.003657 0.0162 0.000274" mass="0.0686" diaginertia="7.49e-06 7.33e-06 2.82e-06"/>
+          <joint name="right_ring_mcp" class="mcp" pos="0 0 0" axis="1 0 0"/>
+          <geom class="visual" rgba="0.05 0.45 1 0.32" mesh="v2_ring_proximal"/>
+          <geom name="right_ring_proximal_coacd_000" type="mesh" group="3" friction="1.5" solref="0.01 1.2" solimp="0.95 0.995 0.0005" rgba="1 0.12 0.04 0.55" mesh="v2_ring_proximal_coacd_000"/>
+          <geom name="right_ring_proximal_coacd_001" type="mesh" group="3" friction="1.5" solref="0.01 1.2" solimp="0.95 0.995 0.0005" rgba="1 0.12 0.04 0.55" mesh="v2_ring_proximal_coacd_001"/>
+          <geom name="right_ring_proximal_coacd_002" type="mesh" group="3" friction="1.5" solref="0.01 1.2" solimp="0.95 0.995 0.0005" rgba="1 0.12 0.04 0.55" mesh="v2_ring_proximal_coacd_002"/>
+          <geom name="right_ring_proximal_coacd_003" type="mesh" group="3" friction="1.5" solref="0.01 1.2" solimp="0.95 0.995 0.0005" rgba="1 0.12 0.04 0.55" mesh="v2_ring_proximal_coacd_003"/>
+          <geom name="right_ring_proximal_coacd_004" type="mesh" group="3" friction="1.5" solref="0.01 1.2" solimp="0.95 0.995 0.0005" rgba="1 0.12 0.04 0.55" mesh="v2_ring_proximal_coacd_004"/>
+          <geom name="right_ring_proximal_coacd_005" type="mesh" group="3" friction="1.5" solref="0.01 1.2" solimp="0.95 0.995 0.0005" rgba="1 0.12 0.04 0.55" mesh="v2_ring_proximal_coacd_005"/>
+          <geom name="right_ring_proximal_coacd_006" type="mesh" group="3" friction="1.5" solref="0.01 1.2" solimp="0.95 0.995 0.0005" rgba="1 0.12 0.04 0.55" mesh="v2_ring_proximal_coacd_006"/>
+          <geom name="right_ring_proximal_coacd_007" type="mesh" group="3" friction="1.5" solref="0.01 1.2" solimp="0.95 0.995 0.0005" rgba="1 0.12 0.04 0.55" mesh="v2_ring_proximal_coacd_007"/>
+          <geom name="right_ring_proximal_coacd_008" type="mesh" group="3" friction="1.5" solref="0.01 1.2" solimp="0.95 0.995 0.0005" rgba="1 0.12 0.04 0.55" mesh="v2_ring_proximal_coacd_008"/>
+          <geom name="right_ring_proximal_coacd_009" type="mesh" group="3" friction="1.5" solref="0.01 1.2" solimp="0.95 0.995 0.0005" rgba="1 0.12 0.04 0.55" mesh="v2_ring_proximal_coacd_009"/>
+          <geom name="right_ring_proximal_coacd_010" type="mesh" group="3" friction="1.5" solref="0.01 1.2" solimp="0.95 0.995 0.0005" rgba="1 0.12 0.04 0.55" mesh="v2_ring_proximal_coacd_010"/>
+          <geom name="right_ring_proximal_coacd_011" type="mesh" group="3" friction="1.5" solref="0.01 1.2" solimp="0.95 0.995 0.0005" rgba="1 0.12 0.04 0.55" mesh="v2_ring_proximal_coacd_011"/>
+          <geom name="right_ring_proximal_coacd_012" type="mesh" group="3" friction="1.5" solref="0.01 1.2" solimp="0.95 0.995 0.0005" rgba="1 0.12 0.04 0.55" mesh="v2_ring_proximal_coacd_012"/>
+          <geom name="right_ring_proximal_coacd_013" type="mesh" group="3" friction="1.5" solref="0.01 1.2" solimp="0.95 0.995 0.0005" rgba="1 0.12 0.04 0.55" mesh="v2_ring_proximal_coacd_013"/>
+          <geom name="right_ring_proximal_coacd_014" type="mesh" group="3" friction="1.5" solref="0.01 1.2" solimp="0.95 0.995 0.0005" rgba="1 0.12 0.04 0.55" mesh="v2_ring_proximal_coacd_014"/>
+          <geom name="right_ring_proximal_coacd_015" type="mesh" group="3" friction="1.5" solref="0.01 1.2" solimp="0.95 0.995 0.0005" rgba="1 0.12 0.04 0.55" mesh="v2_ring_proximal_coacd_015"/>
+          <geom name="right_ring_proximal_coacd_016" type="mesh" group="3" friction="1.5" solref="0.01 1.2" solimp="0.95 0.995 0.0005" rgba="1 0.12 0.04 0.55" mesh="v2_ring_proximal_coacd_016"/>
+          <geom name="right_ring_proximal_coacd_017" type="mesh" group="3" friction="1.5" solref="0.01 1.2" solimp="0.95 0.995 0.0005" rgba="1 0.12 0.04 0.55" mesh="v2_ring_proximal_coacd_017"/>
+          <body name="right_ring_distal" pos="0 0.02968 -0.0024563">
+            <inertial pos="-0.00366 0.0269 0.00908" mass="0.0755" diaginertia="1.58e-05 1.57e-05 2.47e-06"/>
+            <joint name="right_ring_pip" class="pip" pos="0 0 0" axis="1 0 0"/>
+            <geom class="visual" rgba="0.05 0.45 1 0.32" mesh="v2_ring_distal"/>
+            <geom name="right_ring_distal_coacd_000" type="mesh" group="3" friction="1.5" solref="0.01 1.2" solimp="0.95 0.995 0.0005" rgba="1 0.12 0.04 0.55" mesh="v2_ring_distal_coacd_000"/>
+            <geom name="right_ring_distal_coacd_001" type="mesh" group="3" friction="1.5" solref="0.01 1.2" solimp="0.95 0.995 0.0005" rgba="1 0.12 0.04 0.55" mesh="v2_ring_distal_coacd_001"/>
+            <geom name="right_ring_distal_coacd_002" type="mesh" group="3" friction="1.5" solref="0.01 1.2" solimp="0.95 0.995 0.0005" rgba="1 0.12 0.04 0.55" mesh="v2_ring_distal_coacd_002"/>
+            <geom name="right_ring_distal_coacd_003" type="mesh" group="3" friction="1.5" solref="0.01 1.2" solimp="0.95 0.995 0.0005" rgba="1 0.12 0.04 0.55" mesh="v2_ring_distal_coacd_003"/>
+            <geom name="right_ring_distal_coacd_004" type="mesh" group="3" friction="1.5" solref="0.01 1.2" solimp="0.95 0.995 0.0005" rgba="1 0.12 0.04 0.55" mesh="v2_ring_distal_coacd_004"/>
+            <geom name="right_ring_distal_coacd_005" type="mesh" group="3" friction="1.5" solref="0.01 1.2" solimp="0.95 0.995 0.0005" rgba="1 0.12 0.04 0.55" mesh="v2_ring_distal_coacd_005"/>
+            <geom name="right_ring_distal_coacd_006" type="mesh" group="3" friction="1.5" solref="0.01 1.2" solimp="0.95 0.995 0.0005" rgba="1 0.12 0.04 0.55" mesh="v2_ring_distal_coacd_006"/>
+            <geom name="right_ring_distal_coacd_007" type="mesh" group="3" friction="1.5" solref="0.01 1.2" solimp="0.95 0.995 0.0005" rgba="1 0.12 0.04 0.55" mesh="v2_ring_distal_coacd_007"/>
+            <geom name="right_ring_distal_coacd_008" type="mesh" group="3" friction="1.5" solref="0.01 1.2" solimp="0.95 0.995 0.0005" rgba="1 0.12 0.04 0.55" mesh="v2_ring_distal_coacd_008"/>
+            <geom name="right_ring_distal_coacd_009" type="mesh" group="3" friction="1.5" solref="0.01 1.2" solimp="0.95 0.995 0.0005" rgba="1 0.12 0.04 0.55" mesh="v2_ring_distal_coacd_009"/>
+            <geom name="right_ring_distal_coacd_010" type="mesh" group="3" friction="1.5" solref="0.01 1.2" solimp="0.95 0.995 0.0005" rgba="1 0.12 0.04 0.55" mesh="v2_ring_distal_coacd_010"/>
+            <geom name="right_ring_distal_coacd_011" type="mesh" group="3" friction="1.5" solref="0.01 1.2" solimp="0.95 0.995 0.0005" rgba="1 0.12 0.04 0.55" mesh="v2_ring_distal_coacd_011"/>
+            <geom name="right_ring_distal_coacd_012" type="mesh" group="3" friction="1.5" solref="0.01 1.2" solimp="0.95 0.995 0.0005" rgba="1 0.12 0.04 0.55" mesh="v2_ring_distal_coacd_012"/>
+            <geom name="right_ring_distal_coacd_013" type="mesh" group="3" friction="1.5" solref="0.01 1.2" solimp="0.95 0.995 0.0005" rgba="1 0.12 0.04 0.55" mesh="v2_ring_distal_coacd_013"/>
+            <geom name="right_ring_distal_coacd_014" type="mesh" group="3" friction="1.5" solref="0.01 1.2" solimp="0.95 0.995 0.0005" rgba="1 0.12 0.04 0.55" mesh="v2_ring_distal_coacd_014"/>
+            <geom name="right_ring_distal_coacd_015" type="mesh" group="3" friction="1.5" solref="0.01 1.2" solimp="0.95 0.995 0.0005" rgba="1 0.12 0.04 0.55" mesh="v2_ring_distal_coacd_015"/>
+            <geom name="right_ring_distal_coacd_016" type="mesh" group="3" friction="1.5" solref="0.01 1.2" solimp="0.95 0.995 0.0005" rgba="1 0.12 0.04 0.55" mesh="v2_ring_distal_coacd_016"/>
+            <geom name="right_ring_distal_coacd_017" type="mesh" group="3" friction="1.5" solref="0.01 1.2" solimp="0.95 0.995 0.0005" rgba="1 0.12 0.04 0.55" mesh="v2_ring_distal_coacd_017"/>
+            <geom name="right_ring_distal_coacd_018" type="mesh" group="3" friction="1.5" solref="0.01 1.2" solimp="0.95 0.995 0.0005" rgba="1 0.12 0.04 0.55" mesh="v2_ring_distal_coacd_018"/>
+            <geom name="right_ring_distal_coacd_019" type="mesh" group="3" friction="1.5" solref="0.01 1.2" solimp="0.95 0.995 0.0005" rgba="1 0.12 0.04 0.55" mesh="v2_ring_distal_coacd_019"/>
+            <geom name="right_ring_distal_coacd_020" type="mesh" group="3" friction="1.5" solref="0.01 1.2" solimp="0.95 0.995 0.0005" rgba="1 0.12 0.04 0.55" mesh="v2_ring_distal_coacd_020"/>
+            <geom name="right_ring_distal_coacd_021" type="mesh" group="3" friction="1.5" solref="0.01 1.2" solimp="0.95 0.995 0.0005" rgba="1 0.12 0.04 0.55" mesh="v2_ring_distal_coacd_021"/>
+            <geom name="right_ring_distal_coacd_022" type="mesh" group="3" friction="1.5" solref="0.01 1.2" solimp="0.95 0.995 0.0005" rgba="1 0.12 0.04 0.55" mesh="v2_ring_distal_coacd_022"/>
+            <geom name="right_ring_distal_coacd_023" type="mesh" group="3" friction="1.5" solref="0.01 1.2" solimp="0.95 0.995 0.0005" rgba="1 0.12 0.04 0.55" mesh="v2_ring_distal_coacd_023"/>
+            <site name="rf_tip" pos="-0.004 0.052 0.005"/>
+            <site name="rf_tip_t00" pos="-0.007 0.042 0.005" size="0.003"/>
+            <site name="rf_tip_t01" pos="-0.005 0.042 0.005" size="0.003"/>
+            <site name="rf_tip_t02" pos="-0.003 0.042 0.005" size="0.003"/>
+            <site name="rf_tip_t03" pos="-0.001 0.042 0.005" size="0.003"/>
+            <site name="rf_tip_t04" pos="-0.007 0.045 0.005" size="0.003"/>
+            <site name="rf_tip_t05" pos="-0.005 0.045 0.005" size="0.003"/>
+            <site name="rf_tip_t06" pos="-0.003 0.045 0.005" size="0.003"/>
+            <site name="rf_tip_t07" pos="-0.001 0.045 0.005" size="0.003"/>
+            <site name="rf_tip_t08" pos="-0.007 0.048 0.005" size="0.003"/>
+            <site name="rf_tip_t09" pos="-0.005 0.048 0.005" size="0.003"/>
+            <site name="rf_tip_t10" pos="-0.003 0.048 0.005" size="0.003"/>
+            <site name="rf_tip_t11" pos="-0.001 0.048 0.005" size="0.003"/>
+            <site name="rf_tip_t12" pos="-0.007 0.051 0.005" size="0.003"/>
+            <site name="rf_tip_t13" pos="-0.005 0.051 0.005" size="0.003"/>
+            <site name="rf_tip_t14" pos="-0.003 0.051 0.005" size="0.003"/>
+            <site name="rf_tip_t15" pos="-0.001 0.051 0.005" size="0.003"/>
+          </body>
+        </body>
+        <body name="right_pinky_proximal" pos="-0.031724 0.13417 0.001">
+          <inertial pos="-0.003657 0.0162 0.000274" mass="0.0686" diaginertia="7.49e-06 7.33e-06 2.82e-06"/>
+          <joint name="right_pinky_mcp" class="mcp" pos="0 0 0" axis="1 0 0"/>
+          <geom class="visual" rgba="0.05 0.45 1 0.32" mesh="v2_pinky_proximal"/>
+          <geom name="right_pinky_proximal_coacd_000" type="mesh" group="3" friction="1.5" solref="0.01 1.2" solimp="0.95 0.995 0.0005" rgba="1 0.12 0.04 0.55" mesh="v2_pinky_proximal_coacd_000"/>
+          <geom name="right_pinky_proximal_coacd_001" type="mesh" group="3" friction="1.5" solref="0.01 1.2" solimp="0.95 0.995 0.0005" rgba="1 0.12 0.04 0.55" mesh="v2_pinky_proximal_coacd_001"/>
+          <geom name="right_pinky_proximal_coacd_002" type="mesh" group="3" friction="1.5" solref="0.01 1.2" solimp="0.95 0.995 0.0005" rgba="1 0.12 0.04 0.55" mesh="v2_pinky_proximal_coacd_002"/>
+          <geom name="right_pinky_proximal_coacd_003" type="mesh" group="3" friction="1.5" solref="0.01 1.2" solimp="0.95 0.995 0.0005" rgba="1 0.12 0.04 0.55" mesh="v2_pinky_proximal_coacd_003"/>
+          <geom name="right_pinky_proximal_coacd_004" type="mesh" group="3" friction="1.5" solref="0.01 1.2" solimp="0.95 0.995 0.0005" rgba="1 0.12 0.04 0.55" mesh="v2_pinky_proximal_coacd_004"/>
+          <geom name="right_pinky_proximal_coacd_005" type="mesh" group="3" friction="1.5" solref="0.01 1.2" solimp="0.95 0.995 0.0005" rgba="1 0.12 0.04 0.55" mesh="v2_pinky_proximal_coacd_005"/>
+          <geom name="right_pinky_proximal_coacd_006" type="mesh" group="3" friction="1.5" solref="0.01 1.2" solimp="0.95 0.995 0.0005" rgba="1 0.12 0.04 0.55" mesh="v2_pinky_proximal_coacd_006"/>
+          <geom name="right_pinky_proximal_coacd_007" type="mesh" group="3" friction="1.5" solref="0.01 1.2" solimp="0.95 0.995 0.0005" rgba="1 0.12 0.04 0.55" mesh="v2_pinky_proximal_coacd_007"/>
+          <geom name="right_pinky_proximal_coacd_008" type="mesh" group="3" friction="1.5" solref="0.01 1.2" solimp="0.95 0.995 0.0005" rgba="1 0.12 0.04 0.55" mesh="v2_pinky_proximal_coacd_008"/>
+          <geom name="right_pinky_proximal_coacd_009" type="mesh" group="3" friction="1.5" solref="0.01 1.2" solimp="0.95 0.995 0.0005" rgba="1 0.12 0.04 0.55" mesh="v2_pinky_proximal_coacd_009"/>
+          <geom name="right_pinky_proximal_coacd_010" type="mesh" group="3" friction="1.5" solref="0.01 1.2" solimp="0.95 0.995 0.0005" rgba="1 0.12 0.04 0.55" mesh="v2_pinky_proximal_coacd_010"/>
+          <geom name="right_pinky_proximal_coacd_011" type="mesh" group="3" friction="1.5" solref="0.01 1.2" solimp="0.95 0.995 0.0005" rgba="1 0.12 0.04 0.55" mesh="v2_pinky_proximal_coacd_011"/>
+          <geom name="right_pinky_proximal_coacd_012" type="mesh" group="3" friction="1.5" solref="0.01 1.2" solimp="0.95 0.995 0.0005" rgba="1 0.12 0.04 0.55" mesh="v2_pinky_proximal_coacd_012"/>
+          <geom name="right_pinky_proximal_coacd_013" type="mesh" group="3" friction="1.5" solref="0.01 1.2" solimp="0.95 0.995 0.0005" rgba="1 0.12 0.04 0.55" mesh="v2_pinky_proximal_coacd_013"/>
+          <geom name="right_pinky_proximal_coacd_014" type="mesh" group="3" friction="1.5" solref="0.01 1.2" solimp="0.95 0.995 0.0005" rgba="1 0.12 0.04 0.55" mesh="v2_pinky_proximal_coacd_014"/>
+          <geom name="right_pinky_proximal_coacd_015" type="mesh" group="3" friction="1.5" solref="0.01 1.2" solimp="0.95 0.995 0.0005" rgba="1 0.12 0.04 0.55" mesh="v2_pinky_proximal_coacd_015"/>
+          <body name="right_pinky_distal" pos="0.00084336 0.031988 -0.0026473">
+            <inertial pos="-0.0045 0.0246 0.00927" mass="0.0755" diaginertia="1.58e-05 1.57e-05 2.47e-06"/>
+            <joint name="right_pinky_pip" class="pip" pos="0 0 0" axis="1 0 0"/>
+            <geom class="visual" rgba="0.05 0.45 1 0.32" mesh="v2_pinky_distal"/>
+            <geom name="right_pinky_distal_coacd_000" type="mesh" group="3" friction="1.5" solref="0.01 1.2" solimp="0.95 0.995 0.0005" rgba="1 0.12 0.04 0.55" mesh="v2_pinky_distal_coacd_000"/>
+            <geom name="right_pinky_distal_coacd_001" type="mesh" group="3" friction="1.5" solref="0.01 1.2" solimp="0.95 0.995 0.0005" rgba="1 0.12 0.04 0.55" mesh="v2_pinky_distal_coacd_001"/>
+            <geom name="right_pinky_distal_coacd_002" type="mesh" group="3" friction="1.5" solref="0.01 1.2" solimp="0.95 0.995 0.0005" rgba="1 0.12 0.04 0.55" mesh="v2_pinky_distal_coacd_002"/>
+            <geom name="right_pinky_distal_coacd_003" type="mesh" group="3" friction="1.5" solref="0.01 1.2" solimp="0.95 0.995 0.0005" rgba="1 0.12 0.04 0.55" mesh="v2_pinky_distal_coacd_003"/>
+            <geom name="right_pinky_distal_coacd_004" type="mesh" group="3" friction="1.5" solref="0.01 1.2" solimp="0.95 0.995 0.0005" rgba="1 0.12 0.04 0.55" mesh="v2_pinky_distal_coacd_004"/>
+            <geom name="right_pinky_distal_coacd_005" type="mesh" group="3" friction="1.5" solref="0.01 1.2" solimp="0.95 0.995 0.0005" rgba="1 0.12 0.04 0.55" mesh="v2_pinky_distal_coacd_005"/>
+            <geom name="right_pinky_distal_coacd_006" type="mesh" group="3" friction="1.5" solref="0.01 1.2" solimp="0.95 0.995 0.0005" rgba="1 0.12 0.04 0.55" mesh="v2_pinky_distal_coacd_006"/>
+            <geom name="right_pinky_distal_coacd_007" type="mesh" group="3" friction="1.5" solref="0.01 1.2" solimp="0.95 0.995 0.0005" rgba="1 0.12 0.04 0.55" mesh="v2_pinky_distal_coacd_007"/>
+            <geom name="right_pinky_distal_coacd_008" type="mesh" group="3" friction="1.5" solref="0.01 1.2" solimp="0.95 0.995 0.0005" rgba="1 0.12 0.04 0.55" mesh="v2_pinky_distal_coacd_008"/>
+            <geom name="right_pinky_distal_coacd_009" type="mesh" group="3" friction="1.5" solref="0.01 1.2" solimp="0.95 0.995 0.0005" rgba="1 0.12 0.04 0.55" mesh="v2_pinky_distal_coacd_009"/>
+            <geom name="right_pinky_distal_coacd_010" type="mesh" group="3" friction="1.5" solref="0.01 1.2" solimp="0.95 0.995 0.0005" rgba="1 0.12 0.04 0.55" mesh="v2_pinky_distal_coacd_010"/>
+            <geom name="right_pinky_distal_coacd_011" type="mesh" group="3" friction="1.5" solref="0.01 1.2" solimp="0.95 0.995 0.0005" rgba="1 0.12 0.04 0.55" mesh="v2_pinky_distal_coacd_011"/>
+            <geom name="right_pinky_distal_coacd_012" type="mesh" group="3" friction="1.5" solref="0.01 1.2" solimp="0.95 0.995 0.0005" rgba="1 0.12 0.04 0.55" mesh="v2_pinky_distal_coacd_012"/>
+            <geom name="right_pinky_distal_coacd_013" type="mesh" group="3" friction="1.5" solref="0.01 1.2" solimp="0.95 0.995 0.0005" rgba="1 0.12 0.04 0.55" mesh="v2_pinky_distal_coacd_013"/>
+            <geom name="right_pinky_distal_coacd_014" type="mesh" group="3" friction="1.5" solref="0.01 1.2" solimp="0.95 0.995 0.0005" rgba="1 0.12 0.04 0.55" mesh="v2_pinky_distal_coacd_014"/>
+            <geom name="right_pinky_distal_coacd_015" type="mesh" group="3" friction="1.5" solref="0.01 1.2" solimp="0.95 0.995 0.0005" rgba="1 0.12 0.04 0.55" mesh="v2_pinky_distal_coacd_015"/>
+            <geom name="right_pinky_distal_coacd_016" type="mesh" group="3" friction="1.5" solref="0.01 1.2" solimp="0.95 0.995 0.0005" rgba="1 0.12 0.04 0.55" mesh="v2_pinky_distal_coacd_016"/>
+            <geom name="right_pinky_distal_coacd_017" type="mesh" group="3" friction="1.5" solref="0.01 1.2" solimp="0.95 0.995 0.0005" rgba="1 0.12 0.04 0.55" mesh="v2_pinky_distal_coacd_017"/>
+            <geom name="right_pinky_distal_coacd_018" type="mesh" group="3" friction="1.5" solref="0.01 1.2" solimp="0.95 0.995 0.0005" rgba="1 0.12 0.04 0.55" mesh="v2_pinky_distal_coacd_018"/>
+            <geom name="right_pinky_distal_coacd_019" type="mesh" group="3" friction="1.5" solref="0.01 1.2" solimp="0.95 0.995 0.0005" rgba="1 0.12 0.04 0.55" mesh="v2_pinky_distal_coacd_019"/>
+            <geom name="right_pinky_distal_coacd_020" type="mesh" group="3" friction="1.5" solref="0.01 1.2" solimp="0.95 0.995 0.0005" rgba="1 0.12 0.04 0.55" mesh="v2_pinky_distal_coacd_020"/>
+            <geom name="right_pinky_distal_coacd_021" type="mesh" group="3" friction="1.5" solref="0.01 1.2" solimp="0.95 0.995 0.0005" rgba="1 0.12 0.04 0.55" mesh="v2_pinky_distal_coacd_021"/>
+            <geom name="right_pinky_distal_coacd_022" type="mesh" group="3" friction="1.5" solref="0.01 1.2" solimp="0.95 0.995 0.0005" rgba="1 0.12 0.04 0.55" mesh="v2_pinky_distal_coacd_022"/>
+            <geom name="right_pinky_distal_coacd_023" type="mesh" group="3" friction="1.5" solref="0.01 1.2" solimp="0.95 0.995 0.0005" rgba="1 0.12 0.04 0.55" mesh="v2_pinky_distal_coacd_023"/>
+            <site name="pf_tip" pos="-0.004 0.052 0.005"/>
+            <site name="pf_tip_t00" pos="-0.007 0.042 0.005" size="0.003"/>
+            <site name="pf_tip_t01" pos="-0.005 0.042 0.005" size="0.003"/>
+            <site name="pf_tip_t02" pos="-0.003 0.042 0.005" size="0.003"/>
+            <site name="pf_tip_t03" pos="-0.001 0.042 0.005" size="0.003"/>
+            <site name="pf_tip_t04" pos="-0.007 0.045 0.005" size="0.003"/>
+            <site name="pf_tip_t05" pos="-0.005 0.045 0.005" size="0.003"/>
+            <site name="pf_tip_t06" pos="-0.003 0.045 0.005" size="0.003"/>
+            <site name="pf_tip_t07" pos="-0.001 0.045 0.005" size="0.003"/>
+            <site name="pf_tip_t08" pos="-0.007 0.048 0.005" size="0.003"/>
+            <site name="pf_tip_t09" pos="-0.005 0.048 0.005" size="0.003"/>
+            <site name="pf_tip_t10" pos="-0.003 0.048 0.005" size="0.003"/>
+            <site name="pf_tip_t11" pos="-0.001 0.048 0.005" size="0.003"/>
+            <site name="pf_tip_t12" pos="-0.007 0.051 0.005" size="0.003"/>
+            <site name="pf_tip_t13" pos="-0.005 0.051 0.005" size="0.003"/>
+            <site name="pf_tip_t14" pos="-0.003 0.051 0.005" size="0.003"/>
+            <site name="pf_tip_t15" pos="-0.001 0.051 0.005" size="0.003"/>
+          </body>
+        </body>
+        <body name="right_thumb_base" pos="0.028693 0.069894 0.010325" quat="0.999048 0 0 0.043619">
+          <inertial pos="0.013775 -0.009814 0.002084" mass="0.08488" diaginertia="1.03e-05 9.49e-06 5.67e-06"/>
+          <joint name="right_thumb_cmc_abd" class="thumb_cmc" pos="0 0 0" axis="0 -1 0"/>
+          <geom class="visual" rgba="0.05 0.45 1 0.32" mesh="v2_thumb_base"/>
+          <geom name="right_thumb_base_coacd_000" type="mesh" group="3" friction="1.5" solref="0.01 1.2" solimp="0.95 0.995 0.0005" rgba="1 0.12 0.04 0.55" mesh="v2_thumb_base_coacd_000"/>
+          <geom name="right_thumb_base_coacd_001" type="mesh" group="3" friction="1.5" solref="0.01 1.2" solimp="0.95 0.995 0.0005" rgba="1 0.12 0.04 0.55" mesh="v2_thumb_base_coacd_001"/>
+          <geom name="right_thumb_base_coacd_002" type="mesh" group="3" friction="1.5" solref="0.01 1.2" solimp="0.95 0.995 0.0005" rgba="1 0.12 0.04 0.55" mesh="v2_thumb_base_coacd_002"/>
+          <geom name="right_thumb_base_coacd_003" type="mesh" group="3" friction="1.5" solref="0.01 1.2" solimp="0.95 0.995 0.0005" rgba="1 0.12 0.04 0.55" mesh="v2_thumb_base_coacd_003"/>
+          <geom name="right_thumb_base_coacd_004" type="mesh" group="3" friction="1.5" solref="0.01 1.2" solimp="0.95 0.995 0.0005" rgba="1 0.12 0.04 0.55" mesh="v2_thumb_base_coacd_004"/>
+          <geom name="right_thumb_base_coacd_005" type="mesh" group="3" friction="1.5" solref="0.01 1.2" solimp="0.95 0.995 0.0005" rgba="1 0.12 0.04 0.55" mesh="v2_thumb_base_coacd_005"/>
+          <geom name="right_thumb_base_coacd_006" type="mesh" group="3" friction="1.5" solref="0.01 1.2" solimp="0.95 0.995 0.0005" rgba="1 0.12 0.04 0.55" mesh="v2_thumb_base_coacd_006"/>
+          <geom name="right_thumb_base_coacd_007" type="mesh" group="3" friction="1.5" solref="0.01 1.2" solimp="0.95 0.995 0.0005" rgba="1 0.12 0.04 0.55" mesh="v2_thumb_base_coacd_007"/>
+          <geom name="right_thumb_base_coacd_008" type="mesh" group="3" friction="1.5" solref="0.01 1.2" solimp="0.95 0.995 0.0005" rgba="1 0.12 0.04 0.55" mesh="v2_thumb_base_coacd_008"/>
+          <geom name="right_thumb_base_coacd_009" type="mesh" group="3" friction="1.5" solref="0.01 1.2" solimp="0.95 0.995 0.0005" rgba="1 0.12 0.04 0.55" mesh="v2_thumb_base_coacd_009"/>
+          <geom name="right_thumb_base_coacd_010" type="mesh" group="3" friction="1.5" solref="0.01 1.2" solimp="0.95 0.995 0.0005" rgba="1 0.12 0.04 0.55" mesh="v2_thumb_base_coacd_010"/>
+          <geom name="right_thumb_base_coacd_011" type="mesh" group="3" friction="1.5" solref="0.01 1.2" solimp="0.95 0.995 0.0005" rgba="1 0.12 0.04 0.55" mesh="v2_thumb_base_coacd_011"/>
+          <geom name="right_thumb_base_coacd_012" type="mesh" group="3" friction="1.5" solref="0.01 1.2" solimp="0.95 0.995 0.0005" rgba="1 0.12 0.04 0.55" mesh="v2_thumb_base_coacd_012"/>
+          <geom name="right_thumb_base_coacd_013" type="mesh" group="3" friction="1.5" solref="0.01 1.2" solimp="0.95 0.995 0.0005" rgba="1 0.12 0.04 0.55" mesh="v2_thumb_base_coacd_013"/>
+          <geom name="right_thumb_base_coacd_014" type="mesh" group="3" friction="1.5" solref="0.01 1.2" solimp="0.95 0.995 0.0005" rgba="1 0.12 0.04 0.55" mesh="v2_thumb_base_coacd_014"/>
+          <geom name="right_thumb_base_coacd_015" type="mesh" group="3" friction="1.5" solref="0.01 1.2" solimp="0.95 0.995 0.0005" rgba="1 0.12 0.04 0.55" mesh="v2_thumb_base_coacd_015"/>
+          <geom name="right_thumb_base_coacd_016" type="mesh" group="3" friction="1.5" solref="0.01 1.2" solimp="0.95 0.995 0.0005" rgba="1 0.12 0.04 0.55" mesh="v2_thumb_base_coacd_016"/>
+          <geom name="right_thumb_base_coacd_017" type="mesh" group="3" friction="1.5" solref="0.01 1.2" solimp="0.95 0.995 0.0005" rgba="1 0.12 0.04 0.55" mesh="v2_thumb_base_coacd_017"/>
+          <geom name="right_thumb_base_coacd_018" type="mesh" group="3" friction="1.5" solref="0.01 1.2" solimp="0.95 0.995 0.0005" rgba="1 0.12 0.04 0.55" mesh="v2_thumb_base_coacd_018"/>
+          <geom name="right_thumb_base_coacd_019" type="mesh" group="3" friction="1.5" solref="0.01 1.2" solimp="0.95 0.995 0.0005" rgba="1 0.12 0.04 0.55" mesh="v2_thumb_base_coacd_019"/>
+          <geom name="right_thumb_base_coacd_020" type="mesh" group="3" friction="1.5" solref="0.01 1.2" solimp="0.95 0.995 0.0005" rgba="1 0.12 0.04 0.55" mesh="v2_thumb_base_coacd_020"/>
+          <geom name="right_thumb_base_coacd_021" type="mesh" group="3" friction="1.5" solref="0.01 1.2" solimp="0.95 0.995 0.0005" rgba="1 0.12 0.04 0.55" mesh="v2_thumb_base_coacd_021"/>
+          <geom name="right_thumb_base_coacd_022" type="mesh" group="3" friction="1.5" solref="0.01 1.2" solimp="0.95 0.995 0.0005" rgba="1 0.12 0.04 0.55" mesh="v2_thumb_base_coacd_022"/>
+          <geom name="right_thumb_base_coacd_023" type="mesh" group="3" friction="1.5" solref="0.01 1.2" solimp="0.95 0.995 0.0005" rgba="1 0.12 0.04 0.55" mesh="v2_thumb_base_coacd_023"/>
+          <body name="right_thumb_mid" pos="0.02679 -0.0045 0.0045976" quat="0.641137 -0.027549 -0.766225 -0.032924">
+            <inertial pos="0 0.01832 -0.01287" mass="0.18907" diaginertia="4.62e-05 4.25e-05 1.6e-05"/>
+            <joint name="right_thumb_cmc_flex" class="thumb_flex" pos="0 0 0" axis="1 0 0"/>
+            <geom class="visual" rgba="0.05 0.45 1 0.32" mesh="v2_thumb_mid"/>
+            <geom name="right_thumb_mid_coacd_000" type="mesh" group="3" friction="1.5" solref="0.01 1.2" solimp="0.95 0.995 0.0005" rgba="1 0.12 0.04 0.55" mesh="v2_thumb_mid_coacd_000"/>
+            <geom name="right_thumb_mid_coacd_001" type="mesh" group="3" friction="1.5" solref="0.01 1.2" solimp="0.95 0.995 0.0005" rgba="1 0.12 0.04 0.55" mesh="v2_thumb_mid_coacd_001"/>
+            <geom name="right_thumb_mid_coacd_002" type="mesh" group="3" friction="1.5" solref="0.01 1.2" solimp="0.95 0.995 0.0005" rgba="1 0.12 0.04 0.55" mesh="v2_thumb_mid_coacd_002"/>
+            <geom name="right_thumb_mid_coacd_003" type="mesh" group="3" friction="1.5" solref="0.01 1.2" solimp="0.95 0.995 0.0005" rgba="1 0.12 0.04 0.55" mesh="v2_thumb_mid_coacd_003"/>
+            <geom name="right_thumb_mid_coacd_004" type="mesh" group="3" friction="1.5" solref="0.01 1.2" solimp="0.95 0.995 0.0005" rgba="1 0.12 0.04 0.55" mesh="v2_thumb_mid_coacd_004"/>
+            <geom name="right_thumb_mid_coacd_005" type="mesh" group="3" friction="1.5" solref="0.01 1.2" solimp="0.95 0.995 0.0005" rgba="1 0.12 0.04 0.55" mesh="v2_thumb_mid_coacd_005"/>
+            <geom name="right_thumb_mid_coacd_006" type="mesh" group="3" friction="1.5" solref="0.01 1.2" solimp="0.95 0.995 0.0005" rgba="1 0.12 0.04 0.55" mesh="v2_thumb_mid_coacd_006"/>
+            <geom name="right_thumb_mid_coacd_007" type="mesh" group="3" friction="1.5" solref="0.01 1.2" solimp="0.95 0.995 0.0005" rgba="1 0.12 0.04 0.55" mesh="v2_thumb_mid_coacd_007"/>
+            <geom name="right_thumb_mid_coacd_008" type="mesh" group="3" friction="1.5" solref="0.01 1.2" solimp="0.95 0.995 0.0005" rgba="1 0.12 0.04 0.55" mesh="v2_thumb_mid_coacd_008"/>
+            <geom name="right_thumb_mid_coacd_009" type="mesh" group="3" friction="1.5" solref="0.01 1.2" solimp="0.95 0.995 0.0005" rgba="1 0.12 0.04 0.55" mesh="v2_thumb_mid_coacd_009"/>
+            <geom name="right_thumb_mid_coacd_010" type="mesh" group="3" friction="1.5" solref="0.01 1.2" solimp="0.95 0.995 0.0005" rgba="1 0.12 0.04 0.55" mesh="v2_thumb_mid_coacd_010"/>
+            <geom name="right_thumb_mid_coacd_011" type="mesh" group="3" friction="1.5" solref="0.01 1.2" solimp="0.95 0.995 0.0005" rgba="1 0.12 0.04 0.55" mesh="v2_thumb_mid_coacd_011"/>
+            <geom name="right_thumb_mid_coacd_012" type="mesh" group="3" friction="1.5" solref="0.01 1.2" solimp="0.95 0.995 0.0005" rgba="1 0.12 0.04 0.55" mesh="v2_thumb_mid_coacd_012"/>
+            <geom name="right_thumb_mid_coacd_013" type="mesh" group="3" friction="1.5" solref="0.01 1.2" solimp="0.95 0.995 0.0005" rgba="1 0.12 0.04 0.55" mesh="v2_thumb_mid_coacd_013"/>
+            <geom name="right_thumb_mid_coacd_014" type="mesh" group="3" friction="1.5" solref="0.01 1.2" solimp="0.95 0.995 0.0005" rgba="1 0.12 0.04 0.55" mesh="v2_thumb_mid_coacd_014"/>
+            <geom name="right_thumb_mid_coacd_015" type="mesh" group="3" friction="1.5" solref="0.01 1.2" solimp="0.95 0.995 0.0005" rgba="1 0.12 0.04 0.55" mesh="v2_thumb_mid_coacd_015"/>
+            <geom name="right_thumb_mid_coacd_016" type="mesh" group="3" friction="1.5" solref="0.01 1.2" solimp="0.95 0.995 0.0005" rgba="1 0.12 0.04 0.55" mesh="v2_thumb_mid_coacd_016"/>
+            <geom name="right_thumb_mid_coacd_017" type="mesh" group="3" friction="1.5" solref="0.01 1.2" solimp="0.95 0.995 0.0005" rgba="1 0.12 0.04 0.55" mesh="v2_thumb_mid_coacd_017"/>
+            <geom name="right_thumb_mid_coacd_018" type="mesh" group="3" friction="1.5" solref="0.01 1.2" solimp="0.95 0.995 0.0005" rgba="1 0.12 0.04 0.55" mesh="v2_thumb_mid_coacd_018"/>
+            <geom name="right_thumb_mid_coacd_019" type="mesh" group="3" friction="1.5" solref="0.01 1.2" solimp="0.95 0.995 0.0005" rgba="1 0.12 0.04 0.55" mesh="v2_thumb_mid_coacd_019"/>
+            <geom name="right_thumb_mid_coacd_020" type="mesh" group="3" friction="1.5" solref="0.01 1.2" solimp="0.95 0.995 0.0005" rgba="1 0.12 0.04 0.55" mesh="v2_thumb_mid_coacd_020"/>
+            <geom name="right_thumb_mid_coacd_021" type="mesh" group="3" friction="1.5" solref="0.01 1.2" solimp="0.95 0.995 0.0005" rgba="1 0.12 0.04 0.55" mesh="v2_thumb_mid_coacd_021"/>
+            <geom name="right_thumb_mid_coacd_022" type="mesh" group="3" friction="1.5" solref="0.01 1.2" solimp="0.95 0.995 0.0005" rgba="1 0.12 0.04 0.55" mesh="v2_thumb_mid_coacd_022"/>
+            <geom name="right_thumb_mid_coacd_023" type="mesh" group="3" friction="1.5" solref="0.01 1.2" solimp="0.95 0.995 0.0005" rgba="1 0.12 0.04 0.55" mesh="v2_thumb_mid_coacd_023"/>
+            <body name="right_thumb_tip" pos="0.0055478 0.0413 -0.024172">
+              <inertial pos="-0.005551 0.005391 -0.014448" mass="0.0766" diaginertia="8.3e-06 8e-06 4.06e-06"/>
+              <joint name="right_thumb_mcp" class="thumb_mcp" pos="0 0 0" axis="1 0 0"/>
+              <geom class="visual" rgba="0.05 0.45 1 0.32" mesh="v2_thumb_tip"/>
+              <geom name="right_thumb_tip_coacd_000" type="mesh" group="3" friction="1.5" solref="0.01 1.2" solimp="0.95 0.995 0.0005" rgba="1 0.12 0.04 0.55" mesh="v2_thumb_tip_coacd_000"/>
+              <geom name="right_thumb_tip_coacd_001" type="mesh" group="3" friction="1.5" solref="0.01 1.2" solimp="0.95 0.995 0.0005" rgba="1 0.12 0.04 0.55" mesh="v2_thumb_tip_coacd_001"/>
+              <geom name="right_thumb_tip_coacd_002" type="mesh" group="3" friction="1.5" solref="0.01 1.2" solimp="0.95 0.995 0.0005" rgba="1 0.12 0.04 0.55" mesh="v2_thumb_tip_coacd_002"/>
+              <geom name="right_thumb_tip_coacd_003" type="mesh" group="3" friction="1.5" solref="0.01 1.2" solimp="0.95 0.995 0.0005" rgba="1 0.12 0.04 0.55" mesh="v2_thumb_tip_coacd_003"/>
+              <geom name="right_thumb_tip_coacd_004" type="mesh" group="3" friction="1.5" solref="0.01 1.2" solimp="0.95 0.995 0.0005" rgba="1 0.12 0.04 0.55" mesh="v2_thumb_tip_coacd_004"/>
+              <geom name="right_thumb_tip_coacd_005" type="mesh" group="3" friction="1.5" solref="0.01 1.2" solimp="0.95 0.995 0.0005" rgba="1 0.12 0.04 0.55" mesh="v2_thumb_tip_coacd_005"/>
+              <geom name="right_thumb_tip_coacd_006" type="mesh" group="3" friction="1.5" solref="0.01 1.2" solimp="0.95 0.995 0.0005" rgba="1 0.12 0.04 0.55" mesh="v2_thumb_tip_coacd_006"/>
+              <geom name="right_thumb_tip_coacd_007" type="mesh" group="3" friction="1.5" solref="0.01 1.2" solimp="0.95 0.995 0.0005" rgba="1 0.12 0.04 0.55" mesh="v2_thumb_tip_coacd_007"/>
+              <geom name="right_thumb_tip_coacd_008" type="mesh" group="3" friction="1.5" solref="0.01 1.2" solimp="0.95 0.995 0.0005" rgba="1 0.12 0.04 0.55" mesh="v2_thumb_tip_coacd_008"/>
+              <geom name="right_thumb_tip_coacd_009" type="mesh" group="3" friction="1.5" solref="0.01 1.2" solimp="0.95 0.995 0.0005" rgba="1 0.12 0.04 0.55" mesh="v2_thumb_tip_coacd_009"/>
+              <geom name="right_thumb_tip_coacd_010" type="mesh" group="3" friction="1.5" solref="0.01 1.2" solimp="0.95 0.995 0.0005" rgba="1 0.12 0.04 0.55" mesh="v2_thumb_tip_coacd_010"/>
+              <geom name="right_thumb_tip_coacd_011" type="mesh" group="3" friction="1.5" solref="0.01 1.2" solimp="0.95 0.995 0.0005" rgba="1 0.12 0.04 0.55" mesh="v2_thumb_tip_coacd_011"/>
+              <geom name="right_thumb_tip_coacd_012" type="mesh" group="3" friction="1.5" solref="0.01 1.2" solimp="0.95 0.995 0.0005" rgba="1 0.12 0.04 0.55" mesh="v2_thumb_tip_coacd_012"/>
+              <geom name="right_thumb_tip_coacd_013" type="mesh" group="3" friction="1.5" solref="0.01 1.2" solimp="0.95 0.995 0.0005" rgba="1 0.12 0.04 0.55" mesh="v2_thumb_tip_coacd_013"/>
+              <geom name="right_thumb_tip_coacd_014" type="mesh" group="3" friction="1.5" solref="0.01 1.2" solimp="0.95 0.995 0.0005" rgba="1 0.12 0.04 0.55" mesh="v2_thumb_tip_coacd_014"/>
+              <geom name="right_thumb_tip_coacd_015" type="mesh" group="3" friction="1.5" solref="0.01 1.2" solimp="0.95 0.995 0.0005" rgba="1 0.12 0.04 0.55" mesh="v2_thumb_tip_coacd_015"/>
+              <geom name="right_thumb_tip_coacd_016" type="mesh" group="3" friction="1.5" solref="0.01 1.2" solimp="0.95 0.995 0.0005" rgba="1 0.12 0.04 0.55" mesh="v2_thumb_tip_coacd_016"/>
+              <geom name="right_thumb_tip_coacd_017" type="mesh" group="3" friction="1.5" solref="0.01 1.2" solimp="0.95 0.995 0.0005" rgba="1 0.12 0.04 0.55" mesh="v2_thumb_tip_coacd_017"/>
+              <geom name="right_thumb_tip_coacd_018" type="mesh" group="3" friction="1.5" solref="0.01 1.2" solimp="0.95 0.995 0.0005" rgba="1 0.12 0.04 0.55" mesh="v2_thumb_tip_coacd_018"/>
+              <geom name="right_thumb_tip_coacd_019" type="mesh" group="3" friction="1.5" solref="0.01 1.2" solimp="0.95 0.995 0.0005" rgba="1 0.12 0.04 0.55" mesh="v2_thumb_tip_coacd_019"/>
+              <geom name="right_thumb_tip_coacd_020" type="mesh" group="3" friction="1.5" solref="0.01 1.2" solimp="0.95 0.995 0.0005" rgba="1 0.12 0.04 0.55" mesh="v2_thumb_tip_coacd_020"/>
+              <geom name="right_thumb_tip_coacd_021" type="mesh" group="3" friction="1.5" solref="0.01 1.2" solimp="0.95 0.995 0.0005" rgba="1 0.12 0.04 0.55" mesh="v2_thumb_tip_coacd_021"/>
+              <geom name="right_thumb_tip_coacd_022" type="mesh" group="3" friction="1.5" solref="0.01 1.2" solimp="0.95 0.995 0.0005" rgba="1 0.12 0.04 0.55" mesh="v2_thumb_tip_coacd_022"/>
+              <geom name="right_thumb_tip_coacd_023" type="mesh" group="3" friction="1.5" solref="0.01 1.2" solimp="0.95 0.995 0.0005" rgba="1 0.12 0.04 0.55" mesh="v2_thumb_tip_coacd_023"/>
+              <site name="th_tip" pos="-0.006 0.021 -0.02"/>
+              <site name="th_tip_t00" pos="-0.01 0.008 -0.02" size="0.003"/>
+              <site name="th_tip_t01" pos="-0.007 0.008 -0.02" size="0.003"/>
+              <site name="th_tip_t02" pos="-0.004 0.008 -0.02" size="0.003"/>
+              <site name="th_tip_t03" pos="-0.001 0.008 -0.02" size="0.003"/>
+              <site name="th_tip_t04" pos="-0.01 0.012 -0.02" size="0.003"/>
+              <site name="th_tip_t05" pos="-0.007 0.012 -0.02" size="0.003"/>
+              <site name="th_tip_t06" pos="-0.004 0.012 -0.02" size="0.003"/>
+              <site name="th_tip_t07" pos="-0.001 0.012 -0.02" size="0.003"/>
+              <site name="th_tip_t08" pos="-0.01 0.016 -0.02" size="0.003"/>
+              <site name="th_tip_t09" pos="-0.007 0.016 -0.02" size="0.003"/>
+              <site name="th_tip_t10" pos="-0.004 0.016 -0.02" size="0.003"/>
+              <site name="th_tip_t11" pos="-0.001 0.016 -0.02" size="0.003"/>
+              <site name="th_tip_t12" pos="-0.01 0.02 -0.02" size="0.003"/>
+              <site name="th_tip_t13" pos="-0.007 0.02 -0.02" size="0.003"/>
+              <site name="th_tip_t14" pos="-0.004 0.02 -0.02" size="0.003"/>
+              <site name="th_tip_t15" pos="-0.001 0.02 -0.02" size="0.003"/>
+            </body>
+          </body>
+        </body>
+      </body>
+    </body>
+    <body name="cube" childclass="cube" pos="-0.066 0 0.085">
+      <joint name="cube_freejoint" type="free"/>
+      <geom name="cube" size="0.0125 0.0125 0.0125" type="box" group="1" mass="0.02" rgba="0.08 0.85 0.25 0.55"/>
+      <site name="cube_center" pos="0 0 0" group="4"/>
+    </body>
+    <body name="cube_support" pos="0.0137 -0.08 0.1348" mocap="true">
+      <geom name="cube_support_geom" size="0.012 0.012 0.003" type="box" contype="4" conaffinity="5" rgba="1 0.85 0.1 0.38"/>
+    </body>
+  </worldbody>
+
+  <contact>
+    <exclude body1="v2_mount" body2="right_index_proximal"/>
+    <exclude body1="v2_mount" body2="right_middle_proximal"/>
+    <exclude body1="v2_mount" body2="right_ring_proximal"/>
+    <exclude body1="v2_mount" body2="right_pinky_proximal"/>
+    <exclude body1="v2_mount" body2="right_thumb_base"/>
+    <exclude body1="palm" body2="right_index_proximal"/>
+    <exclude body1="palm" body2="right_middle_proximal"/>
+    <exclude body1="palm" body2="right_ring_proximal"/>
+    <exclude body1="palm" body2="right_pinky_proximal"/>
+    <exclude body1="palm" body2="right_thumb_base"/>
+    <exclude body1="right_index_proximal" body2="right_index_distal"/>
+    <exclude body1="right_index_proximal" body2="right_middle_proximal"/>
+    <exclude body1="right_index_proximal" body2="right_middle_distal"/>
+    <exclude body1="right_index_distal" body2="right_middle_proximal"/>
+    <exclude body1="right_index_distal" body2="right_middle_distal"/>
+    <exclude body1="right_middle_proximal" body2="right_middle_distal"/>
+    <exclude body1="right_middle_proximal" body2="right_ring_proximal"/>
+    <exclude body1="right_middle_proximal" body2="right_ring_distal"/>
+    <exclude body1="right_middle_distal" body2="right_ring_proximal"/>
+    <exclude body1="right_middle_distal" body2="right_ring_distal"/>
+    <exclude body1="right_ring_proximal" body2="right_ring_distal"/>
+    <exclude body1="right_ring_proximal" body2="right_pinky_proximal"/>
+    <exclude body1="right_ring_proximal" body2="right_pinky_distal"/>
+    <exclude body1="right_ring_distal" body2="right_pinky_proximal"/>
+    <exclude body1="right_ring_distal" body2="right_pinky_distal"/>
+    <exclude body1="right_pinky_proximal" body2="right_pinky_distal"/>
+    <exclude body1="right_thumb_base" body2="right_thumb_mid"/>
+    <exclude body1="right_thumb_mid" body2="right_thumb_tip"/>
+  </contact>
+
+  <equality>
+    <joint joint1="right_index_pip" joint2="right_index_mcp" polycoef="0 0.925 0 0 0" solref="0.005" solimp="0.95 0.99"/>
+    <joint joint1="right_middle_pip" joint2="right_middle_mcp" polycoef="0 0.925 0 0 0" solref="0.005" solimp="0.95 0.99"/>
+    <joint joint1="right_ring_pip" joint2="right_ring_mcp" polycoef="0 0.925 0 0 0" solref="0.005" solimp="0.95 0.99"/>
+    <joint joint1="right_pinky_pip" joint2="right_pinky_mcp" polycoef="0 0.925 0 0 0" solref="0.005" solimp="0.95 0.99"/>
+    <joint joint1="right_thumb_cmc_flex" joint2="right_thumb_cmc_abd" polycoef="0 0.16 0 0 0" solref="0.005" solimp="0.95 0.99"/>
+  </equality>
+
+  <actuator>
+    <general name="hw_thumb_rot" class="thumb_cmc" joint="right_thumb_cmc_abd" gainprm="5" biasprm="0 -5"/>
+    <general name="hw_thumb_flex" class="thumb_mcp" joint="right_thumb_mcp"/>
+    <general name="hw_index" class="mcp" joint="right_index_mcp"/>
+    <general name="hw_middle" class="mcp" joint="right_middle_mcp"/>
+    <general name="hw_ring" class="mcp" joint="right_ring_mcp"/>
+    <general name="hw_pinky" class="mcp" joint="right_pinky_mcp"/>
+  </actuator>
+
+  <sensor>
+    <jointpos joint="right_thumb_cmc_abd" name="hw_pos_thumb_rot"/>
+    <jointpos joint="right_thumb_mcp" name="hw_pos_thumb_flex"/>
+    <jointpos joint="right_index_mcp" name="hw_pos_index"/>
+    <jointpos joint="right_middle_mcp" name="hw_pos_middle"/>
+    <jointpos joint="right_ring_mcp" name="hw_pos_ring"/>
+    <jointpos joint="right_pinky_mcp" name="hw_pos_pinky"/>
+    <touch site="th_tip_t00" name="hw_tip_frc_thumb_00"/>
+    <touch site="th_tip_t01" name="hw_tip_frc_thumb_01"/>
+    <touch site="th_tip_t02" name="hw_tip_frc_thumb_02"/>
+    <touch site="th_tip_t03" name="hw_tip_frc_thumb_03"/>
+    <touch site="th_tip_t04" name="hw_tip_frc_thumb_04"/>
+    <touch site="th_tip_t05" name="hw_tip_frc_thumb_05"/>
+    <touch site="th_tip_t06" name="hw_tip_frc_thumb_06"/>
+    <touch site="th_tip_t07" name="hw_tip_frc_thumb_07"/>
+    <touch site="th_tip_t08" name="hw_tip_frc_thumb_08"/>
+    <touch site="th_tip_t09" name="hw_tip_frc_thumb_09"/>
+    <touch site="th_tip_t10" name="hw_tip_frc_thumb_10"/>
+    <touch site="th_tip_t11" name="hw_tip_frc_thumb_11"/>
+    <touch site="th_tip_t12" name="hw_tip_frc_thumb_12"/>
+    <touch site="th_tip_t13" name="hw_tip_frc_thumb_13"/>
+    <touch site="th_tip_t14" name="hw_tip_frc_thumb_14"/>
+    <touch site="th_tip_t15" name="hw_tip_frc_thumb_15"/>
+    <touch site="if_tip_t00" name="hw_tip_frc_index_00"/>
+    <touch site="if_tip_t01" name="hw_tip_frc_index_01"/>
+    <touch site="if_tip_t02" name="hw_tip_frc_index_02"/>
+    <touch site="if_tip_t03" name="hw_tip_frc_index_03"/>
+    <touch site="if_tip_t04" name="hw_tip_frc_index_04"/>
+    <touch site="if_tip_t05" name="hw_tip_frc_index_05"/>
+    <touch site="if_tip_t06" name="hw_tip_frc_index_06"/>
+    <touch site="if_tip_t07" name="hw_tip_frc_index_07"/>
+    <touch site="if_tip_t08" name="hw_tip_frc_index_08"/>
+    <touch site="if_tip_t09" name="hw_tip_frc_index_09"/>
+    <touch site="if_tip_t10" name="hw_tip_frc_index_10"/>
+    <touch site="if_tip_t11" name="hw_tip_frc_index_11"/>
+    <touch site="if_tip_t12" name="hw_tip_frc_index_12"/>
+    <touch site="if_tip_t13" name="hw_tip_frc_index_13"/>
+    <touch site="if_tip_t14" name="hw_tip_frc_index_14"/>
+    <touch site="if_tip_t15" name="hw_tip_frc_index_15"/>
+    <touch site="mf_tip_t00" name="hw_tip_frc_middle_00"/>
+    <touch site="mf_tip_t01" name="hw_tip_frc_middle_01"/>
+    <touch site="mf_tip_t02" name="hw_tip_frc_middle_02"/>
+    <touch site="mf_tip_t03" name="hw_tip_frc_middle_03"/>
+    <touch site="mf_tip_t04" name="hw_tip_frc_middle_04"/>
+    <touch site="mf_tip_t05" name="hw_tip_frc_middle_05"/>
+    <touch site="mf_tip_t06" name="hw_tip_frc_middle_06"/>
+    <touch site="mf_tip_t07" name="hw_tip_frc_middle_07"/>
+    <touch site="mf_tip_t08" name="hw_tip_frc_middle_08"/>
+    <touch site="mf_tip_t09" name="hw_tip_frc_middle_09"/>
+    <touch site="mf_tip_t10" name="hw_tip_frc_middle_10"/>
+    <touch site="mf_tip_t11" name="hw_tip_frc_middle_11"/>
+    <touch site="mf_tip_t12" name="hw_tip_frc_middle_12"/>
+    <touch site="mf_tip_t13" name="hw_tip_frc_middle_13"/>
+    <touch site="mf_tip_t14" name="hw_tip_frc_middle_14"/>
+    <touch site="mf_tip_t15" name="hw_tip_frc_middle_15"/>
+    <touch site="rf_tip_t00" name="hw_tip_frc_ring_00"/>
+    <touch site="rf_tip_t01" name="hw_tip_frc_ring_01"/>
+    <touch site="rf_tip_t02" name="hw_tip_frc_ring_02"/>
+    <touch site="rf_tip_t03" name="hw_tip_frc_ring_03"/>
+    <touch site="rf_tip_t04" name="hw_tip_frc_ring_04"/>
+    <touch site="rf_tip_t05" name="hw_tip_frc_ring_05"/>
+    <touch site="rf_tip_t06" name="hw_tip_frc_ring_06"/>
+    <touch site="rf_tip_t07" name="hw_tip_frc_ring_07"/>
+    <touch site="rf_tip_t08" name="hw_tip_frc_ring_08"/>
+    <touch site="rf_tip_t09" name="hw_tip_frc_ring_09"/>
+    <touch site="rf_tip_t10" name="hw_tip_frc_ring_10"/>
+    <touch site="rf_tip_t11" name="hw_tip_frc_ring_11"/>
+    <touch site="rf_tip_t12" name="hw_tip_frc_ring_12"/>
+    <touch site="rf_tip_t13" name="hw_tip_frc_ring_13"/>
+    <touch site="rf_tip_t14" name="hw_tip_frc_ring_14"/>
+    <touch site="rf_tip_t15" name="hw_tip_frc_ring_15"/>
+    <touch site="pf_tip_t00" name="hw_tip_frc_pinky_00"/>
+    <touch site="pf_tip_t01" name="hw_tip_frc_pinky_01"/>
+    <touch site="pf_tip_t02" name="hw_tip_frc_pinky_02"/>
+    <touch site="pf_tip_t03" name="hw_tip_frc_pinky_03"/>
+    <touch site="pf_tip_t04" name="hw_tip_frc_pinky_04"/>
+    <touch site="pf_tip_t05" name="hw_tip_frc_pinky_05"/>
+    <touch site="pf_tip_t06" name="hw_tip_frc_pinky_06"/>
+    <touch site="pf_tip_t07" name="hw_tip_frc_pinky_07"/>
+    <touch site="pf_tip_t08" name="hw_tip_frc_pinky_08"/>
+    <touch site="pf_tip_t09" name="hw_tip_frc_pinky_09"/>
+    <touch site="pf_tip_t10" name="hw_tip_frc_pinky_10"/>
+    <touch site="pf_tip_t11" name="hw_tip_frc_pinky_11"/>
+    <touch site="pf_tip_t12" name="hw_tip_frc_pinky_12"/>
+    <touch site="pf_tip_t13" name="hw_tip_frc_pinky_13"/>
+    <touch site="pf_tip_t14" name="hw_tip_frc_pinky_14"/>
+    <touch site="pf_tip_t15" name="hw_tip_frc_pinky_15"/>
+    <framepos objtype="body" objname="cube" name="cube_position"/>
+    <framequat objtype="body" objname="cube" name="cube_orientation"/>
+    <framelinvel objtype="body" objname="cube" name="cube_linvel"/>
+    <frameangvel objtype="body" objname="cube" name="cube_angvel"/>
+    <framepos objtype="site" objname="grasp_site" name="palm_position"/>
+    <framepos objtype="site" objname="th_tip" reftype="site" refname="grasp_site" name="th_tip_position"/>
+    <framepos objtype="site" objname="if_tip" reftype="site" refname="grasp_site" name="if_tip_position"/>
+    <framepos objtype="site" objname="mf_tip" reftype="site" refname="grasp_site" name="mf_tip_position"/>
+    <framepos objtype="site" objname="rf_tip" reftype="site" refname="grasp_site" name="rf_tip_position"/>
+    <framepos objtype="site" objname="pf_tip" reftype="site" refname="grasp_site" name="pf_tip_position"/>
+  </sensor>
+
+  <keyframe>
+    <key name="home" qpos="0 0 0 0 0 0 0 0 0 0 0 0.0137 -0.08 0.1503 1 0 0 0"/>
+  </keyframe>
+</mujoco>

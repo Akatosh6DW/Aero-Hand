@@ -1,0 +1,269 @@
+Environment Config:
+action_repeat: 1
+action_scale:
+- 0.12
+- 0.35
+- 0.3
+- 0.3
+- 0.08
+- 0.08
+ctrl_dt: 0.05
+early_termination: true
+episode_length: 800
+force_history_len: 1
+history_len: 1
+impl: jax
+noise_config:
+  force_ema_alpha: 0.85
+  level: 0.3
+  scales:
+    hw_force: 0.05
+    hw_pos: 0.005
+reset_config:
+  hand_qpos_noise_scale: 0.01
+  lifted_cube_z_offset: 0.01
+  lifted_grasp_fraction: 0.0
+  lifted_grasp_noise_scale: 0.06
+  pre_grasp_fraction: 0.0
+  pre_grasp_noise_scale: 0.15
+  termination_grace_sec: 5.0
+reward_config:
+  finger_active_threshold: 0.08
+  force_contact_saturation: 3.0
+  force_contact_threshold: 0.06
+  force_overload_soft_width: 1.5
+  force_overload_threshold: 2.8
+  hold_success_sec: 30.0
+  lift_success_threshold_m: 0.01
+  scales:
+    action_accel: -0.005
+    action_rate: -0.02
+    approach: 12.0
+    closure: 6.0
+    contact: 4.0
+    drop_risk: -25.0
+    finger_participation: 5.0
+    force_balance: 22.0
+    force_contact: 15.0
+    force_overload: 0.0
+    grip_force: 15.0
+    height: 18.0
+    hold_position: 45.0
+    human_pose: 2.0
+    idle_follow: 0.0
+    nonprimary_contact: -10.0
+    palm_contact: -15.0
+    pip_closure: 3.0
+    post_release_cheat_contact: -70.0
+    post_release_grasp: 100.0
+    post_release_pose_hold: 45.0
+    post_release_slip: -35.0
+    post_release_survival: 80.0
+    pre_release_grasp: 35.0
+    primary_finger_force: 65.0
+    primary_geom_contact: 25.0
+    progressive_hold: 25.0
+    soft_contact: 5.0
+    stable_hold: 120.0
+    survival: 1.0
+    sustained_hold_bonus: 40.0
+    termination: -250.0
+    three_finger_proximity: 15.0
+    thumb_engage: 20.0
+    thumb_opposition: 30.0
+    torques: -3.0e-05
+  soft_contact_fmax: 2.5
+  soft_contact_fmin: 0.1
+  target_lift_m: 0.012
+sim_dt: 0.01
+spawn_config:
+  cube_jitter:
+  - 0.0
+  - 0.0
+  - 0.0
+  cube_pos:
+  - 0.025
+  - -0.065
+  - 0.1503
+  support_enabled: true
+support_config:
+  force_release_after_sec: 3.0
+  min_release_active_fingers: 2
+  min_release_force: 0.1
+  random_release: true
+  random_release_max_sec: 2.5
+  random_release_min_sec: 1.5
+  release_after_sec: 2.0
+  release_ramp_sec: 0.5
+  require_grasp_for_release: true
+  support_hidden_pos:
+  - 0.0
+  - 0.0
+  - -10.0
+  support_pos:
+  - 0.025
+  - -0.065
+  - 0.1348
+tactile_config:
+  force_saturation_n: 3.0
+  obs_force_ema_alpha: 0.7
+  taxel_weights:
+  - 0.7
+  - 1.0
+  - 1.0
+  - 0.7
+  - 1.0
+  - 1.4
+  - 1.4
+  - 1.0
+  - 1.0
+  - 1.4
+  - 1.4
+  - 1.0
+  - 0.7
+  - 1.0
+  - 1.0
+  - 0.7
+  use_pooled_obs: true
+  use_real_tactile: true
+
+PPO Training Parameters:
+action_repeat: 1
+batch_size: 4096
+discounting: 0.97
+entropy_cost: 0.01
+episode_length: 800
+learning_rate: 0.0003
+network_factory:
+  policy_hidden_layer_sizes: !!python/tuple
+  - 128
+  - 128
+  policy_obs_key: state
+  value_hidden_layer_sizes: !!python/tuple
+  - 128
+  - 128
+  value_obs_key: privileged_state
+normalize_observations: true
+num_envs: 4096
+num_eval_envs: 128
+num_evals: 1
+num_minibatches: 4
+num_resets_per_eval: 1
+num_timesteps: 100000
+num_updates_per_batch: 2
+reward_scaling: 1.0
+unroll_length: 20
+
+Experiment name: AeroCubeGraspV2ForceCoacd-20260420-111419
+Logs are being stored in: /home/ll/SRTP/Aero-Hand/sim_rl/mujoco_playground/logs/AeroCubeGraspV2ForceCoacd-20260420-111419
+Restoring from checkpoint: /home/ll/SRTP/Aero-Hand/sim_rl/mujoco_playground/logs/AeroCubeGraspV2ForceCoacd-20260420-081450/checkpoints/000021626880
+Checkpoint path: /home/ll/SRTP/Aero-Hand/sim_rl/mujoco_playground/logs/AeroCubeGraspV2ForceCoacd-20260420-111419/checkpoints
+Traceback (most recent call last):
+  File "/home/ll/miniconda3/envs/aero_rl/lib/python3.11/site-packages/jax/_src/lax/lax.py", line 215, in _broadcast_shapes_uncached
+    return _try_broadcast_shapes(*rank_promoted_shapes, name='broadcast_shapes')
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/ll/miniconda3/envs/aero_rl/lib/python3.11/site-packages/jax/_src/lax/lax.py", line 130, in _try_broadcast_shapes
+    raise TypeError(f'{name} got incompatible shapes for broadcasting: '
+TypeError: broadcast_shapes got incompatible shapes for broadcasting: (4096, 46), (1, 44).
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/home/ll/miniconda3/envs/aero_rl/lib/python3.11/site-packages/jax/_src/lax/lax.py", line 193, in broadcast_shapes
+    return _broadcast_shapes_cached(*shapes)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/ll/miniconda3/envs/aero_rl/lib/python3.11/site-packages/jax/_src/util.py", line 301, in wrapper
+    return cached(trace_context(), *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/ll/miniconda3/envs/aero_rl/lib/python3.11/site-packages/jax/_src/util.py", line 295, in cached
+    return f(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^
+  File "/home/ll/miniconda3/envs/aero_rl/lib/python3.11/site-packages/jax/_src/lax/lax.py", line 199, in _broadcast_shapes_cached
+    return _broadcast_shapes_uncached(*shapes)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/ll/miniconda3/envs/aero_rl/lib/python3.11/site-packages/jax/_src/lax/lax.py", line 218, in _broadcast_shapes_uncached
+    raise ValueError(f"Incompatible shapes for broadcasting: shapes={list(shapes)}") from err
+ValueError: Incompatible shapes for broadcasting: shapes=[(4096, 46), (44,)]
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/home/ll/miniconda3/envs/aero_rl/lib/python3.11/site-packages/jax/_src/lax/lax.py", line 215, in _broadcast_shapes_uncached
+    return _try_broadcast_shapes(*rank_promoted_shapes, name='broadcast_shapes')
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/ll/miniconda3/envs/aero_rl/lib/python3.11/site-packages/jax/_src/lax/lax.py", line 130, in _try_broadcast_shapes
+    raise TypeError(f'{name} got incompatible shapes for broadcasting: '
+TypeError: broadcast_shapes got incompatible shapes for broadcasting: (4096, 46), (1, 44).
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/home/ll/SRTP/Aero-Hand/sim_rl/mujoco_playground/learning/train_jax_ppo.py", line 671, in <module>
+    app.run(main)
+  File "/home/ll/miniconda3/envs/aero_rl/lib/python3.11/site-packages/absl/app.py", line 367, in run
+    _run_main(main, args)
+  File "/home/ll/miniconda3/envs/aero_rl/lib/python3.11/site-packages/absl/app.py", line 312, in _run_main
+    sys.exit(main(argv))
+             ^^^^^^^^^^
+  File "/home/ll/SRTP/Aero-Hand/sim_rl/mujoco_playground/learning/train_jax_ppo.py", line 574, in main
+    make_inference_fn, params, _ = train_fn(  # pylint: disable=no-value-for-parameter
+                                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/ll/miniconda3/envs/aero_rl/lib/python3.11/site-packages/brax/training/agents/ppo/train.py", line 809, in train
+    training_epoch_with_timing(training_state, env_state, epoch_keys)
+  File "/home/ll/miniconda3/envs/aero_rl/lib/python3.11/site-packages/brax/training/agents/ppo/train.py", line 680, in training_epoch_with_timing
+    result = training_epoch(training_state, env_state, key)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/ll/miniconda3/envs/aero_rl/lib/python3.11/site-packages/jax/_src/pmap.py", line 72, in wrapped
+    outs = jitted_f(*flat_global_args)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/ll/miniconda3/envs/aero_rl/lib/python3.11/site-packages/brax/training/agents/ppo/train.py", line 655, in training_epoch
+    (training_state, state, _), loss_metrics = jax.lax.scan(
+                                               ^^^^^^^^^^^^^
+  File "/home/ll/miniconda3/envs/aero_rl/lib/python3.11/site-packages/brax/training/agents/ppo/train.py", line 583, in training_step
+    (state, _), data = jax.lax.scan(
+                       ^^^^^^^^^^^^^
+  File "/home/ll/miniconda3/envs/aero_rl/lib/python3.11/site-packages/brax/training/agents/ppo/train.py", line 573, in f
+    next_state, data = acting.generate_unroll(
+                       ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/ll/miniconda3/envs/aero_rl/lib/python3.11/site-packages/brax/training/acting.py", line 73, in generate_unroll
+    (final_state, _), data = jax.lax.scan(
+                             ^^^^^^^^^^^^^
+  File "/home/ll/miniconda3/envs/aero_rl/lib/python3.11/site-packages/brax/training/acting.py", line 67, in f
+    nstate, transition = actor_step(
+                         ^^^^^^^^^^^
+  File "/home/ll/miniconda3/envs/aero_rl/lib/python3.11/site-packages/brax/training/acting.py", line 41, in actor_step
+    actions, policy_extras = policy(env_state.obs, key)
+                             ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/ll/miniconda3/envs/aero_rl/lib/python3.11/site-packages/brax/training/agents/ppo/networks.py", line 53, in policy
+    logits = policy_network.apply(*param_subset, observations)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/ll/miniconda3/envs/aero_rl/lib/python3.11/site-packages/brax/training/networks.py", line 421, in apply
+    obs = preprocess_observations_fn(
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/ll/miniconda3/envs/aero_rl/lib/python3.11/site-packages/brax/training/acme/running_statistics.py", line 313, in normalize
+    return jax.tree_util.tree_map(normalize_leaf, batch, mean_std.mean, mean_std.std)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/ll/miniconda3/envs/aero_rl/lib/python3.11/site-packages/brax/training/acme/running_statistics.py", line 307, in normalize_leaf
+    data = (data - mean) / std
+            ~~~~~^~~~~~
+  File "/home/ll/miniconda3/envs/aero_rl/lib/python3.11/site-packages/jax/_src/numpy/array_methods.py", line 1146, in op
+    return getattr(self.aval, f"_{name}")(self, *args)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/ll/miniconda3/envs/aero_rl/lib/python3.11/site-packages/jax/_src/numpy/array_methods.py", line 609, in deferring_binary_op
+    return binary_op(*args)
+           ^^^^^^^^^^^^^^^^
+  File "/home/ll/miniconda3/envs/aero_rl/lib/python3.11/site-packages/jax/_src/numpy/ufunc_api.py", line 182, in __call__
+    return call(*args)
+           ^^^^^^^^^^^
+  File "/home/ll/miniconda3/envs/aero_rl/lib/python3.11/site-packages/jax/_src/numpy/ufuncs.py", line 1569, in subtract
+    out = lax.sub(*promote_args("subtract", x, y))
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/ll/miniconda3/envs/aero_rl/lib/python3.11/site-packages/jax/_src/numpy/util.py", line 222, in promote_args
+    return promote_shapes(fun_name, *promote_dtypes(*args))
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/ll/miniconda3/envs/aero_rl/lib/python3.11/site-packages/jax/_src/numpy/util.py", line 60, in promote_shapes
+    result_rank = len(lax.broadcast_shapes(*shapes))
+                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+ValueError: Incompatible shapes for broadcasting: shapes=[(4096, 46), (44,)]
+--------------------
+For simplicity, JAX has removed its internal frames from the traceback of the following exception. Set JAX_TRACEBACK_FILTERING=off to include these.
