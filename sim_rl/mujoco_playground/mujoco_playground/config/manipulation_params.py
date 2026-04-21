@@ -245,6 +245,8 @@ def brax_ppo_config(
     rl_config.batch_size = 256
     rl_config.num_resets_per_eval = 1
     rl_config.network_factory = config_dict.create(
+        distribution_type="normal",
+        noise_std_type="log",
         policy_hidden_layer_sizes=(512, 256, 128),
         value_hidden_layer_sizes=(512, 256, 128),
         policy_obs_key="state",

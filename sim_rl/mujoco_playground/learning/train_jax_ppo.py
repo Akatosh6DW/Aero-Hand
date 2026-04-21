@@ -28,6 +28,8 @@ from absl import logging
 from brax.training.agents.ppo import networks as ppo_networks
 from brax.training.agents.ppo import networks_vision as ppo_networks_vision
 from brax.training.agents.ppo import train as ppo
+from brax.training import checkpoint as brax_ckpt
+from brax.training.acme import running_statistics as acme_rs
 from etils import epath
 import jax
 import jax.numpy as jp
@@ -215,6 +217,129 @@ def rscope_fn(full_states, obs, rew, done):
       "Collected rscope rollouts with reward"
       f" {episode_rewards.mean():.3f} +- {episode_rewards.std():.3f}"
   )
+
+
+# ---------------------------------------------------------------------------
+# Old-format checkpoint helpers (for checkpoints trained with older brax)
+# ---------------------------------------------------------------------------
+
+def _detect_ckpt_format(ckpt_path: epath.Path, action_size: int) -> dict:
+  """Return config dict with is_old_format, distribution_type, hidden_sizes."""
+  import pathlib
+  meta_path = pathlib.Path(str(ckpt_path)) / "array_metadatas" / "process_0"
+  if not meta_path.exists():
+    return {"is_old_format": False}
+  with open(meta_path) as f:
+    meta = json.load(f)
+  policy_kernels = [
+      m["array_metadata"] for m in meta["array_metadatas"]
+      if m["array_metadata"]["param_name"].startswith("1.params.")
+      and m["array_metadata"]["param_name"].endswith(".kernel")
+  ]
+  if not policy_kernels:
+    return {"is_old_format": False}
+  names = [m["param_name"] for m in policy_kernels]
+  is_old_format = not any("MLP_0" in n for n in names)
+  output_size = policy_kernels[-1]["write_shape"][-1]
+  distribution_type = "normal" if output_size == action_size * 2 else "tanh_normal"
+  noise_std_type = "log" if distribution_type == "normal" else "scalar"
+  hidden_sizes = tuple(k["write_shape"][1] for k in policy_kernels[:-1])
+  return {
+      "is_old_format": is_old_format,
+      "distribution_type": distribution_type,
+      "noise_std_type": noise_std_type,
+      "hidden_sizes": hidden_sizes,
+  }
+
+
+def _remap_policy_old_to_new(old_policy_params: dict, action_size: int) -> dict:
+  """Remap flat policy params → nested MLP_0 structure expected by current brax."""
+  import numpy as np
+  p = old_policy_params["params"]
+  layer_keys = sorted(p.keys())
+  num_hidden = len(layer_keys) - 1
+  new_policy = {"MLP_0": {}, "Dense_0": {}, "std_logparam": {}}
+  for i in range(num_hidden):
+    new_policy["MLP_0"][f"hidden_{i}"] = {
+        "kernel": np.array(p[f"hidden_{i}"]["kernel"]),
+        "bias": np.array(p[f"hidden_{i}"]["bias"]),
+    }
+  out_kernel = np.array(p[f"hidden_{num_hidden}"]["kernel"])
+  out_bias = np.array(p[f"hidden_{num_hidden}"]["bias"])
+  new_policy["Dense_0"] = {
+      "kernel": out_kernel[:, :action_size],
+      "bias": out_bias[:action_size],
+  }
+  new_policy["std_logparam"] = {"log_value": out_bias[action_size:]}
+  return {"params": new_policy}
+
+
+def _remap_value_old_to_new(old_value_params: dict) -> dict:
+  """Remap flat value params → nested MLP_0 structure expected by current brax."""
+  import numpy as np
+  p = old_value_params["params"]
+  layer_keys = sorted(p.keys())
+  num_hidden = len(layer_keys) - 1
+  new_value = {"MLP_0": {}, "Dense_0": {}}
+  for i in range(num_hidden):
+    new_value["MLP_0"][f"hidden_{i}"] = {
+        "kernel": np.array(p[f"hidden_{i}"]["kernel"]),
+        "bias": np.array(p[f"hidden_{i}"]["bias"]),
+    }
+  new_value["Dense_0"] = {
+      "kernel": np.array(p[f"hidden_{num_hidden}"]["kernel"]),
+      "bias": np.array(p[f"hidden_{num_hidden}"]["bias"]),
+  }
+  return {"params": new_value}
+
+
+def _make_inference_fn_from_old_ckpt(ckpt_path, network_factory):
+  """Load an old-format checkpoint and return (make_inference_fn, params).
+
+  Reads ppo_network_config.json for sizes, detects network config from param
+  shapes, remaps flat params to current brax nested structure, and builds the
+  inference function using the standard brax PPO API so the rest of the train
+  script (rendering) works unchanged.
+  """
+  import pathlib
+  ckpt_path = pathlib.Path(str(ckpt_path))
+
+  with open(ckpt_path / "ppo_network_config.json") as f:
+    net_cfg = json.load(f)
+  action_size = net_cfg["action_size"]
+  obs_size = net_cfg["observation_size"]["state"]["shape"][0]
+  val_obs_size = net_cfg["observation_size"]["privileged_state"]["shape"][0]
+
+  detected = _detect_ckpt_format(ckpt_path, action_size)
+  print(f"[old-ckpt] Detected config: {detected}")
+
+  ppo_network = network_factory(
+      observation_size={"state": (obs_size,), "privileged_state": (val_obs_size,)},
+      action_size=action_size,
+  )
+
+  print(f"[old-ckpt] Loading checkpoint from {ckpt_path}")
+  brax_raw = brax_ckpt.load(str(ckpt_path))
+  norm_raw = brax_raw[0]
+  policy_params = _remap_policy_old_to_new(brax_raw[1], action_size)
+  # value params not needed for inference, skip remapping
+
+  # Reconstruct RunningStatisticsState from the plain dict orbax returns
+  if isinstance(norm_raw, acme_rs.RunningStatisticsState):
+    running_norm = norm_raw
+  else:
+    running_norm = acme_rs.RunningStatisticsState(
+        count=norm_raw["count"],
+        mean=jax.tree_util.tree_map(jp.array, norm_raw["mean"]),
+        summed_variance=jax.tree_util.tree_map(jp.array, norm_raw["summed_variance"]),
+        std=jax.tree_util.tree_map(jp.array, norm_raw["std"]),
+        std_eps=float(norm_raw.get("std_eps", 0.0)),
+    )
+
+  # params tuple expected by ppo_networks.make_inference_fn: (normalizer, policy)
+  params = (running_norm, policy_params)
+  make_inference_fn = ppo_networks.make_inference_fn(ppo_network)
+  return make_inference_fn, params
 
 
 def main(argv):
@@ -569,14 +694,41 @@ def main(argv):
         eval_env=eval_env,
     )
   else:
-    train_fn = _make_train_fn(training_params, restore_checkpoint_path, ckpt_path)
-    # Train or load the model
-    make_inference_fn, params, _ = train_fn(  # pylint: disable=no-value-for-parameter
-        environment=env,
-        progress_fn=progress,
-        policy_params_fn=policy_params_fn,
-        eval_env=eval_env,
-    )
+    # Check for old-format checkpoint (trained on different brax version)
+    if _PLAY_ONLY.value and restore_checkpoint_path is not None:
+      fmt = _detect_ckpt_format(restore_checkpoint_path, env.action_size)
+      if fmt.get("is_old_format"):
+        print("Old-format checkpoint detected — using remapping path for --play_only.")
+        # Rebuild network_factory with detected hidden sizes
+        old_network_factory = functools.partial(
+            ppo_networks.make_ppo_networks,
+            policy_hidden_layer_sizes=fmt["hidden_sizes"],
+            value_hidden_layer_sizes=fmt["hidden_sizes"],
+            distribution_type=fmt["distribution_type"],
+            noise_std_type=fmt["noise_std_type"],
+            policy_obs_key=ppo_params.network_factory.policy_obs_key,
+            value_obs_key=ppo_params.network_factory.value_obs_key,
+        )
+        make_inference_fn, params = _make_inference_fn_from_old_ckpt(
+            restore_checkpoint_path, old_network_factory
+        )
+      else:
+        train_fn = _make_train_fn(training_params, restore_checkpoint_path, ckpt_path)
+        make_inference_fn, params, _ = train_fn(  # pylint: disable=no-value-for-parameter
+            environment=env,
+            progress_fn=progress,
+            policy_params_fn=policy_params_fn,
+            eval_env=eval_env,
+        )
+    else:
+      train_fn = _make_train_fn(training_params, restore_checkpoint_path, ckpt_path)
+      # Train or load the model
+      make_inference_fn, params, _ = train_fn(  # pylint: disable=no-value-for-parameter
+          environment=env,
+          progress_fn=progress,
+          policy_params_fn=policy_params_fn,
+          eval_env=eval_env,
+      )
 
   print("Done training.")
   if len(times) > 1:
