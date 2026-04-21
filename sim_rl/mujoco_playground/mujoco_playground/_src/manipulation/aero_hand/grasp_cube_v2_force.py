@@ -132,14 +132,20 @@ def default_config() -> config_dict.ConfigDict:
       perturbation_config=config_dict.create(
           # 外力脉冲: 支撑释放后每隔interval步施加一次随机力
           external_force_enabled=True,
-          external_force_magnitude=0.10,   # C26: 0.15→0.10N, 中等(C23=0.08, C24=0.15)
-          external_force_interval=35,      # C26: 30→35步(1.75s), 略放宽
-          external_force_min_hold_steps=90,  # C26: 80→90步(4.5s)
+          external_force_magnitude=0.12,   # C31: C30已恢复30s, 轻度增强外力鲁棒性
+          external_force_interval=30,      # C31: 更频繁外力脉冲
+          external_force_min_hold_steps=80,  # C31: 更早开始扰动
           # 重力方向扰动: 模拟手腕姿态变化(倾斜/翻转)
           gravity_perturbation_enabled=True,
-          gravity_tilt_max_rad=0.4,         # C26: 0.5→0.4rad (~23度), 中等
-          gravity_tilt_change_interval=70,  # C26: 60→70步(3.5s)
-          gravity_tilt_min_hold_steps=170,  # C26: 150→170步(8.5s)
+          gravity_tilt_max_rad=0.45,        # C31: 约26度, 介于C26与强扰动之间
+          gravity_tilt_change_interval=60,  # C31: 更频繁倾斜变化
+          gravity_tilt_min_hold_steps=140,  # C31: 7s后介入
+          # C28: 全向翻转等效扰动。只在已形成较长稳定持握后触发,
+          # 用随机3D等效重力检验手腕翻转/倒置时的力闭合稳定度。
+          orientation_flip_enabled=True,
+          orientation_flip_force_scale=1.25,  # C31: 1.25 * mg, 更接近翻转/倒置应力
+          orientation_flip_change_interval=80,  # C31: 4s保持一次翻转方向
+          orientation_flip_min_hold_steps=300,  # C31: 15s后触发, 更早验证力闭合
           # 关节角度观测噪声
           joint_obs_noise_enabled=True,
           joint_obs_noise_std=0.015,        # C26: 0.02→0.015rad, 中等
@@ -151,9 +157,9 @@ def default_config() -> config_dict.ConfigDict:
               # primary_finger_force软化公式, thumb_opposition软化门控
               # R81: 力封闭优先(Rajeswaran 2017) — 降低运动学约束, 提升力信号
               hold_position=45.0,          # R104: timed release needs stronger unsupported pose retention
-              stable_hold=120.0,           # C07: extend clean short holds toward 30s
-              progressive_hold=25.0,       # C07: stronger long-horizon hold gradient
-              sustained_hold_bonus=40.0,  # C20: milestone bonus for 10s/20s/30s hold
+              stable_hold=185.0,           # C30: push 27s holds over the 30s target
+              progressive_hold=55.0,       # C30: keep dense gradient near 20-30s
+              sustained_hold_bonus=85.0,  # C30: stronger 30s milestone pressure
               force_contact=15.0,
               primary_geom_contact=25.0,   # C04: thumb contact can be geometric before force loads
               approach=12.0,               # R91: 恢复R89值(R90减弱导致bootstrapping失败)
@@ -163,29 +169,29 @@ def default_config() -> config_dict.ConfigDict:
               pip_closure=3.0,             # R81: 5→3, 同上
               human_pose=2.0,              # R81: 3→2, 同上
               grip_force=15.0,
-              force_balance=22.0,           # R106: stronger balanced primary pinch after cheat was reduced
+              force_balance=28.0,           # C29: improve primary force closure under DR
               finger_participation=5.0,
               thumb_opposition=30.0,
               soft_contact=5.0,
               primary_finger_force=65.0,  # R106: stronger thumb/index/middle force signal
               pre_release_grasp=35.0,      # C03: rebuild primary force from scratch before timed release
-              post_release_grasp=100.0,    # R106: final push for primary unsupported grasp
-              post_release_survival=80.0,  # C07: reward longer unsupported non-drop holding
+              post_release_grasp=125.0,    # C29: rebuild active pinch after support release
+              post_release_survival=155.0,  # C30: reduce remaining 18% drop rate
               post_release_cheat_contact=-70.0,  # R105: suppress palm/ring/pinky support after release
-              post_release_slip=-35.0,     # C07: penalize downward/lateral slip before drop
-              post_release_pose_hold=45.0, # C08: keep the clean pinch pose from drifting open
+              post_release_slip=-45.0,     # C30: suppress late-release slips around 25-30s
+              post_release_pose_hold=60.0, # C30: keep clean pinch pose through 30s
               idle_follow=0.0,
               height=18.0,                 # R92: 5→18, 明确鼓励离开支撑面的主动抬升
               # 控制约束 (不门控)
               survival=1.0,
-              termination=-250.0,          # C07: drop remains dominant failure
+              termination=-380.0,          # C30: remaining failures are mostly drops
               action_rate=-0.02,           # R91: -0.01→-0.02, 增加动作平滑防止崩溃
               action_accel=-0.005,
               torques=-0.00003,
               force_overload=0.0,
-              drop_risk=-25.0,             # C07: stronger post-release anti-drop shaping
-              palm_contact=-25.0,          # C21: -15→-25, C20 palm_contact=24偏高
-              nonprimary_contact=-18.0,    # C21: -10→-18, C20 nonprimary=17偏高
+              drop_risk=-45.0,             # C30: stronger pre-drop shaping near target hold time
+              palm_contact=-28.0,          # C29: keep cleanup, avoid over-suppressing recovery
+              nonprimary_contact=-20.0,    # C29: keep cleanup, slightly relax C28 harshness
               three_finger_proximity=15.0, # R91: 恢复R89值
           ),
           force_contact_threshold=0.06,
@@ -570,6 +576,7 @@ class CubeGraspV2Force(aero_hand_base.AeroHandEnv):
         # C22: 扰动状态
         "gravity_tilt_angle": jp.zeros(2, dtype=jp.float32),  # (tilt_x, tilt_y) radians
         "perturbation_force": jp.zeros(3, dtype=jp.float32),  # current external force on cube
+        "orientation_flip_force": jp.zeros(3, dtype=jp.float32),
     }
 
     metrics = {}
@@ -605,7 +612,7 @@ class CubeGraspV2Force(aero_hand_base.AeroHandEnv):
     hold_steps = state.info["stable_hold_steps"]
     support_released = state.info["support_released"]
     step_rng = state.info["rng"]
-    step_rng, force_rng, tilt_rng = jax.random.split(step_rng, 3)
+    step_rng, force_rng, tilt_rng, flip_rng = jax.random.split(step_rng, 4)
 
     # --- 外力脉冲: 在方块上施加随机方向的力 ---
     ext_force = state.info["perturbation_force"]
@@ -643,8 +650,29 @@ class CubeGraspV2Force(aero_hand_base.AeroHandEnv):
         0.0,
     ])
 
+    # --- C28: 整手翻转等效力 ---
+    # MuJoCo模型中手基座固定, 因此用持续的随机3D等效重力来近似
+    # 手腕翻转后方块相对抓取坐标系受到的全向重力挑战。
+    flip_force = state.info["orientation_flip_force"]
+    if pcfg.orientation_flip_enabled:
+      flip_active = (
+          support_released
+          & (hold_steps >= pcfg.orientation_flip_min_hold_steps)
+      )
+      should_update_flip = (
+          flip_active
+          & (hold_steps % pcfg.orientation_flip_change_interval == 0)
+      )
+      flip_dir = jax.random.normal(flip_rng, (3,))
+      flip_dir = flip_dir / (jp.linalg.norm(flip_dir) + 1e-8)
+      new_flip_force = (
+          flip_dir * self._cube_mass * 9.81 * pcfg.orientation_flip_force_scale
+      )
+      flip_force = jp.where(should_update_flip, new_flip_force, flip_force)
+      flip_force = jp.where(flip_active, flip_force, jp.zeros(3))
+
     # 合并外力: xfrc_applied shape = (nbody, 6), 前3为力, 后3为力矩
-    total_force = ext_force + gravity_force
+    total_force = ext_force + gravity_force + flip_force
     xfrc = data.xfrc_applied.at[self._cube_body_id, :3].set(total_force)
     data = data.replace(xfrc_applied=xfrc)
 
@@ -688,6 +716,7 @@ class CubeGraspV2Force(aero_hand_base.AeroHandEnv):
     # C22: 扰动状态持久化
     info["gravity_tilt_angle"] = tilt_angle
     info["perturbation_force"] = ext_force
+    info["orientation_flip_force"] = flip_force
 
     # Progressive hold tracking
     cube_pos_hold = self.get_cube_position(data)

@@ -583,6 +583,10 @@ def main(argv):
     print(f"Time to JIT compile: {times[1] - times[0]}")
     print(f"Time to train: {times[-1] - times[1]}")
 
+  if _NUM_VIDEOS.value <= 0:
+    print("Skipping inference/rendering because --num_videos <= 0.")
+    return
+
   print("Starting inference...")
 
   # Create inference function.
@@ -659,6 +663,8 @@ def main(argv):
       debug_scene_option.geomgroup[3] = 1  # collision primitives
       debug_scene_option.flags[mujoco.mjtVisFlag.mjVIS_TRANSPARENT] = True
       debug_scene_option.flags[mujoco.mjtVisFlag.mjVIS_CONTACTPOINT] = True
+      debug_scene_option.flags[mujoco.mjtVisFlag.mjVIS_PERTFORCE] = True
+      debug_scene_option.flags[mujoco.mjtVisFlag.mjVIS_PERTOBJ] = True
       debug_frames = eval_env.render(
           traj, height=480, width=640, camera=_CAMERA.value,
           scene_option=debug_scene_option,

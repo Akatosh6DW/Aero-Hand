@@ -2317,3 +2317,270 @@ python learning/train_jax_ppo.py \
 1. **C26 best (7.9M)** 是DR+扰动系列综合最优checkpoint — 推荐作为部署候选
 2. 如需进一步提升鲁棒性: 可从C26 best继续训练, 渐进增加扰动强度
 3. 如需提升CD超过30s: 可回退到弱扰动(C23配置), 但会牺牲鲁棒性
+
+---
+
+## C27: 云端工程恢复后的DR基线重训 (2026-04-21)
+
+### 背景
+- 云端最新工程已拉取到服务器, 子模块内容已合并为主仓库普通目录。
+- 旧的C21-C26 checkpoint在云端/本地恢复路径中不可用, 因此本轮从零训练当前C26中等扰动配置。
+- 服务器硬件: RTX 5090 32GB, 25 CPU cores, 754GiB RAM。
+
+### 训练配置
+- checkpoint来源: 从零训练
+- DR: 启用
+- envs/eval_envs: 4096 / 128
+- 步数: 5M
+- episode_length: 800
+- 外力/重力倾斜: C26中等扰动
+- log: `v2_iteration_docs/training_logs/logs_c27_dr_scratch_latest_stdout.txt`
+- checkpoint: `logs/AeroCubeGraspV2ForceCoacd-20260421-030532-C27_dr_scratch_latest/checkpoints/000005242880`
+
+### 结果
+
+| Step | Reward | EL | CD(s) | Drop | HoldSuccess | Palm | NonPri | ThreeFinger |
+|:---|:---|:---|:---|:---|:---|:---|:---|:---|
+| 0 | -230 | 150.3 | 0.05 | 94.5% | 0.00 | 57.5 | 44.3 | 0.93 |
+| 1.31M | -134 | 137.1 | 0.08 | 95.3% | 0.00 | 42.4 | 26.1 | 1.57 |
+| 2.62M | 100 | 132.0 | 0.52 | 97.7% | 0.02 | 24.0 | 16.1 | 10.33 |
+| 3.93M | 79 | 162.6 | 1.87 | 93.8% | 0.00 | 55.8 | 40.0 | 37.38 |
+| 5.24M | 1982 | 362.2 | 4.48 | 87.5% | 0.42 | 55.8 | 46.0 | 89.52 |
+
+### 分析
+- 策略已明显从零启动, 但距离C26的30s级别稳定持握仍很远。
+- C27 final仍大量依赖palm/ring/pinky接触, palm=55.8、nonprimary=46.0, 说明清洁三指力闭合尚未恢复。
+- 训练本体完成并保存checkpoint; 结尾视频渲染失败, 原因是服务器headless OpenGL/EGL上下文不可用。
+
+### 下一步
+1. 从C27 final继续训练, 利用已有抓握雏形加速恢复。
+2. envs从4096提升到8192, 更充分使用RTX 5090 32GB。
+3. 加强palm/nonprimary惩罚, 清理C27出现的作弊接触。
+4. 加入较晚触发的全向翻转等效扰动, 先作为稳定策略的后段鲁棒性检验。
+
+---
+
+## C28: 三指清理 + 翻转等效扰动起点 (2026-04-21)
+
+### 改动摘要
+**类型**: 奖励函数调整 + DR维度扩展 + 服务器训练脚本修复
+
+### 代码改动
+- `palm_contact`: -25 → **-32**
+- `nonprimary_contact`: -18 → **-24**
+- 新增 `orientation_flip_force`:
+  - `orientation_flip_enabled=True`
+  - `orientation_flip_force_scale=1.0 * mg`
+  - `orientation_flip_change_interval=120` 步, 即6s
+  - `orientation_flip_min_hold_steps=400` 步, 即20s稳定持握后触发
+- 翻转扰动通过 `xfrc_applied` 施加在cube body上, 与外力脉冲和重力倾斜共同可视化。
+- `train_jax_ppo.py` 在 `--num_videos=0` 时跳过服务器端渲染, 避免headless OpenGL导致训练后报错。
+- collision debug视频也打开 `mjVIS_PERTFORCE` / `mjVIS_PERTOBJ`, 使DR扰动力默认可视化。
+
+### 设计理由
+- 当前策略尚未恢复30s持握, 直接早期加入强翻转会破坏学习; 因此C28将翻转扰动门控到20s稳定持握之后。
+- C28首要目标是恢复干净三指抓握; 翻转扰动用于验证后段力闭合, 不是早期bootstrapping信号。
+
+### Smoke Test
+- `reset/step`通过。
+- obs维度保持: `state=(46,)`, `privileged_state=(102,)`。
+- `xfrc_applied` shape为 `(16, 6)`, 新增翻转力状态初始为0。
+
+### 训练配置
+- checkpoint来源: C27 final `000005242880`
+- envs/eval_envs: **16384 / 512** (8192启动后按硬件余量上调)
+- batch_size: 8192
+- 步数: 10M
+- DR: 启用
+- 视频: `--num_videos=0` 跳过服务器端渲染
+- log: `v2_iteration_docs/training_logs/logs_c28_clean3_flipdr_16384_stdout.txt`
+- checkpoint: `logs/AeroCubeGraspV2ForceCoacd-20260421-032316-C28_clean3_flipdr_16384/checkpoints/000010485760`
+
+### 训练结果
+
+| Step | Reward | EL | CD(s) | Drop | Hold | Palm | NonPri | ThreeFinger |
+|:---|:---|:---|:---|:---|:---|:---|:---|:---|
+| 0 | 2139 | 346.3 | 4.52 | 92.4% | 0.48 | 37.3 | 22.9 | 90.4 |
+| 2.62M | 2315 | 355.1 | 4.83 | 93.9% | 0.86 | 27.7 | 24.5 | 96.6 |
+| 5.24M | 3122 | 416.7 | 5.94 | 94.5% | 1.38 | 18.2 | 11.4 | 118.9 |
+| 7.86M | 3409 | 444.5 | 6.72 | 92.8% | 0.96 | 21.9 | 13.6 | 134.5 |
+| 10.49M | 3918 | 461.4 | 7.99 | 94.1% | 1.86 | 13.1 | 7.0 | 159.9 |
+
+### 分析
+- 16384 env在RTX 5090 32GB上稳定运行, 训练显存约20.9GB, SPS最终约22.9k。
+- C28成功清理了作弊接触: palm 37.3→13.1, nonprimary 22.9→7.0。
+- 但Drop仍约94%, CD仅恢复到8s, 说明当前瓶颈不是接触清理, 而是支撑释放后的存活/力闭合不足。
+- 翻转扰动门控在20s后, C28尚未达到触发区间, 因此本轮主要验证了代码路径和高并发训练。
+
+### 下一步 (C29)
+1. 增强 `stable_hold` / `progressive_hold` / `post_release_survival` / `post_release_grasp`。
+2. `termination`与`drop_risk`加重, 直接压制频繁掉落。
+3. palm/nonprimary惩罚略放松, 保持清理趋势但避免过度抑制恢复。
+4. 继续上探服务器极限并发, 优先尝试24576 env; 若OOM则回退到20480。
+
+---
+
+## C29: 释放后存活恢复 + 高并发上探 (2026-04-21)
+
+### 改动摘要
+**类型**: 奖励函数调整 + env并发极限测试
+
+| 参数 | C28 | C29 | 变化 |
+|:---|:---|:---|:---|
+| stable_hold | 120 | **165** | 加强稳态持握 |
+| progressive_hold | 25 | **45** | 增强长时程梯度 |
+| sustained_hold_bonus | 40 | **60** | 加强里程碑 |
+| force_balance | 22 | **28** | 增强三指力平衡 |
+| post_release_grasp | 100 | **125** | 支撑释放后主动夹持 |
+| post_release_survival | 80 | **135** | 直接压掉落 |
+| termination | -250 | **-320** | 更强终止惩罚 |
+| drop_risk | -25 | **-35** | 更强掉落前 shaping |
+| palm_contact | -32 | **-28** | 略放松 |
+| nonprimary_contact | -24 | **-20** | 略放松 |
+
+### 目标
+- 优先把CD从8s恢复到15s以上。
+- 保持Palm/NonPri不回到C27水平。
+- 测试24576 env是否能在32GB显存内稳定训练。
+
+### 训练配置
+- checkpoint来源: C28 final `000010485760`
+- 首次24576尝试: `batch_size=8192,num_minibatches=4`失败, 原因是PPO要求 `batch_size * num_minibatches % num_envs == 0`
+- 有效配置: envs/eval_envs = **24576 / 256**, `batch_size=6144`, `num_minibatches=4`
+- 步数: 10M配置, 实际到 `11796480`
+- DR: 启用
+- log: `v2_iteration_docs/training_logs/logs_c29_survival_24576_b6144_stdout.txt`
+- checkpoint: `logs/AeroCubeGraspV2ForceCoacd-20260421-033759-C29_survival_24576_b6144/checkpoints/000011796480`
+
+### 训练结果
+
+| Step | Reward | EL | CD(s) | Drop | Hold | Palm | NonPri | ThreeFinger |
+|:---|:---|:---|:---|:---|:---|:---|:---|:---|
+| 0 | 4981 | 474.9 | 7.99 | 93.4% | 1.11 | 24.5 | 14.4 | 159.9 |
+| 2.95M | 9048 | 619.3 | 16.05 | 75.8% | 15.00 | 10.2 | 5.9 | 320.9 |
+| 5.90M | 12418 | 710.3 | 22.77 | 56.2% | 31.73 | 2.5 | 1.4 | 455.4 |
+| 8.85M | 13674 | 742.9 | 24.99 | 33.6% | 49.47 | 1.7 | 0.5 | 499.9 |
+| 11.80M | 14841 | 764.0 | 27.71 | 18.4% | 60.86 | 3.1 | 3.6 | 554.2 |
+
+### 分析
+- C29是目前云端恢复后最有效的一轮: CD从C28 final的7.99s提升到27.71s。
+- Drop从94.1%降到18.4%, 说明瓶颈确实是释放后存活奖励不足。
+- Palm/NonPri保持较低, 没有回到C27的高作弊接触状态。
+- 24576 env在5090 32GB上稳定运行, 实测训练显存约21GB; batch整除约束比显存更先限制配置。
+
+### 下一步 (C30)
+1. 从C29 final继续, 将27.7s推过30s。
+2. 加强30s里程碑、late slip惩罚、drop_risk和termination。
+3. 尝试32768 env极限档: `batch_size=8192,num_minibatches=4`满足整除约束。
+
+---
+
+## C30: 30s门槛冲刺 + 32768 env极限档 (2026-04-21)
+
+### 改动摘要
+**类型**: 奖励函数小幅加强 + 并发极限测试
+
+| 参数 | C29 | C30 | 变化 |
+|:---|:---|:---|:---|
+| stable_hold | 165 | **185** | 推动27s→30s |
+| progressive_hold | 45 | **55** | 强化20-30s梯度 |
+| sustained_hold_bonus | 60 | **85** | 更强30s里程碑 |
+| post_release_survival | 135 | **155** | 降低剩余drop |
+| post_release_slip | -35 | **-45** | 抑制后段滑落 |
+| post_release_pose_hold | 45 | **60** | 维持干净夹持姿态 |
+| termination | -320 | **-380** | 更强掉落终止信号 |
+| drop_risk | -35 | **-45** | 更强掉落前shaping |
+
+### 目标
+- CD ≥ 30s。
+- Drop < 10-15%。
+- Palm/NonPri保持低位。
+- 验证32768 env在32GB显存内是否可训练。
+
+### 训练配置
+- checkpoint来源: C29 final `000011796480`
+- 32768 env尝试:
+  - 初始eval成功: CD=28.64s, Drop=11.3%
+  - 第一段训练OOM: 需要额外分配8.62GiB, 32768不作为稳定训练档
+- 有效训练配置: envs/eval_envs = **24576 / 256**, `batch_size=6144`
+- log: `v2_iteration_docs/training_logs/logs_c30_30s_push_24576_stdout.txt`
+- checkpoint: `logs/AeroCubeGraspV2ForceCoacd-20260421-035739-C30_30s_push_24576/checkpoints/000011796480`
+
+### 训练结果
+
+| Step | Reward | EL | CD(s) | Drop | Hold | Palm | NonPri | ThreeFinger |
+|:---|:---|:---|:---|:---|:---|:---|:---|:---|
+| 0 | 17928 | 782.9 | 28.50 | 14.5% | 67.37 | 0.4 | 0.4 | 570.1 |
+| 2.95M | 18140 | 765.7 | 29.86 | 8.6% | 79.99 | 0.5 | 0.5 | 597.2 |
+| 5.90M | 19093 | 785.5 | 31.89 | 3.9% | 92.39 | 2.8 | 2.1 | 637.8 |
+| 8.85M | 18870 | 774.1 | 31.55 | 6.6% | 94.37 | 0.1 | 0.0 | 631.0 |
+| 11.80M | 19401 | 785.3 | **32.53** | **3.1%** | **100.78** | **0.0** | **0.0** | 650.6 |
+
+### 分析
+- C30 final已超过30s目标, 且干净接触: Palm/NonPri=0。
+- Drop=3.1%, 接近旧C26最优水平, 但在加入翻转等效扰动的代码路径上训练得到。
+- 32768 env能跑初始eval但训练阶段OOM; 24576 env是5090 32GB当前稳定高位档。
+
+### 下一步 (C31)
+1. 不继续单纯追求CD, 改为增强鲁棒性。
+2. 将翻转等效扰动提前到15s, 力度提高到1.25mg。
+3. 外力与重力倾斜轻度增强, 验证整手翻转/倒置应力下的稳定性。
+
+---
+
+## C31: 翻转扰动增强验证 (2026-04-21)
+
+### 改动摘要
+**类型**: DR强度提升
+
+| 参数 | C30 | C31 | 变化 |
+|:---|:---|:---|:---|
+| external_force_magnitude | 0.10N | **0.12N** | +20% |
+| external_force_interval | 35 | **30** | 更频繁 |
+| external_force_min_hold_steps | 90 | **80** | 更早 |
+| gravity_tilt_max_rad | 0.40 | **0.45** | 约26度 |
+| gravity_tilt_change_interval | 70 | **60** | 更频繁 |
+| gravity_tilt_min_hold_steps | 170 | **140** | 更早 |
+| orientation_flip_force_scale | 1.0mg | **1.25mg** | 更强翻转应力 |
+| orientation_flip_change_interval | 120 | **80** | 4s换向 |
+| orientation_flip_min_hold_steps | 400 | **300** | 15s后触发 |
+
+### 目标
+- 在更强翻转/全向扰动下保持CD ≥ 30s。
+- Drop尽量保持 < 10%。
+- Palm/NonPri不回升。
+
+### 训练配置
+- checkpoint来源: C30 final `000011796480`
+- envs/eval_envs: **24576 / 256**
+- batch_size: 6144
+- DR: 启用
+- log: `v2_iteration_docs/training_logs/logs_c31_flip_stress_24576_stdout.txt`
+- checkpoint: `logs/AeroCubeGraspV2ForceCoacd-20260421-041251-C31_flip_stress_24576/checkpoints/000011796480`
+
+### 训练结果
+
+| Step | Reward | EL | CD(s) | Drop | Hold | Palm | NonPri | ThreeFinger |
+|:---|:---|:---|:---|:---|:---|:---|:---|:---|
+| 0 | 18600 | 780.8 | 30.90 | 10.5% | 82.09 | 1.2 | 0.2 | 618.0 |
+| 2.95M | 18454 | 779.8 | 30.47 | 12.5% | 78.38 | 0.1 | 0.0 | 609.4 |
+| 5.90M | 18323 | 778.9 | 30.18 | 10.9% | 73.84 | 0.9 | 0.1 | 603.6 |
+| 8.85M | 18506 | 780.1 | 30.66 | 10.5% | 79.46 | 0.6 | 1.4 | 613.3 |
+| 11.80M | 18713 | 782.5 | 30.94 | 10.2% | 83.07 | 0.1 | 0.3 | 618.9 |
+
+### 分析
+- C31增强翻转扰动后仍能保持30s+: final CD=30.94s。
+- Drop约10%, 比C30的3.1%更高, 这是增强扰动带来的鲁棒性代价。
+- Palm/NonPri保持低位, 没有出现脏接触回退。
+- C31 best按CD为final/initial附近; 按综合部署, C30 final更稳, C31 final更鲁棒。
+
+### 当前推荐checkpoint
+- **基础最优/部署候选**: `logs/AeroCubeGraspV2ForceCoacd-20260421-035739-C30_30s_push_24576/checkpoints/000011796480`
+  - CD=32.53s, Drop=3.1%, Palm=0.0, NonPri=0.0
+- **强翻转鲁棒候选**: `logs/AeroCubeGraspV2ForceCoacd-20260421-041251-C31_flip_stress_24576/checkpoints/000011796480`
+  - CD=30.94s, Drop=10.2%, Palm=0.1, NonPri=0.3
+
+### 后续建议 (C32+)
+1. 若目标是部署稳定性: 从C30 final继续, 使用C31扰动但更短训练/早停, 避免drop升高。
+2. 若目标是极限鲁棒性: 继续提高 `orientation_flip_force_scale` 到1.5-2.0mg, 但预期CD会下降。
+3. 修复服务器EGL/OpenGL后再录制带 `mjVIS_PERTFORCE` 的视频, 验证翻转扰动力可视化。
