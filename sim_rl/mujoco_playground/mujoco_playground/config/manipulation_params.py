@@ -250,7 +250,7 @@ def brax_ppo_config(
         policy_obs_key="state",
         value_obs_key="privileged_state",
     )
-  elif env_name == "AeroBottleGraspV2Force":
+  elif env_name in ("AeroBottleGraspV2Force", "AeroCanGraspV2Force"):
     rl_config.num_timesteps = 300_000_000
     rl_config.num_evals = 12
     rl_config.num_minibatches = 32

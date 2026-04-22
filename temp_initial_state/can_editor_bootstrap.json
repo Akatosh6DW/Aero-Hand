@@ -1,0 +1,134 @@
+{
+  "scene": "can_330ml",
+  "xml_path": "/home/ll/SRTP/Aero-Hand/sim_rl/mujoco_playground/mujoco_playground/_src/manipulation/aero_hand/xmls/scene_mjx_grasp_can_330ml.xml",
+  "saved_at": "2026-04-22T21:48:42",
+  "joint_angles": {
+    "right_index_mcp": 0.34,
+    "right_index_pip": 0.3145,
+    "right_middle_mcp": 0.352,
+    "right_middle_pip": 0.3256,
+    "right_ring_mcp": 0.338,
+    "right_ring_pip": 0.3127,
+    "right_pinky_mcp": 0.3,
+    "right_pinky_pip": 0.2775,
+    "right_thumb_cmc_abd": 1.18,
+    "right_thumb_cmc_flex": 0.135,
+    "right_thumb_mcp": 0.18
+  },
+  "actuator_targets": {
+    "hw_thumb_rot": 1.18,
+    "hw_thumb_flex": 0.18,
+    "hw_index": 0.34,
+    "hw_middle": 0.352,
+    "hw_ring": 0.338,
+    "hw_pinky": 0.3
+  },
+  "object": {
+    "body_name": "cube",
+    "freejoint_name": "cube_freejoint",
+    "qpos_wxyz": [
+      0.028,
+      -0.082,
+      0.171,
+      0.7071067811865476,
+      0.0,
+      0.7071067811865476,
+      0.0
+    ],
+    "position": [
+      0.028,
+      -0.082,
+      0.171
+    ],
+    "quaternion_wxyz": [
+      0.7071067811865476,
+      0.0,
+      0.7071067811865476,
+      0.0
+    ],
+    "world_position": [
+      0.028,
+      -0.082,
+      0.171
+    ],
+    "world_quaternion_wxyz": [
+      0.7071067811865476,
+      0.0,
+      0.7071067811865476,
+      0.0
+    ]
+  },
+  "grasp_site_position": [
+    0.0,
+    0.01999968777743129,
+    0.08500007346352864
+  ],
+  "object_minus_grasp_site": [
+    0.028,
+    -0.10199968777743129,
+    0.08599992653647137
+  ],
+  "mocap_bodies": {
+    "cube_support": {
+      "mocap_id": 0,
+      "position": [
+        0.0,
+        0.0,
+        -5.0
+      ],
+      "quaternion_wxyz": [
+        1.0,
+        0.0,
+        0.0,
+        0.0
+      ]
+    }
+  },
+  "mjcf_keyframe": {
+    "qpos": "0.34000000 0.31450000 0.35200000 0.32560000 0.33800000 0.31270000 0.30000000 0.27750000 1.18000000 0.13500000 0.18000000 0.02800000 -0.08200000 0.17100000 0.70710678 0.00000000 0.70710678 0.00000000",
+    "ctrl": "1.18000000 0.18000000 0.34000000 0.35200000 0.33800000 0.30000000",
+    "mpos": "0.00000000 0.00000000 -5.00000000",
+    "mquat": "1.00000000 0.00000000 0.00000000 0.00000000"
+  },
+  "raw_state": {
+    "qpos": [
+      0.34,
+      0.3145,
+      0.352,
+      0.3256,
+      0.338,
+      0.3127,
+      0.3,
+      0.2775,
+      1.18,
+      0.135,
+      0.18,
+      0.028,
+      -0.082,
+      0.171,
+      0.7071067811865476,
+      0.0,
+      0.7071067811865476,
+      0.0
+    ],
+    "ctrl": [
+      1.18,
+      0.18,
+      0.34,
+      0.352,
+      0.338,
+      0.3
+    ],
+    "mpos": [
+      0.0,
+      0.0,
+      -5.0
+    ],
+    "mquat": [
+      1.0,
+      0.0,
+      0.0,
+      0.0
+    ]
+  }
+}

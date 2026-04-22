@@ -1,0 +1,77 @@
+<mujoco model="v2_scene_grasp_can_330ml">
+  <size nconmax="120" />
+  <include file="right_hand_v2_vertical_bottle.xml" />
+  <include file="empty_can_330ml_sleek.xml" />
+
+  <statistic center="0.024 -0.038 0.090" extent="0.20" meansize="0.012" />
+
+  <visual>
+    <headlight diffuse=".8 .8 .8" ambient=".25 .25 .25" specular="1 1 1" />
+    <rgba force="1 0 0 1" />
+    <global azimuth="118" elevation="-18" />
+  </visual>
+
+  <asset>
+    <texture type="skybox" builtin="gradient" rgb1="1 1 1" rgb2="1 1 1" width="800" height="800" />
+    <texture type="2d" name="groundplane" builtin="checker" mark="edge" rgb1="1 1 1" rgb2="1 1 1" markrgb="0 0 0" width="300" height="300" />
+    <material name="groundplane" texture="groundplane" texuniform="true" texrepeat="5 5" reflectance="0" />
+    <material name="support_pad" rgba="0.80 0.80 0.30 0.32" />
+  </asset>
+
+  <worldbody>
+    <camera name="side" pos="-0.304 -0.242 0.280" xyaxes="0.52 -0.854 0 0.365 0.222 0.904" />
+    <camera name="palm" pos="-0.332 0.020 0.212" xyaxes="0 -1 0 0.358 0 0.934" />
+
+    <geom
+        name="floor"
+        pos="0 0 -0.25"
+        size="0 0 0.01"
+        type="plane"
+        material="groundplane"
+        contype="2"
+        conaffinity="2"
+    />
+
+    <!-- 横放易拉罐支撑台。编辑器会默认把它移除，但场景文件里保留一份基准支撑。 -->
+    <body name="cube_support" mocap="true" pos="0.013113 -0.040712 0.108458">
+      <geom
+          name="cube_support_geom"
+          type="box"
+          size="0.085 0.038 0.004"
+          pos="0 0 0"
+          material="support_pad"
+          contype="4"
+          conaffinity="0"
+      />
+    </body>
+  </worldbody>
+
+  <sensor>
+    <framepos name="cube_position" objtype="body" objname="cube" />
+    <framequat name="cube_orientation" objtype="body" objname="cube" />
+    <framelinvel name="cube_linvel" objtype="body" objname="cube" />
+    <frameangvel name="cube_angvel" objtype="body" objname="cube" />
+    <framepos name="can_position" objtype="body" objname="cube" />
+    <framequat name="can_orientation" objtype="body" objname="cube" />
+    <framelinvel name="can_linvel" objtype="body" objname="cube" />
+    <frameangvel name="can_angvel" objtype="body" objname="cube" />
+    <framepos name="cube_grasp_band_position" objtype="site" objname="can_grasp_band" />
+    <framepos name="palm_position" objtype="site" objname="grasp_site" />
+    <framepos name="th_tip_position" objtype="site" objname="th_tip" reftype="site" refname="grasp_site" />
+    <framepos name="if_tip_position" objtype="site" objname="if_tip" reftype="site" refname="grasp_site" />
+    <framepos name="mf_tip_position" objtype="site" objname="mf_tip" reftype="site" refname="grasp_site" />
+    <framepos name="rf_tip_position" objtype="site" objname="rf_tip" reftype="site" refname="grasp_site" />
+    <framepos name="pf_tip_position" objtype="site" objname="pf_tip" reftype="site" refname="grasp_site" />
+  </sensor>
+
+  <keyframe>
+    <!-- CAN03: 记录用户在编辑器中确认的小圆柱初始位姿。 -->
+    <key
+        name="home"
+        qpos="0.3400 0.3145 0.3520 0.3256 0.3380 0.3127 0.3000 0.2775 1.18 0.1200 0.18     0.013113 -0.040712 0.132458 0.707913 -0.007449 0.706260 0.000628"
+        ctrl="1.18 0.18 0.3400 0.3520 0.3380 0.3000"
+        mpos="0.013113 -0.040712 0.108458"
+        mquat="1 0 0 0"
+    />
+  </keyframe>
+</mujoco>

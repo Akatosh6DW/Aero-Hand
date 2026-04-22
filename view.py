@@ -1,9 +1,39 @@
+"""Aero-Hand MuJoCo 场景查看器。
+
+功能:
+  - 加载灵巧手抓取场景并打开 MuJoCo viewer。
+  - 支持三种显示模式:
+      visual: 只看 STL 外观。
+      collision: 只看真实物理碰撞体。
+      overlay: 同时显示 STL 和碰撞体，便于对照检查。
+  - 无图形界面时自动导出离屏预览图。
+
+常用运行方式:
+  cd /home/ll/SRTP/Aero-Hand
+
+  # 默认打开 can 场景，只显示 STL 外观
+  /home/ll/miniconda3/envs/aero_rl/bin/python view.py
+
+  # 只看真实碰撞体
+  /home/ll/miniconda3/envs/aero_rl/bin/python view.py --mode collision
+
+  # STL + 碰撞体叠加显示
+  /home/ll/miniconda3/envs/aero_rl/bin/python view.py --mode overlay
+
+  # 指定场景 / 相机 / 显示 site
+  /home/ll/miniconda3/envs/aero_rl/bin/python view.py --scene can_330ml --mode overlay --camera side --show-sites
+
+注意:
+  - 交互窗口里的键盘行为主要沿用 MuJoCo viewer 自带快捷键，例如 `I` 会切换 inertia 可视化，`L` 会切换 additive 渲染。
+"""
+
+import argparse
 import os
+import time
 from pathlib import Path
 
 import mujoco
 import numpy as np
-
 
 REPO_ROOT = Path(__file__).resolve().parent
 XML_ROOT = (
@@ -18,26 +48,67 @@ XML_ROOT = (
 )
 PREVIEW_DIR = REPO_ROOT / "v2_iteration_docs" / "scene_previews"
 
-# 直接运行 `python view.py` 时默认打开新的 550ml 空瓶场景。
+WORLD_GROUP = 0
+OBJECT_GROUP = 1
+VISUAL_GROUP = 2
+COLLISION_GROUP = 3
+SITE_GROUP = 4
+
+# 直接运行 `python view.py` 时默认打开 330ml sleek can 场景。
 SCENE_PRESETS = {
     "cube_v2": XML_ROOT / "scene_mjx_grasp_v2_coacd.xml",
     "bottle_550ml": XML_ROOT / "scene_mjx_grasp_bottle_550ml.xml",
+    "can_330ml": XML_ROOT / "scene_mjx_grasp_can_330ml.xml",
 }
-SCENE_NAME = "bottle_550ml"
+SCENE_NAME = "can_330ml"
 
 # 仅用于可视化排查：将重力临时置零，方便检查初始相对位置。
 ZERO_GRAVITY_FOR_VIEW = False
 # 将执行器目标自动对齐到当前姿态，避免启动后瞬间弹动。
 AUTO_EQUILIBRATE_CTRL = True
 PREVIEW_IMAGE_SIZE = (1500, 500)
+INTERACTIVE_STEP_PHYSICS = True
 
 
-def _select_xml_path() -> Path:
-    if SCENE_NAME not in SCENE_PRESETS:
-        raise KeyError(
-            f"未知场景 '{SCENE_NAME}'，可选: {sorted(SCENE_PRESETS.keys())}"
+def parse_args() -> argparse.Namespace:
+    parser = argparse.ArgumentParser(
+        description=(
+            "Open Aero-Hand scenes in MuJoCo. By default this shows the STL "
+            "appearance only; use --mode collision to inspect the real "
+            "physical collision geoms."
         )
-    return SCENE_PRESETS[SCENE_NAME]
+    )
+    parser.add_argument(
+        "--scene",
+        choices=sorted(SCENE_PRESETS.keys()),
+        default=SCENE_NAME,
+        help="Scene preset to load.",
+    )
+    parser.add_argument(
+        "--mode",
+        choices=("visual", "collision", "overlay"),
+        default="visual",
+        help="visual=STL only, collision=physical collision geoms, overlay=show both.",
+    )
+    parser.add_argument(
+        "--camera",
+        default="free",
+        help="Initial camera. Use free, or a fixed XML camera name such as side/palm.",
+    )
+    parser.add_argument(
+        "--show-sites",
+        action="store_true",
+        help="Also show MuJoCo sites such as grasp references.",
+    )
+    return parser.parse_args()
+
+
+def _select_xml_path(scene_name: str) -> Path:
+    if scene_name not in SCENE_PRESETS:
+        raise KeyError(
+            f"未知场景 '{scene_name}'，可选: {sorted(SCENE_PRESETS.keys())}"
+        )
+    return SCENE_PRESETS[scene_name]
 
 
 def _apply_home_keyframe(model: mujoco.MjModel, data: mujoco.MjData) -> None:
@@ -91,9 +162,98 @@ def _has_interactive_display() -> bool:
     return bool(os.environ.get("DISPLAY") or os.environ.get("WAYLAND_DISPLAY"))
 
 
-def _geom_color(body_name: str, geom_name: str | None, geom_type: int) -> tuple[str, float]:
+def _camera_id(model: mujoco.MjModel, camera_name: str) -> int:
+    cam_id = mujoco.mj_name2id(model, mujoco.mjtObj.mjOBJ_CAMERA, camera_name)
+    if cam_id >= 0:
+        return cam_id
+
+    available = [
+        mujoco.mj_id2name(model, mujoco.mjtObj.mjOBJ_CAMERA, idx)
+        for idx in range(model.ncam)
+    ]
+    raise ValueError(f"camera {camera_name!r} not found; available: {available}")
+
+
+def _mode_shows_group(display_mode: str, geom_group: int, show_sites: bool) -> bool:
+    if geom_group == WORLD_GROUP:
+        return True
+    if geom_group == OBJECT_GROUP:
+        return True
+    if geom_group == VISUAL_GROUP:
+        return display_mode in ("visual", "overlay")
+    if geom_group == COLLISION_GROUP:
+        return display_mode in ("collision", "overlay")
+    if geom_group == SITE_GROUP:
+        return show_sites
+    return True
+
+
+def _is_tip_collision(geom_name: str | None) -> bool:
+    if not geom_name:
+        return False
+    return geom_name.startswith(
+        (
+            "right_index_distal_",
+            "right_middle_distal_",
+            "right_ring_distal_",
+            "right_pinky_distal_",
+            "right_thumb_tip_",
+            "if_tip_",
+            "mf_tip_",
+            "rf_tip_",
+            "pf_tip_",
+            "th_tip_",
+        )
+    )
+
+
+def _apply_display_mode_to_model(model: mujoco.MjModel, display_mode: str) -> None:
+    for geom_id in range(model.ngeom):
+        geom_group = int(model.geom_group[geom_id])
+        geom_name = mujoco.mj_id2name(model, mujoco.mjtObj.mjOBJ_GEOM, geom_id)
+        if geom_group != COLLISION_GROUP:
+            continue
+
+        if display_mode == "collision":
+            rgba = np.array(
+                [0.98, 0.85, 0.15, 1.0], dtype=np.float32
+            ) if _is_tip_collision(geom_name) else np.array(
+                [0.86, 0.20, 0.14, 1.0], dtype=np.float32
+            )
+        elif display_mode == "overlay":
+            rgba = np.array(
+                [0.98, 0.85, 0.15, 0.75], dtype=np.float32
+            ) if _is_tip_collision(geom_name) else np.array(
+                [0.86, 0.20, 0.14, 0.45], dtype=np.float32
+            )
+        else:
+            continue
+
+        model.geom_rgba[geom_id] = rgba
+
+
+def _make_scene_option(display_mode: str, show_sites: bool) -> mujoco.MjvOption:
+    opt = mujoco.MjvOption()
+    opt.geomgroup[:] = 1
+    opt.geomgroup[VISUAL_GROUP] = int(display_mode in ("visual", "overlay"))
+    opt.geomgroup[COLLISION_GROUP] = int(display_mode in ("collision", "overlay"))
+    opt.geomgroup[SITE_GROUP] = int(show_sites)
+    return opt
+
+
+def _geom_color(
+    body_name: str,
+    geom_name: str | None,
+    geom_type: int,
+    geom_group: int,
+    display_mode: str,
+) -> tuple[str, float]:
     body_name = body_name or ""
     geom_name = geom_name or ""
+    if geom_group == COLLISION_GROUP:
+        if _is_tip_collision(geom_name):
+            return "#facc15", 0.86 if display_mode == "collision" else 0.55
+        return "#dc2626", 0.80 if display_mode == "collision" else 0.42
     if body_name == "world" or geom_type == int(mujoco.mjtGeom.mjGEOM_PLANE):
         return "#94a3b8", 0.12
     if "bottle_label" in geom_name:
@@ -102,6 +262,10 @@ def _geom_color(body_name: str, geom_name: str | None, geom_type: int) -> tuple[
         return "#f59e0b", 0.92
     if "bottle" in body_name or "bottle" in geom_name:
         return "#8bd7f8", 0.74
+    if "can_lid" in geom_name:
+        return "#e5e7eb", 0.92
+    if "can" in body_name or "can" in geom_name:
+        return "#d1d5db", 0.80
     if "support" in body_name or "support" in geom_name:
         return "#8b5a3c", 0.60
     if "thumb" in body_name:
@@ -272,8 +436,68 @@ def _sample_geom_surface(geom_type: int, size: np.ndarray) -> np.ndarray:
     )
 
 
+def _free_camera_focus_bounds(
+    model: mujoco.MjModel,
+    data: mujoco.MjData,
+    display_mode: str,
+    show_sites: bool,
+) -> tuple[np.ndarray, np.ndarray]:
+    plane_type = int(mujoco.mjtGeom.mjGEOM_PLANE)
+    points = []
+
+    for geom_id in range(model.ngeom):
+        geom_group = int(model.geom_group[geom_id])
+        if not _mode_shows_group(display_mode, geom_group, show_sites):
+            continue
+        if float(model.geom_rgba[geom_id, 3]) <= 0.01:
+            continue
+
+        geom_type = int(model.geom_type[geom_id])
+        if geom_type == plane_type:
+            continue
+
+        center = np.array(data.geom_xpos[geom_id], dtype=float)
+        rotation = np.array(data.geom_xmat[geom_id], dtype=float).reshape(3, 3)
+        local_points = _sample_geom_surface(
+            geom_type,
+            np.array(model.geom_size[geom_id], dtype=float),
+        )
+        points.append(center + local_points @ rotation.T)
+
+    if not points:
+        fallback_center = np.array(model.stat.center, dtype=float)
+        fallback_span = np.full(3, max(float(model.stat.extent), 0.18), dtype=float)
+        return fallback_center, fallback_span
+
+    cloud = np.vstack(points)
+    mins = np.min(cloud, axis=0)
+    maxs = np.max(cloud, axis=0)
+    return 0.5 * (mins + maxs), maxs - mins
+
+
+def _configure_free_camera(
+    camera: mujoco.MjvCamera,
+    model: mujoco.MjModel,
+    data: mujoco.MjData,
+    display_mode: str,
+    show_sites: bool,
+) -> None:
+    center, span = _free_camera_focus_bounds(model, data, display_mode, show_sites)
+    radius = max(0.5 * float(np.linalg.norm(span)), 0.12)
+
+    camera.type = mujoco.mjtCamera.mjCAMERA_FREE
+    camera.lookat[:] = center
+    camera.distance = max(radius * 2.7, 0.38)
+    camera.azimuth = 120
+    camera.elevation = -20
+
+
 def _save_headless_preview(
-    model: mujoco.MjModel, data: mujoco.MjData, scene_name: str
+    model: mujoco.MjModel,
+    data: mujoco.MjData,
+    scene_name: str,
+    display_mode: str,
+    show_sites: bool,
 ) -> Path:
     import matplotlib
 
@@ -282,7 +506,7 @@ def _save_headless_preview(
     from matplotlib.patches import Polygon
 
     PREVIEW_DIR.mkdir(parents=True, exist_ok=True)
-    output_path = PREVIEW_DIR / f"{scene_name}_preview.png"
+    output_path = PREVIEW_DIR / f"{scene_name}_{display_mode}_preview.png"
 
     fig, axes = plt.subplots(
         1,
@@ -297,13 +521,22 @@ def _save_headless_preview(
     ]
 
     site_markers = []
-    for site_name, color in (("grasp_site", "#16a34a"), ("bottle_grasp_band", "#dc2626")):
-        site_id = mujoco.mj_name2id(model, mujoco.mjtObj.mjOBJ_SITE, site_name)
-        if site_id >= 0:
-            site_markers.append((site_name, color, np.array(data.site_xpos[site_id], dtype=float)))
+    if show_sites:
+        for site_name, color in (
+            ("grasp_site", "#16a34a"),
+            ("bottle_grasp_band", "#dc2626"),
+            ("can_grasp_band", "#dc2626"),
+        ):
+            site_id = mujoco.mj_name2id(model, mujoco.mjtObj.mjOBJ_SITE, site_name)
+            if site_id >= 0:
+                site_markers.append((site_name, color, np.array(data.site_xpos[site_id], dtype=float)))
 
     renderables = []
     for geom_id in range(model.ngeom):
+        geom_group = int(model.geom_group[geom_id])
+        if not _mode_shows_group(display_mode, geom_group, show_sites):
+            continue
+
         body_id = int(model.geom_bodyid[geom_id])
         body_name = mujoco.mj_id2name(model, mujoco.mjtObj.mjOBJ_BODY, body_id) or ""
         geom_name = mujoco.mj_id2name(model, mujoco.mjtObj.mjOBJ_GEOM, geom_id)
@@ -315,7 +548,9 @@ def _save_headless_preview(
             np.array(model.geom_size[geom_id], dtype=float),
         )
         world_points = center + local_points @ rotation.T
-        color, alpha = _geom_color(body_name, geom_name, geom_type)
+        color, alpha = _geom_color(
+            body_name, geom_name, geom_type, geom_group, display_mode
+        )
         renderables.append(
             {
                 "body_name": body_name,
@@ -397,25 +632,70 @@ def _save_headless_preview(
         for spine in ax.spines.values():
             spine.set_visible(False)
 
-    fig.suptitle(f"{scene_name} scene preview", fontsize=14, weight="bold", y=0.98)
+    fig.suptitle(
+        f"{scene_name} scene preview ({display_mode})",
+        fontsize=14,
+        weight="bold",
+        y=0.98,
+    )
     plt.tight_layout(rect=[0.0, 0.0, 1.0, 0.95])
     fig.savefig(output_path, dpi=160)
     plt.close(fig)
     return output_path
 
 
+def _launch_viewer(
+    model: mujoco.MjModel,
+    data: mujoco.MjData,
+    display_mode: str,
+    camera_name: str,
+    show_sites: bool,
+) -> None:
+    from mujoco import viewer as mujoco_viewer
+
+    opt = _make_scene_option(display_mode, show_sites)
+    with mujoco_viewer.launch_passive(
+        model, data, show_left_ui=True, show_right_ui=True
+    ) as viewer:
+        with viewer.lock():
+            viewer.opt.geomgroup[:] = opt.geomgroup
+            viewer.opt.flags[:] = opt.flags
+            if camera_name == "free":
+                _configure_free_camera(
+                    viewer.cam,
+                    model,
+                    data,
+                    display_mode=display_mode,
+                    show_sites=show_sites,
+                )
+            else:
+                viewer.cam.type = mujoco.mjtCamera.mjCAMERA_FIXED
+                viewer.cam.fixedcamid = _camera_id(model, camera_name)
+
+        while viewer.is_running():
+            if INTERACTIVE_STEP_PHYSICS:
+                mujoco.mj_step(model, data)
+            else:
+                mujoco.mj_forward(model, data)
+            viewer.sync()
+            time.sleep(1.0 / 60.0)
+
+
 def main() -> None:
-    xml_path = _select_xml_path()
+    args = parse_args()
+    xml_path = _select_xml_path(args.scene)
     if not xml_path.exists():
         print(f"❌ 找不到文件，请检查路径：\n{xml_path}")
         return
 
     os.chdir(xml_path.parent)
-    print(f"⏳ 正在加载场景: {SCENE_NAME}")
+    print(f"⏳ 正在加载场景: {args.scene}")
     print(f"📄 XML: {xml_path.name}")
+    print(f"🎛️ 显示模式: {args.mode}")
 
     try:
         model = mujoco.MjModel.from_xml_path(xml_path.name)
+        _apply_display_mode_to_model(model, args.mode)
         if ZERO_GRAVITY_FOR_VIEW:
             model.opt.gravity[:] = 0.0
             print("🔧 已启用零重力可视化模式: gravity =", model.opt.gravity)
@@ -431,13 +711,23 @@ def main() -> None:
 
         _print_object_relative_pose(model, data)
         if _has_interactive_display():
-            from mujoco import viewer as mujoco_viewer
-
             print("✅ 加载成功！检测到图形环境，正在打开 MuJoCo 窗口")
-            mujoco_viewer.launch(model, data)
+            _launch_viewer(
+                model,
+                data,
+                display_mode=args.mode,
+                camera_name=args.camera,
+                show_sites=args.show_sites,
+            )
             return
 
-        preview_path = _save_headless_preview(model, data, SCENE_NAME)
+        preview_path = _save_headless_preview(
+            model,
+            data,
+            args.scene,
+            display_mode=args.mode,
+            show_sites=args.show_sites,
+        )
         print("✅ 加载成功！当前无 DISPLAY，已自动切换到离屏预览模式")
         print(f"🖼️ 预览图已保存到: {preview_path}")
     except Exception as exc:

@@ -44,6 +44,8 @@
         <joint range="0 1.3788" damping="0.1" />
         <position ctrlrange="0 1.38" />
       </default>
+      <!-- 拇指 flex 代理遵循 handinformation 中的两段弯曲：
+           被动段约 30°，主动段约 45°。 -->
       <default class="thumb_flex">
         <joint range="0 0.5236" damping="0.05" />
       </default>
@@ -90,10 +92,18 @@
     <body name="v2_mount" pos="0 0 0" euler="1.5708 0 0" childclass="v2_hand">
       <body name="palm" pos="0 0 0">
         <geom type="mesh" mesh="v2_palm" class="visual" />
-        <geom name="palm_capsule_000" type="box" size="0.020037 0.025610 0.026631" pos="0.001902 0.013911 0.001441" quat="0.293817 0.302340 -0.672131 -0.608689" group="3" friction="1.25" solref="0.008 1.1" solimp="0.95 0.995 0.0005" />
-        <geom name="palm_capsule_001" type="box" size="0.010722 0.019572 0.056414" pos="-0.038051 0.087840 0.002752" quat="0.709679 0 0 -0.704525" group="3" friction="1.25" solref="0.008 1.1" solimp="0.95 0.995 0.0005" />
-        <geom name="palm_capsule_002" type="box" size="0.008102 0.015041 0.023052" pos="0.014905 0.046351 0.013455" quat="-0.735321 0.000192 0.677719 -0.000031" group="3" friction="1.25" solref="0.008 1.1" solimp="0.95 0.995 0.0005" />
-        <geom name="palm_capsule_003" type="box" size="0.009382 0.022468 0.058021" pos="-0.017946 0.089157 0.000411" quat="-0.704114 0 0 0.710087" group="3" friction="1.25" solref="0.008 1.1" solimp="0.95 0.995 0.0005" />
+        <!-- Bottle palm collision now reuses the existing CoACD->fitted OBB
+             decomposition pipeline (see urdf_collison_decompose.py --v2-mjcf
+             --fitted), but keeps the legacy palm_capsule_* naming so the
+             bottle task still resolves palm contact groups in capsule mode. -->
+        <geom name="palm_capsule_000" type="box" size="0.019545 0.032818 0.027657" pos="-0.001294 0.013306 -0.002059" quat="-0.021394 -0.694705 0.718833 -0.014360" group="3" friction="1.25" solref="0.008 1.1" solimp="0.95 0.995 0.0005" />
+        <geom name="palm_capsule_001" type="box" size="0.055995 0.012246 0.020313" pos="-0.037477 0.088524 0.002150" quat="-0.021394 -0.694705 0.718833 -0.014360" group="3" friction="1.25" solref="0.008 1.1" solimp="0.95 0.995 0.0005" />
+        <geom name="palm_capsule_002" type="box" size="0.015020 0.023038 0.009075" pos="0.014322 0.045467 0.014280" quat="-0.021394 -0.694705 0.718833 -0.014360" group="3" friction="1.25" solref="0.008 1.1" solimp="0.95 0.995 0.0005" />
+        <geom name="palm_capsule_003" type="box" size="0.058447 0.011058 0.023732" pos="-0.017454 0.089066 -0.000677" quat="-0.021394 -0.694705 0.718833 -0.014360" group="3" friction="1.25" solref="0.008 1.1" solimp="0.95 0.995 0.0005" />
+        <geom name="palm_capsule_004" type="box" size="0.015590 0.024517 0.016455" pos="0.015471 0.045279 -0.007175" quat="-0.021394 -0.694705 0.718833 -0.014360" group="3" friction="1.25" solref="0.008 1.1" solimp="0.95 0.995 0.0005" />
+        <geom name="palm_capsule_005" type="box" size="0.001643 0.008443 0.008259" pos="0.017799 0.006857 -0.019307" quat="-0.021394 -0.694705 0.718833 -0.014360" group="3" friction="1.25" solref="0.008 1.1" solimp="0.95 0.995 0.0005" />
+        <geom name="palm_capsule_006" type="box" size="0.037733 0.026708 0.023460" pos="0.016879 0.095803 -0.000931" quat="-0.021394 -0.694705 0.718833 -0.014360" group="3" friction="1.25" solref="0.008 1.1" solimp="0.95 0.995 0.0005" />
+        <geom name="palm_capsule_007" type="box" size="0.013627 0.026278 0.013850" pos="0.017772 0.136552 -0.001137" quat="-0.021394 -0.694705 0.718833 -0.014360" group="3" friction="1.25" solref="0.008 1.1" solimp="0.95 0.995 0.0005" />
         <site name="grasp_site" pos="0 0.085 -0.020" group="4" />
         <body name="right_index_proximal" pos="0.034276 0.1374 0.001">
           <inertial pos="-0.003657 0.0162 0.000274" mass="0.0686" diaginertia="7.49e-06 7.33e-06 2.82e-06" />
@@ -356,6 +366,9 @@
     <joint joint1="right_middle_pip" joint2="right_middle_mcp" polycoef="0 0.925 0 0 0" solref="0.005 1" solimp="0.95 0.99 0.001" />
     <joint joint1="right_ring_pip" joint2="right_ring_mcp" polycoef="0 0.925 0 0 0" solref="0.005 1" solimp="0.95 0.99 0.001" />
     <joint joint1="right_pinky_pip" joint2="right_pinky_mcp" polycoef="0 0.925 0 0 0" solref="0.005 1" solimp="0.95 0.99 0.001" />
-    <joint joint1="right_thumb_cmc_flex" joint2="right_thumb_cmc_abd" polycoef="0 0.16 0 0 0" solref="0.005 1" solimp="0.95 0.99 0.001" />
+    <!-- handinformation / qbr URDF / HW6 tendon model 都指向：
+         thumb_flex 通道主要驱动 thumb_mcp，cmc_flex 是联动的被动段。
+         这里用 30° / 45° ≈ 0.667 的线性代理，替代旧的 abd→flex 训练近似。 -->
+    <joint joint1="right_thumb_cmc_flex" joint2="right_thumb_mcp" polycoef="0 0.6666667 0 0 0" solref="0.005 1" solimp="0.95 0.99 0.001" />
   </equality>
 </mujoco>
