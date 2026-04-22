@@ -17,6 +17,7 @@
 import csv
 import datetime
 import functools
+import inspect
 import json
 import os
 import time
@@ -75,6 +76,8 @@ def _merge_config_dict(
         base[key] = config_dict.ConfigDict()
       _merge_config_dict(base[key], value)
     else:
+      if value is None and key in base and base[key] is not None:
+        continue
       base[key] = value
   return base
 
@@ -456,8 +459,20 @@ def main(argv):
       else ppo_networks.make_ppo_networks
   )
   if hasattr(ppo_params, "network_factory"):
+    network_factory_kwargs = dict(ppo_params.network_factory)
+    supported_network_kwargs = set(inspect.signature(network_fn).parameters)
+    unsupported_network_kwargs = sorted(
+        set(network_factory_kwargs) - supported_network_kwargs
+    )
+    if unsupported_network_kwargs:
+      print(
+          "Dropping unsupported network factory kwargs for current brax: "
+          f"{unsupported_network_kwargs}"
+      )
+      for key in unsupported_network_kwargs:
+        network_factory_kwargs.pop(key, None)
     network_factory = functools.partial(
-        network_fn, **ppo_params.network_factory
+        network_fn, **network_factory_kwargs
     )
   else:
     network_factory = network_fn
