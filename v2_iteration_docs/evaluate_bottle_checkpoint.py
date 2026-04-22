@@ -90,6 +90,12 @@ def _load_policy(env_name: str, checkpoint_path: Path):
     del ppo_params["num_timesteps"]
   if "num_eval_envs" in ppo_params:
     del ppo_params["num_eval_envs"]
+  if "num_envs" in ppo_params:
+    ppo_params.num_envs = min(int(ppo_params.num_envs), 256)
+  if "batch_size" in ppo_params:
+    ppo_params.batch_size = min(int(ppo_params.batch_size), 128)
+  if "num_minibatches" in ppo_params:
+    ppo_params.num_minibatches = min(int(ppo_params.num_minibatches), 8)
 
   network_factory = functools.partial(
       ppo_networks.make_ppo_networks, **network_factory_cfg
@@ -150,11 +156,12 @@ def _evaluate_batch(env, inference_fn, batch_size: int, seed: int):
     tip_force = v_tip_force(states.data)
     tip_flags = v_tip_flags(states.data)
     abs_f = jp.abs(tip_force)
-    primary_forces = jp.stack([abs_f[:, 0], abs_f[:, 1], abs_f[:, 4]], axis=1)
-    primary_geom = jp.stack([tip_flags[:, 0], tip_flags[:, 1], tip_flags[:, 4]], axis=1)
-    primary_active = jp.maximum((primary_forces > active_th).astype(jp.float32), primary_geom)
-    primary_count = jp.sum(primary_active, axis=1)
-    three_contact = primary_count >= 3.0
+    wrap_forces = jp.stack([abs_f[:, 0], abs_f[:, 1], abs_f[:, 2], abs_f[:, 4]], axis=1)
+    wrap_geom = jp.stack([tip_flags[:, 0], tip_flags[:, 1], tip_flags[:, 2], tip_flags[:, 4]], axis=1)
+    wrap_active = jp.maximum((wrap_forces > active_th).astype(jp.float32), wrap_geom)
+    wrap_count = jp.sum(wrap_active, axis=1)
+    thumb_active = wrap_active[:, 3] > 0.5
+    three_contact = (wrap_count >= 3.0) & thumb_active
 
     cube_z = v_cube_z(states.data)
     cube_finite = jp.isfinite(cube_z)
@@ -168,7 +175,7 @@ def _evaluate_batch(env, inference_fn, batch_size: int, seed: int):
     post_release_contact_steps = post_release_contact_steps + post_release_hold.astype(jp.int32)
     safe_lift = jp.where(cube_finite, lift, -1e6)
     max_lift = jp.maximum(max_lift, safe_lift)
-    max_primary_force = jp.maximum(max_primary_force, jp.mean(primary_forces, axis=1))
+    max_primary_force = jp.maximum(max_primary_force, jp.mean(wrap_forces, axis=1))
     release_step = jp.where((release_step < 0) & released, step_idx + 1, release_step)
     drop_step = jp.where((drop_step < 0) & released & done, step_idx + 1, drop_step)
     hold_run = jp.where(post_release_hold, hold_run + 1, 0)
