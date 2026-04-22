@@ -1,0 +1,93 @@
+<mujoco>
+  <!-- 550ml 农夫山泉空瓶近似模型。
+       目标先做场景初始化和可视化检查，因此这里采用刚体分段几何近似:
+       主瓶身 + 肩部 + 瓶颈 + 瓶盖。
+       瓶体为空且略有弹性, 因此接触参数比当前方块更软, 质量也更轻。 -->
+  <default>
+    <default class="bottle_shell">
+      <geom
+          friction="0.9 0.02 0.005"
+          conaffinity="7"
+          condim="4"
+          solref="0.015 1.0"
+          solimp="0.90 0.97 0.001"
+      />
+    </default>
+  </default>
+
+  <asset>
+    <material name="bottle_clear" rgba="0.78 0.90 1.00 0.28" specular="0.2" shininess="0.15"/>
+    <material name="bottle_label" rgba="0.95 0.25 0.25 1"/>
+    <material name="bottle_cap" rgba="0.15 0.35 0.95 1"/>
+  </asset>
+
+  <worldbody>
+    <!-- 总高度约 22.7cm, 主体直径约 6.4cm。
+         body 原点放在标签带附近, 方便后续把抓取中心对到瓶身中段。 -->
+    <body name="cube" pos="0.028 -0.066 0.171" quat="0.70710678 0 0.70710678 0" childclass="bottle_shell">
+      <freejoint name="cube_freejoint"/>
+
+      <!-- 主瓶身 -->
+      <geom
+          name="cube"
+          type="capsule"
+          fromto="0 0 -0.090 0 0 0.050"
+          size="0.0325"
+          mass="0.016"
+          group="1"
+          material="bottle_clear"
+      />
+
+      <!-- 标签带, 给视觉一个更像矿泉水瓶的抓取区域 -->
+      <geom
+          name="bottle_label_band"
+          type="cylinder"
+          size="0.0335 0.022"
+          pos="0 0 -0.010"
+          mass="0"
+          group="1"
+          material="bottle_label"
+          contype="0"
+          conaffinity="0"
+          density="0"
+      />
+
+      <!-- 肩部 -->
+      <geom
+          name="bottle_shoulder"
+          type="capsule"
+          fromto="0 0 0.040 0 0 0.084"
+          size="0.0245"
+          mass="0.002"
+          group="1"
+          material="bottle_clear"
+      />
+
+      <!-- 瓶颈 -->
+      <geom
+          name="bottle_neck"
+          type="capsule"
+          fromto="0 0 0.088 0 0 0.124"
+          size="0.0145"
+          mass="0.0015"
+          group="1"
+          material="bottle_clear"
+      />
+
+      <!-- 瓶盖 -->
+      <geom
+          name="bottle_cap"
+          type="sphere"
+          size="0.0165"
+          pos="0 0 0.132"
+          mass="0.001"
+          group="1"
+          material="bottle_cap"
+      />
+
+      <site name="cube_center" pos="0 0 0.020" size="0.006" rgba="0 0.8 0 0.7" group="4"/>
+      <site name="bottle_center" pos="0 0 0.020" size="0.006" rgba="0 0.8 0 0.7" group="4"/>
+      <site name="bottle_grasp_band" pos="0 0 -0.010" size="0.038 0.038 0.024" type="ellipsoid" rgba="1 0 0 0.10" group="4"/>
+    </body>
+  </worldbody>
+</mujoco>

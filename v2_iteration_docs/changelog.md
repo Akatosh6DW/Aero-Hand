@@ -2584,3 +2584,310 @@ python learning/train_jax_ppo.py \
 1. 若目标是部署稳定性: 从C30 final继续, 使用C31扰动但更短训练/早停, 避免drop升高。
 2. 若目标是极限鲁棒性: 继续提高 `orientation_flip_force_scale` 到1.5-2.0mg, 但预期CD会下降。
 3. 修复服务器EGL/OpenGL后再录制带 `mjVIS_PERTFORCE` 的视频, 验证翻转扰动力可视化。
+
+---
+
+## C32: MJX扰动力数值稳定性修复 (2026-04-22)
+
+### 背景
+- 用户基于 C30 视频的逐帧诊断指出: `step 282 (~14.10s)` 出现 `qpos/qvel` 全量 NaN, 手掌因是固定基座仍可见, 手指与方块因依赖 `qpos` 渲染而瞬间消失。
+- 该现象属于 **MJX 物理积分阶段的数值爆炸**, 不是显示 bug。
+- 高风险触发链路是: `external_force + gravity_tilt + orientation_flip` 在支撑释放后叠加, 导致施加到方块 freejoint 的合力过大。
+
+### 修复内容
+1. **对组合扰动力做范数裁剪**
+   - 在 [grasp_cube_v2_force.py](/root/autodl-tmp/Aero-Hand/sim_rl/mujoco_playground/mujoco_playground/_src/manipulation/aero_hand/grasp_cube_v2_force.py:156) 新增 `perturbation_config.total_force_clip_n=0.35`。
+   - 在 [grasp_cube_v2_force.py](/root/autodl-tmp/Aero-Hand/sim_rl/mujoco_playground/mujoco_playground/_src/manipulation/aero_hand/grasp_cube_v2_force.py:687) 将
+     `ext_force + gravity_force + flip_force`
+     先经过 `_clip_force_vector(...)` 再写入 `xfrc_applied`。
+   - 目的: 不改变扰动方向与调度逻辑, 只限制合力范数, 避免 freejoint 在单步积分中被异常脉冲击穿。
+
+2. **恢复 checkpoint 时合并保存配置, 不再丢失新稳定性字段**
+   - 在 [train_jax_ppo.py](/root/autodl-tmp/Aero-Hand/sim_rl/mujoco_playground/learning/train_jax_ppo.py:66) 新增递归 `_merge_config_dict(...)`。
+   - 在 [train_jax_ppo.py](/root/autodl-tmp/Aero-Hand/sim_rl/mujoco_playground/learning/train_jax_ppo.py:291) 恢复 checkpoint 时, 用“当前默认配置 + checkpoint `config.json` 覆盖”的方式重建环境。
+   - 目的: 老 checkpoint 不包含 `total_force_clip_n` 时, 仍能继承新默认值 `0.35`, 不会因为直接加载旧 `config.json` 而把修复绕开。
+
+3. **恢复 checkpoint 时合并保存的 PPO 网络配置**
+   - 在 [train_jax_ppo.py](/root/autodl-tmp/Aero-Hand/sim_rl/mujoco_playground/learning/train_jax_ppo.py:82) 新增 `_merge_network_factory_from_checkpoint(...)`。
+   - 在 [train_jax_ppo.py](/root/autodl-tmp/Aero-Hand/sim_rl/mujoco_playground/learning/train_jax_ppo.py:314) 恢复 checkpoint 时自动读取 `ppo_network_config.json`。
+   - 目的: 解决 C30 的实际网络结构 `128,128 + tanh_normal + scalar std` 与当前默认训练配置不一致的问题, 避免再次出现“checkpoint 参数形状不匹配”。
+
+4. **离线评估脚本同步改成“默认配置 + checkpoint 配置”合并**
+   - 在 [evaluate_bottle_checkpoint.py](/root/autodl-tmp/Aero-Hand/v2_iteration_docs/evaluate_bottle_checkpoint.py:33) 增加同样的配置递归合并逻辑。
+   - 目的: 后续无论是 cube 还是 bottle, 离线评估都不会再因为旧配置缺字段而漏掉稳定性修补。
+
+### 修复方法说明
+- 这次没有直接削弱 DR 调度本身, 而是优先采用 **“保留扰动语义 + 限制合力峰值”** 的方式。
+- 这样做的好处是:
+  - 外力脉冲、重力倾斜、整手翻转等效扰动仍然都在；
+  - 训练目标仍然是“在真实扰动叠加下稳定抓取”；
+  - 只把最容易诱发 MJX 爆炸的极端合力截断到可求解区间。
+- 同时补齐 checkpoint 恢复链路, 确保“修复后的默认字段”和“原实验的实际网络结构”都会被正确继承。
+
+### 验证
+- 已完成 `play_only + restore` smoke test:
+  - 成功从 `C30 final` 恢复；
+  - 成功自动读取 checkpoint 的环境配置与 PPO 网络配置；
+  - 成功显示 `perturbation_config.total_force_clip_n: 0.35`；
+  - 成功显示 PPO network 为 `policy_hidden_layer_sizes=(128,128)` / `distribution_type=tanh_normal`。
+- 说明:
+  - **恢复链已修通**；
+  - **C32 的力裁剪字段已实际进入 C30 的恢复环境**；
+  - 后续可直接基于 C30 开始带修补的续训。
+
+### 自动续训
+- 已启动:
+  - `C32_forceclip_ft_24576`
+- 配置:
+  - restore: `C30 final 000011796480`
+  - envs / eval_envs: `24576 / 256`
+  - batch_size: `6144`
+  - learning_rate: `2e-4`
+  - num_timesteps: `2.95M`
+- 目标:
+  - 先验证加上 `total_force_clip_n` 后, 训练与评估过程不再出现 C30 同类 NaN 爆炸；
+  - 若稳定, 继续自动迭代后续 C33+。
+
+### 训练结果更新
+- `C32_forceclip_ft_24576`
+  - 初始 eval 成功, `eval/episode_diagnostic/nonfinite_state = 0.0`
+  - 训练阶段 OOM: 5090 32GB 上恢复训练图仍需要额外申请约 `17.73 GiB`
+  - 结论: **修复已压住 NaN, 但 24576 env 在“恢复 + 续训”路径上不再是稳定档位**
+- 已自动切换到:
+  - `C32b_forceclip_ft_16384`
+
+### C32b: 降档续训验证
+- 配置:
+  - restore: `C30 final 000011796480`
+  - envs / eval_envs: `16384 / 256`
+  - batch_size: `4096`
+  - learning_rate: `2e-4`
+- 结果:
+  - `step 0`: `CD=33.76s`, `drop=0.78%`, `nonfinite_state=0.0`
+  - `step 5.24M`: `CD=7.68s`, `drop=92.58%`, `nonfinite_state=0.0`
+- 分析:
+  - **数值稳定性修复有效**: 续训全程没有再出现 `nonfinite_state`
+  - **但策略明显退化**: 说明当前续训配方过于激进, 会把 C30 的好策略带偏
+  - 因此不继续在该配方上烧训练, 下一轮改为更保守的小学习率/短程续训
+
+### 硬件桥接脚本兼容性检查（静态逻辑分析）
+- 结论:
+  - **新的 checkpoint 结构本身可以支持硬件部署**
+  - **但仓库里“之前的硬件桥接脚本”不能直接拿来加载当前 V2 checkpoint**
+- 原因:
+  1. [aero_grasp_hw6force_bridge.py](/root/autodl-tmp/Aero-Hand/handinformation/aero_grasp_hw6force_bridge.py:132) 与 [aero_grasp_hardware_bridge.py](/root/autodl-tmp/Aero-Hand/handinformation/aero_grasp_hardware_bridge.py:65)
+     都只按“当前默认 env 配置 + 默认 PPO 配置”恢复, **不会读取 checkpoint 里的 `config.json` / `ppo_network_config.json`**。
+  2. [aero_grasp_hw6force_bridge.py](/root/autodl-tmp/Aero-Hand/handinformation/aero_grasp_hw6force_bridge.py:165) 把 JIT 预热输入硬编码成 `17D state`, 且运行时在
+     [aero_grasp_hw6force_bridge.py](/root/autodl-tmp/Aero-Hand/handinformation/aero_grasp_hw6force_bridge.py:562) 也固定构造 `17D obs`。
+     但当前 V2 checkpoint 的 `ppo_network_config.json` 对应 `state=46D`。
+  3. [aero_grasp_hardware_bridge.py](/root/autodl-tmp/Aero-Hand/handinformation/aero_grasp_hardware_bridge.py:362) 还固定使用 `obs_dim=14` 且 `last_action=7D`，
+     与当前 V2 checkpoint 的 `6D action / 46D state` 语义不匹配。
+- 结论细化:
+  - **Orbax checkpoint 格式没问题**
+  - **真正不兼容的是旧桥接脚本的环境与观测/动作硬编码**
+  - 若要上当前 V2 checkpoint, 应优先以 `aero_grasp_hw6force_bridge.py` 为底稿重做一个 `V2/Coacd` 版本桥接脚本
+
+### C33: 保守续训验证
+- 配置:
+  - restore: `C30 final 000011796480`
+  - envs / eval_envs: `12288 / 256`
+  - batch_size: `3072`
+  - learning_rate: `5e-5`
+  - num_timesteps: `1.05M`
+- 已观测结果:
+  - `step 0`: `CD=33.77s`, `drop=1.17%`, `nonfinite_state=0.0`
+  - 说明保守配方至少在起始评估上保持了 C30 级别的抓持质量, 没有像 C32b 那样立刻退化
+- 产物:
+  - checkpoint 已写出: `logs/AeroCubeGraspV2ForceCoacd-20260422-015637-C33_clipguard_short_12288/checkpoints/000003932160`
+- 调度说明:
+  - 在 checkpoint 写出后停止该轮长尾收尾阶段, 直接切入下一轮迭代, 以节省显存占用时间并提高迭代效率
+
+### C34: 连续接力验证
+- 配置:
+  - restore: `C33 checkpoint 000003932160`
+  - envs / eval_envs: `12288 / 256`
+  - batch_size: `3072`
+  - learning_rate: `5e-5`
+  - num_timesteps: `524288`
+- 已观测结果:
+  - `step 0`: `CD=28.69s`, `drop=3.52%`, `nonfinite_state=0.0`
+- 分析:
+  - **连续接力训练仍然数值稳定**, 没有再出现 `nonfinite_state`
+  - 但从 `C33` 再接一轮时, 起始抓持质量已经较 `C30/C33` 基线有所回落
+  - 因此当前不继续盲目串联更多短轮次, 否则大概率只会让策略继续漂移
+- 结论:
+  - 当前“修复后可用且质量最高”的候选仍是 `C30 final`
+  - 当前“修复后短程续训仍保持高质量”的候选是 `C33 checkpoint 000003932160`
+
+### V2 硬件桥接脚本（2026-04-22）
+- 新增:
+  - `handinformation/aero_grasp_v2_bridge.py`
+- 目的:
+  - 以 `aero_grasp_hw6force_bridge.py` 为底稿, 为当前 `AeroCubeGraspV2ForceCoacd` checkpoint 提供 **46D state / 6D action** 的硬件桥接版本。
+- 关键修复:
+  1. 恢复 checkpoint 时合并 `checkpoints/config.json` 和 step 目录下的 `ppo_network_config.json`, 不再把网络结构和环境参数写死为旧版 `17D/老配置`。
+  2. 触觉观测不再置零:
+     - 串口原始顺序 `[thumb, index, middle, ring, pinky]`
+     - 映射到 V2 env 顺序 `[index, middle, ring, pinky, thumb]`
+  3. 从 `handinformation/URDF/右/qbr` 读取:
+     - `joint_names_qbr.yaml`
+     - `qbr.csv`
+     - `qbr.urdf`
+     用于重建右手关节链、指序和 actuator/joint 对应关系。
+  4. 提供 `--dry_run_policy`, 可在无串口时验证:
+     - checkpoint 是否能恢复
+     - 46D state 是否能构造
+     - URDF 元数据是否读通
+- 当前限制:
+  - `cube_pos_error / cube_vel / cube_quat / fingertip_to_cube` 这 25 维在纯串口链路上仍无真实物体位姿来源, 现阶段使用中性占位。
+  - 逻辑上已可接当前 V2 checkpoint, 但若要完全发挥策略能力, 后续仍建议接入外部物体位姿估计。
+
+### C35: lifted curriculum + late-slip shaping
+- 目的:
+  - 不再做“纯重复续训”, 回到手动迭代节奏。
+  - 在保持 C30 强基线的前提下, 引入少量 unsupported starts, 并强化 25~30s 的晚期滑脱/掉落惩罚。
+- 改动:
+  - `reset_config.lifted_grasp_fraction: 0.0 -> 0.08`
+  - `reset_config.lifted_grasp_noise_scale: 0.06 -> 0.04`
+  - `reset_config.lifted_cube_z_offset: 0.010 -> 0.012`
+  - `reward.post_release_slip: -45.0 -> -55.0`
+  - `reward.post_release_pose_hold: 60.0 -> 70.0`
+  - `reward.drop_risk: -45.0 -> -55.0`
+- 训练:
+  - restore: `C30 final 000011796480`
+  - envs / eval_envs: `8192 / 256`
+  - batch_size: `2048`
+  - lr: `2e-5`
+- 结果:
+  - `step 0`: `CD=33.77s`, `drop=1.17%`, `slip=0.121`, `palm=0.0`, `nonfinite=0.0`
+  - `step 2.62M`: `CD=33.67s`, `drop=1.56%`, `slip=0.098`, `palm=0.004`, `nonfinite=0.0`
+- 结论:
+  - 少量 lifted curriculum 没有打散强策略;
+  - 晚期滑脱指标较 C31/C34 明显更干净;
+  - C35 checkpoint 可作为后续 restore 基线。
+- checkpoint:
+  - `logs/AeroCubeGraspV2ForceCoacd-20260422-022811-C35_lifted_robust_slip/checkpoints/000002621440`
+
+### C36: wider release timing + more unsupported starts
+- 目的:
+  - 在 C35 稳定的基础上, 继续扩展“支撑释放时机”和“无支撑开局”的训练分布。
+- 改动:
+  - `support.random_release_min_sec: 1.5 -> 1.7`
+  - `support.random_release_max_sec: 2.5 -> 3.0`
+  - `reset.pre_grasp_noise_scale: 0.15 -> 0.12`
+  - `reset.lifted_grasp_fraction: 0.08 -> 0.12`
+- 训练:
+  - restore: `C35 checkpoint 000002621440`
+  - envs / eval_envs: `8192 / 256`
+  - batch_size: `2048`
+  - lr: `1.5e-5`
+- 结果:
+  - `step 2.62M`: `CD=33.68s`, `drop=1.56%`, `slip=0.082`, `palm=0.008`, `nonfinite=0.0`
+- 结论:
+  - 更宽的 release timing 没有破坏稳定性;
+  - `slip_event` 较 C35 进一步下降;
+  - C36 可视为“更宽训练分布下仍稳定”的版本。
+- checkpoint:
+  - `logs/AeroCubeGraspV2ForceCoacd-20260422-023504-C36_lifted12_releasevar/checkpoints/000002621440`
+
+### C37: earlier flip + earlier tilt
+- 目的:
+  - 在 C35/C36 已证明基础稳定后, 将翻转/倾斜扰动更早压入 post-release 分布, 强化 30s 级别的 DR 抗扰能力。
+- 改动:
+  - `perturbation.gravity_tilt_min_hold_steps: 140 -> 120`
+  - `perturbation.orientation_flip_min_hold_steps: 300 -> 260`
+- 训练:
+  - restore: `C36 checkpoint 000002621440`
+  - envs / eval_envs: `8192 / 256`
+  - batch_size: `2048`
+  - lr: `1e-5`
+- 结果:
+  - `step 0`: `CD=33.26s`, `drop=1.17%`, `slip=0.121`, `palm=0.0`, `nonfinite=0.0`
+  - `step 5.24M`: `CD=33.85s`, `drop=0.39%`, `slip=0.094`, `palm=0.0`, `nonfinite=0.0`
+- 结论:
+  - 更早 flip/tilt 起始时会让起始 eval 略受压, 但经过短程续训后可重新收回来;
+  - `drop` 降至当前这组手动迭代中的最好值之一;
+  - C37 是当前“更强 DR 分布下仍保持 33s+ / 低掉落”的候选。
+- checkpoints:
+  - `logs/AeroCubeGraspV2ForceCoacd-20260422-024107-C37_earlier_flip_tilt/checkpoints/000002621440`
+  - `logs/AeroCubeGraspV2ForceCoacd-20260422-024107-C37_earlier_flip_tilt/checkpoints/000005242880`
+
+### C38: earlier external pulses
+- 目的:
+  - 在 C37 已经证明“更早 flip/tilt 可学”之后, 继续把外力脉冲也更早、更强一点压进训练分布。
+- 改动:
+  - `perturbation.external_force_magnitude: 0.12 -> 0.13`
+  - `perturbation.external_force_min_hold_steps: 80 -> 60`
+- 训练:
+  - restore: `C37 checkpoint 000005242880`
+  - envs / eval_envs: `8192 / 256`
+  - batch_size: `2048`
+  - lr: `8e-6`
+- 结果:
+  - `step 0`: `CD=33.22s`, `drop=1.56%`, `slip=0.125`, `palm=0.0`, `nonfinite=0.0`
+  - `step 5.24M`: `CD=33.67s`, `drop=0.78%`, `slip=0.113`, `palm=0.0`, `nonfinite=0.0`
+- 结论:
+  - 更早外力脉冲起初会带来轻微代价, 但短程续训后能重新收回;
+  - 这条扰动线目前也被纳入了“可控增长”的训练分布, 没再触发任何 NaN 或接触崩坏。
+- checkpoints:
+  - `logs/AeroCubeGraspV2ForceCoacd-20260422-024946-C38_earlier_pulses/checkpoints/000002621440`
+  - `logs/AeroCubeGraspV2ForceCoacd-20260422-024946-C38_earlier_pulses/checkpoints/000005242880`
+
+### C39: stronger pre-release gate (negative result)
+- 目的:
+  - 测试“更强 pre-release 力门槛 + 更强 primary_finger_force / pre_release_grasp”是否能进一步压低扰动后的 late slip。
+- 改动:
+  - `support.min_release_force: 0.10 -> 0.12`
+  - `reward.primary_finger_force: 65.0 -> 70.0`
+  - `reward.pre_release_grasp: 35.0 -> 40.0`
+- 训练:
+  - restore: `C38 checkpoint 000005242880`
+  - lr: `6e-6`
+- 结果:
+  - `step 5.24M`: `CD=32.48s`, `drop=4.30%`, `palm=0.016`, `slip=0.094`
+- 结论:
+  - 这条方向会明显拉低 `avg_episode_length` 并抬高 `drop`;
+  - 说明当前阶段不该继续提高 release 的硬门槛。
+- checkpoints:
+  - `logs/AeroCubeGraspV2ForceCoacd-20260422-025808-C39_prerelease_forcegate/checkpoints/000002621440`
+  - `logs/AeroCubeGraspV2ForceCoacd-20260422-025808-C39_prerelease_forcegate/checkpoints/000005242880`
+
+### C40: revert hard gate, keep only softer pre-release force shaping (still negative)
+- 目的:
+  - 验证 C39 退化究竟来自“硬 release gate”还是整条 pre-release force 方向本身。
+- 改动:
+  - `support.min_release_force` 回退到 `0.10`
+  - 保留较强的 pre-release / primary force shaping
+- 训练:
+  - restore: `C38 checkpoint 000005242880`
+  - lr: `4e-6`
+- 结果:
+  - `step 5.24M`: `CD=32.71s`, `drop=3.91%`, `palm=0.066`, `slip=0.090`
+- 结论:
+  - 即使去掉硬 release gate, 这条 pre-release force 线仍明显弱于 `C37/C38`;
+  - 后续不再沿该方向继续烧训练。
+- checkpoints:
+  - `logs/AeroCubeGraspV2ForceCoacd-20260422-030605-C40_soft_prerelease_force/checkpoints/000002621440`
+  - `logs/AeroCubeGraspV2ForceCoacd-20260422-030605-C40_soft_prerelease_force/checkpoints/000005242880`
+
+### C41: motor target smoothing
+- 目的:
+  - 在不继续加硬 reward/gate 的前提下, 用更工程化的方式降低 DR 下的 late slip:
+    限制相邻控制步的 `motor_targets` 跳变。
+- 改动:
+  - `stability.motor_delta_clip: None -> [0.03, 0.03, 0.03, 0.03, 0.03, 0.03]`
+- 训练:
+  - restore: `C37 checkpoint 000005242880`
+  - lr: `6e-6`
+- 结果:
+  - `step 0`: `CD=33.20s`, `drop=1.56%`, `slip=0.121`, `palm=0.0`
+  - `step 5.24M`: `CD=33.70s`, `drop=0.78%`, `slip=0.070`, `palm=0.0`, `nonfinite=0.0`
+- 结论:
+  - 这轮是有效增益:
+    - `CD` 维持在 `33s+`
+    - `drop` 保持低位
+    - `slip_event` 降到本批手动迭代里当前最低档
+  - 这也是更适合后续硬件桥接/部署的一种收口方式。
+- checkpoints:
+  - `logs/AeroCubeGraspV2ForceCoacd-20260422-083941-C41_motorclip03/checkpoints/000002621440`
+  - `logs/AeroCubeGraspV2ForceCoacd-20260422-083941-C41_motorclip03/checkpoints/000005242880`

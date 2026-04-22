@@ -55,6 +55,7 @@ _DIAGNOSTIC_METRIC_KEYS = (
     "diagnostic/nonprimary_contact",
     "diagnostic/palm_contact",
     "diagnostic/support_released",
+    "diagnostic/nonfinite_state",
     "diagnostic/lifted_reset",
     "diagnostic/lift_height",
     "termination/drop",
@@ -100,19 +101,25 @@ def default_config() -> config_dict.ConfigDict:
           force_saturation_n=3.0,
           obs_force_ema_alpha=0.7,
       ),
+      stability_config=config_dict.create(
+          max_abs_action=1.0,
+          motor_delta_clip=[0.03, 0.03, 0.03, 0.03, 0.03, 0.03],  # C41: smooth per-step target jumps to reduce DR-induced late slip
+          terminate_on_nonfinite=True,
+          nonfinite_penalty_mult=2.0,
+      ),
       support_config=config_dict.create(
           release_after_sec=2.0,              # C15: early release for more post-release training
           release_ramp_sec=0.5,               # C15: faster ramp (0.5s instead of 1.0s)
           support_pos=[0.025, -0.065, 0.1348],      # C08: aligned with cube_pos
           support_hidden_pos=[0.0, 0.0, -10.0],
           min_release_active_fingers=2,   # C12: easier conditional release
-          min_release_force=0.10,         # C12: lower threshold
+          min_release_force=0.10,         # C40: revert hard release gate; keep softer force shaping instead
           require_grasp_for_release=True,   # C05: release when primary force/geom contact is ready
           force_release_after_sec=3.0,      # C15: force release at 3s (was 8s)
           # R66: 随机支撑释放 (1.5-4.0s)
           random_release=True,
-          random_release_min_sec=1.5,       # C15: earlier random release
-          random_release_max_sec=2.5,       # C15: earlier random release
+          random_release_min_sec=1.7,       # C36: broaden release timing without dropping too early
+          random_release_max_sec=3.0,       # C36: expose later support removal after C35 recovery
       ),
       spawn_config=config_dict.create(
           cube_pos=[0.025, -0.065, 0.1503],           # C08: closer to palm center
@@ -122,30 +129,31 @@ def default_config() -> config_dict.ConfigDict:
       reset_config=config_dict.create(
           hand_qpos_noise_scale=0.01,     # R99: start close to desired hand shape
           pre_grasp_fraction=0.0,         # R99: home keyframe already is the desired pregrasp
-          pre_grasp_noise_scale=0.15,     # R89: 预抓取初始化的噪声幅度(更宽探索)
-          lifted_grasp_fraction=0.0,      # R96: R94/R95课程未迁移, 默认关闭
-          lifted_grasp_noise_scale=0.06,
-          lifted_cube_z_offset=0.010,     # R94: +10mm, 几何扫描确认三指可达
+          pre_grasp_noise_scale=0.12,     # C36: tighten geometry slightly while lifted curriculum grows
+          lifted_grasp_fraction=0.12,     # C36: raise unsupported-start exposure after C35 stayed stable
+          lifted_grasp_noise_scale=0.04,  # C35: keep lifted starts tidy; avoid destabilizing a strong 30s policy
+          lifted_cube_z_offset=0.012,     # C35: slightly more clearance on lifted starts
           termination_grace_sec=5.0,       # C03: keep early pinch exploration from truncating immediately
       ),
       # C26: 中等扰动配置 — C25证明强扰动(0.15N)训练>14M步会退化
       perturbation_config=config_dict.create(
           # 外力脉冲: 支撑释放后每隔interval步施加一次随机力
           external_force_enabled=True,
-          external_force_magnitude=0.12,   # C31: C30已恢复30s, 轻度增强外力鲁棒性
+          external_force_magnitude=0.13,   # C38: slightly harder pulse stress after C37 stabilized early flip/tilt
           external_force_interval=30,      # C31: 更频繁外力脉冲
-          external_force_min_hold_steps=80,  # C31: 更早开始扰动
+          external_force_min_hold_steps=60,  # C38: bring pulses in a bit earlier
           # 重力方向扰动: 模拟手腕姿态变化(倾斜/翻转)
           gravity_perturbation_enabled=True,
           gravity_tilt_max_rad=0.45,        # C31: 约26度, 介于C26与强扰动之间
           gravity_tilt_change_interval=60,  # C31: 更频繁倾斜变化
-          gravity_tilt_min_hold_steps=140,  # C31: 7s后介入
+          gravity_tilt_min_hold_steps=120,  # C37: bring tilt earlier once C35/C36 proved stable
           # C28: 全向翻转等效扰动。只在已形成较长稳定持握后触发,
           # 用随机3D等效重力检验手腕翻转/倒置时的力闭合稳定度。
           orientation_flip_enabled=True,
           orientation_flip_force_scale=1.25,  # C31: 1.25 * mg, 更接近翻转/倒置应力
           orientation_flip_change_interval=80,  # C31: 4s保持一次翻转方向
-          orientation_flip_min_hold_steps=300,  # C31: 15s后触发, 更早验证力闭合
+          orientation_flip_min_hold_steps=260,  # C37: start flip stress earlier for 30s hold hardening
+          total_force_clip_n=0.35,           # C32: clip combined perturbation force to avoid MJX blow-up
           # 关节角度观测噪声
           joint_obs_noise_enabled=True,
           joint_obs_noise_std=0.015,        # C26: 0.02→0.015rad, 中等
@@ -173,13 +181,13 @@ def default_config() -> config_dict.ConfigDict:
               finger_participation=5.0,
               thumb_opposition=30.0,
               soft_contact=5.0,
-              primary_finger_force=65.0,  # R106: stronger thumb/index/middle force signal
-              pre_release_grasp=35.0,      # C03: rebuild primary force from scratch before timed release
+              primary_finger_force=70.0,  # C39: firmer primary triad before external pulses land
+              pre_release_grasp=40.0,      # C39: strengthen release-ready shaping
               post_release_grasp=125.0,    # C29: rebuild active pinch after support release
               post_release_survival=155.0,  # C30: reduce remaining 18% drop rate
               post_release_cheat_contact=-70.0,  # R105: suppress palm/ring/pinky support after release
-              post_release_slip=-45.0,     # C30: suppress late-release slips around 25-30s
-              post_release_pose_hold=60.0, # C30: keep clean pinch pose through 30s
+              post_release_slip=-55.0,     # C35: stronger punishment for late DR-induced slip
+              post_release_pose_hold=70.0, # C35: reinforce clean unsupported geometry through 30s+
               idle_follow=0.0,
               height=18.0,                 # R92: 5→18, 明确鼓励离开支撑面的主动抬升
               # 控制约束 (不门控)
@@ -189,7 +197,7 @@ def default_config() -> config_dict.ConfigDict:
               action_accel=-0.005,
               torques=-0.00003,
               force_overload=0.0,
-              drop_risk=-45.0,             # C30: stronger pre-drop shaping near target hold time
+              drop_risk=-55.0,             # C35: stronger pre-drop shaping under flip/tilt perturbations
               palm_contact=-28.0,          # C29: keep cleanup, avoid over-suppressing recovery
               nonprimary_contact=-20.0,    # C29: keep cleanup, slightly relax C28 harshness
               three_finger_proximity=15.0, # R91: 恢复R89值
@@ -599,11 +607,15 @@ class CubeGraspV2Force(aero_hand_base.AeroHandEnv):
   # ── step ─────────────────────────────────────────────────────────────────
 
   def step(self, state: mjx_env.State, action: jax.Array) -> mjx_env.State:
+    action = self._stabilize_action(action)
     action_scale = jp.array(self._config.action_scale, dtype=jp.float32)
     motor_targets = jp.clip(
         self._default_ctrl + action * action_scale,
         self._ctrl_lowers,
         self._ctrl_uppers,
+    )
+    motor_targets = self._stabilize_motor_targets(
+        motor_targets, state.info["motor_targets"],
     )
 
     # ── C22: 扰动 — 外力脉冲 + 重力倾斜等效力 ─────────────────────────
@@ -672,11 +684,12 @@ class CubeGraspV2Force(aero_hand_base.AeroHandEnv):
       flip_force = jp.where(flip_active, flip_force, jp.zeros(3))
 
     # 合并外力: xfrc_applied shape = (nbody, 6), 前3为力, 后3为力矩
-    total_force = ext_force + gravity_force + flip_force
+    total_force = self._clip_force_vector(ext_force + gravity_force + flip_force)
     xfrc = data.xfrc_applied.at[self._cube_body_id, :3].set(total_force)
     data = data.replace(xfrc_applied=xfrc)
 
     data = mjx_env.step(self.mjx_model, data, motor_targets, self.n_substeps)
+    nonfinite_state = self._has_nonfinite_state(data)
 
     # efc_force 指尖/指腹接触力
     tip_finger_forces = self._get_contact_forces_efc(data)
@@ -717,61 +730,73 @@ class CubeGraspV2Force(aero_hand_base.AeroHandEnv):
     info["gravity_tilt_angle"] = tilt_angle
     info["perturbation_force"] = ext_force
     info["orientation_flip_force"] = flip_force
-
-    # Progressive hold tracking
-    cube_pos_hold = self.get_cube_position(data)
-    cube_above = cube_pos_hold[2] > (self._spawn_z - 0.010)
-    primary_hold_forces = jp.array([
-        jp.abs(ema_tip_finger_forces[0]),
-        jp.abs(ema_tip_finger_forces[1]),
-        jp.abs(ema_tip_finger_forces[4]),
-    ])
-    primary_hold_flags = jp.array([
-        tip_contact_flags[0],
-        tip_contact_flags[1],
-        tip_contact_flags[4],
-    ])
-    primary_hold_active = jp.maximum(
-        (primary_hold_forces > 0.10).astype(jp.float32),
-        primary_hold_flags,
-    )
-    primary_hold_count = jp.sum(primary_hold_active)
-    is_holding = cube_above & (primary_hold_count >= 2.0) & support_released
-    info["stable_hold_steps"] = jp.where(
-        is_holding,
-        state.info["stable_hold_steps"] + 1,
-        jp.array(0, dtype=jp.int32),
-    )
-
-    obs = self._get_obs(data, info, state.obs["state"])
-    done = self._get_termination(data) & (support_timer >= self._termination_grace_steps)
-
-    rewards = self._get_reward(data, action, info, done)
-    rewards = {
-        k: v * self._config.reward_config.scales[k] for k, v in rewards.items()
-    }
-    reward = sum(rewards.values()) * self.dt
-    diagnostics = self._get_diagnostics(
-        data, tip_finger_forces, tip_contact_flags, support_released,
-        info["stable_hold_steps"], done,
-    )
-    diagnostics["diagnostic/lifted_reset"] = info.get(
-        "lifted_reset", jp.array(False),
-    ).astype(jp.float32)
-
     info["last_last_act"] = state.info["last_act"]
     info["last_act"] = action
 
-    new_metrics = {}
-    for k, v in rewards.items():
-      new_metrics[f"reward/{k}"] = v
-      new_metrics[f"reward_sq/{k}"] = jp.square(v)
-    new_metrics.update(diagnostics)
-    new_metrics["reward"] = reward  # EvalWrapper 兼容
+    def _handle_nonfinite(_):
+      return self._make_nonfinite_failure_state(
+          state, action, motor_targets, info,
+      )
 
-    done = done.astype(reward.dtype)
-    return state.replace(data=data, obs=obs, reward=reward, done=done,
-                         metrics=new_metrics, info=info)
+    def _handle_normal(_):
+      # Progressive hold tracking
+      cube_pos_hold = self.get_cube_position(data)
+      cube_above = cube_pos_hold[2] > (self._spawn_z - 0.010)
+      primary_hold_forces = jp.array([
+          jp.abs(ema_tip_finger_forces[0]),
+          jp.abs(ema_tip_finger_forces[1]),
+          jp.abs(ema_tip_finger_forces[4]),
+      ])
+      primary_hold_flags = jp.array([
+          tip_contact_flags[0],
+          tip_contact_flags[1],
+          tip_contact_flags[4],
+      ])
+      primary_hold_active = jp.maximum(
+          (primary_hold_forces > 0.10).astype(jp.float32),
+          primary_hold_flags,
+      )
+      primary_hold_count = jp.sum(primary_hold_active)
+      is_holding = cube_above & (primary_hold_count >= 2.0) & support_released
+      info["stable_hold_steps"] = jp.where(
+          is_holding,
+          state.info["stable_hold_steps"] + 1,
+          jp.array(0, dtype=jp.int32),
+      )
+
+      obs = self._get_obs(data, info, state.obs["state"])
+      done = self._get_termination(data) & (
+          support_timer >= self._termination_grace_steps
+      )
+
+      rewards = self._get_reward(data, action, info, done)
+      rewards = {
+          k: v * self._config.reward_config.scales[k] for k, v in rewards.items()
+      }
+      reward = sum(rewards.values()) * self.dt
+      diagnostics = self._get_diagnostics(
+          data, tip_finger_forces, tip_contact_flags, support_released,
+          info["stable_hold_steps"], done,
+      )
+      diagnostics["diagnostic/lifted_reset"] = info.get(
+          "lifted_reset", jp.array(False),
+      ).astype(jp.float32)
+      diagnostics["diagnostic/nonfinite_state"] = jp.array(0.0, dtype=reward.dtype)
+
+      new_metrics = {}
+      for k, v in rewards.items():
+        new_metrics[f"reward/{k}"] = v
+        new_metrics[f"reward_sq/{k}"] = jp.square(v)
+      new_metrics.update(diagnostics)
+      new_metrics["reward"] = reward  # EvalWrapper 兼容
+
+      done = done.astype(reward.dtype)
+      return state.replace(
+          data=data, obs=obs, reward=reward, done=done,
+          metrics=new_metrics, info=info,
+      )
+
+    return jax.lax.cond(nonfinite_state, _handle_nonfinite, _handle_normal, operand=None)
 
   # ── 辅助方法 ─────────────────────────────────────────────────────────────
 
@@ -784,6 +809,101 @@ class CubeGraspV2Force(aero_hand_base.AeroHandEnv):
       if mocap_id >= 0:
         mocap_pos[mocap_id] = self.mj_model.body_pos[body_id]
     return jp.array(mocap_pos)
+
+  def _stabilize_action(self, action: jax.Array) -> jax.Array:
+    max_abs_action = float(
+        getattr(getattr(self._config, "stability_config", object()), "max_abs_action", 1.0)
+    )
+    if max_abs_action >= 1.0:
+      return action
+    return jp.clip(action, -max_abs_action, max_abs_action)
+
+  def _stabilize_motor_targets(
+      self, motor_targets: jax.Array, last_targets: jax.Array,
+  ) -> jax.Array:
+    delta_clip = getattr(
+        getattr(self._config, "stability_config", object()), "motor_delta_clip", None,
+    )
+    if delta_clip is None:
+      return motor_targets
+    delta_clip = jp.asarray(delta_clip, dtype=jp.float32)
+    return jp.clip(motor_targets, last_targets - delta_clip, last_targets + delta_clip)
+
+  def _has_nonfinite_state(self, data: mjx.Data) -> jax.Array:
+    if not bool(getattr(getattr(self._config, "stability_config", object()), "terminate_on_nonfinite", True)):
+      return jp.array(False)
+    cube_pos = self.get_cube_position(data)
+    cube_linvel = self.get_cube_linvel(data)
+    checks = [
+        jp.all(jp.isfinite(data.qpos)),
+        jp.all(jp.isfinite(data.qvel)),
+        jp.all(jp.isfinite(data.ctrl)),
+        jp.all(jp.isfinite(cube_pos)),
+        jp.all(jp.isfinite(cube_linvel)),
+    ]
+    if data.act is not None:
+      checks.append(jp.all(jp.isfinite(data.act)))
+    return ~jp.all(jp.stack(checks))
+
+  def _clip_force_vector(self, force: jax.Array) -> jax.Array:
+    clip_n = float(
+        getattr(self._config.perturbation_config, "total_force_clip_n", 0.0)
+    )
+    if clip_n <= 0.0:
+      return force
+    norm = jp.linalg.norm(force)
+    scale = jp.minimum(1.0, clip_n / (norm + 1e-8))
+    return force * scale
+
+  def _make_nonfinite_failure_state(
+      self,
+      state: mjx_env.State,
+      action: jax.Array,
+      motor_targets: jax.Array,
+      info: dict[str, Any],
+  ) -> mjx_env.State:
+    penalty_mult = float(
+        getattr(
+            getattr(self._config, "stability_config", object()),
+            "nonfinite_penalty_mult",
+            2.0,
+        )
+    )
+    reward = (
+        float(self._config.reward_config.scales.termination)
+        * penalty_mult
+        * self.dt
+    )
+    reward = jp.array(reward, dtype=jp.float32)
+    info["motor_targets"] = motor_targets
+    info["last_last_act"] = state.info["last_act"]
+    info["last_act"] = action
+    info["stable_hold_steps"] = jp.array(0, dtype=jp.int32)
+
+    new_metrics = {}
+    for k in self._config.reward_config.scales.keys():
+      new_metrics[f"reward/{k}"] = jp.zeros((), dtype=jp.float32)
+      new_metrics[f"reward_sq/{k}"] = jp.zeros((), dtype=jp.float32)
+    new_metrics["reward/termination"] = reward / self.dt
+    new_metrics["reward_sq/termination"] = jp.square(reward / self.dt)
+    for k in _DIAGNOSTIC_METRIC_KEYS:
+      new_metrics[k] = jp.zeros((), dtype=jp.float32)
+    new_metrics["diagnostic/drop"] = jp.array(1.0, dtype=jp.float32)
+    new_metrics["diagnostic/nonfinite_state"] = jp.array(1.0, dtype=jp.float32)
+    new_metrics["termination/drop"] = jp.array(1.0, dtype=jp.float32)
+    new_metrics["diagnostic/lifted_reset"] = info.get(
+        "lifted_reset", jp.array(False),
+    ).astype(jp.float32)
+    new_metrics["reward"] = reward
+
+    return state.replace(
+        data=state.data,
+        obs=state.obs,
+        reward=reward,
+        done=jp.array(1.0, dtype=jp.float32),
+        metrics=new_metrics,
+        info=info,
+    )
 
   def _should_release_support(
       self, already_released: jax.Array, support_timer: jax.Array,

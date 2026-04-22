@@ -63,6 +63,55 @@ warnings.filterwarnings("ignore", category=DeprecationWarning, module="jax")
 warnings.filterwarnings("ignore", category=UserWarning, module="absl")
 
 
+def _merge_config_dict(
+    base: config_dict.ConfigDict, overlay: dict | config_dict.ConfigDict
+) -> config_dict.ConfigDict:
+  """Recursively merges `overlay` into `base` while preserving new defaults."""
+  if isinstance(overlay, config_dict.ConfigDict):
+    overlay = overlay.to_dict()
+  for key, value in overlay.items():
+    if isinstance(value, dict):
+      if key not in base or not isinstance(base[key], config_dict.ConfigDict):
+        base[key] = config_dict.ConfigDict()
+      _merge_config_dict(base[key], value)
+    else:
+      base[key] = value
+  return base
+
+
+def _merge_network_factory_from_checkpoint(
+    ppo_params: config_dict.ConfigDict,
+    checkpoint_path: epath.Path,
+) -> None:
+  """Merges saved PPO network config into current defaults for restore/play."""
+  net_cfg_path = checkpoint_path / "ppo_network_config.json"
+  if not net_cfg_path.exists():
+    return
+
+  with open(net_cfg_path, "r", encoding="utf-8") as fp:
+    net_cfg = json.load(fp)
+
+  allowed_keys = {
+      "policy_hidden_layer_sizes",
+      "value_hidden_layer_sizes",
+      "policy_obs_key",
+      "value_obs_key",
+      "distribution_type",
+      "noise_std_type",
+      "init_noise_std",
+      "state_dependent_std",
+      "mean_clip_scale",
+      "use_distributional_critic",
+      "num_quantiles",
+  }
+  for key, value in net_cfg.get("network_factory_kwargs", {}).items():
+    if key in allowed_keys:
+      ppo_params.network_factory[key] = value
+
+  if "normalize_observations" in net_cfg:
+    ppo_params.normalize_observations = bool(net_cfg["normalize_observations"])
+
+
 _ENV_NAME = flags.DEFINE_string(
     "env_name",
     "LeapCubeReorient",
@@ -239,7 +288,42 @@ def main(argv):
   env_cfg = registry.get_default_config(_ENV_NAME.value)
   env_cfg["impl"] = _IMPL.value
 
+  if _LOAD_CHECKPOINT_PATH.value is not None:
+    ckpt_path_for_cfg = epath.Path(_LOAD_CHECKPOINT_PATH.value).resolve()
+    if ckpt_path_for_cfg.is_dir():
+      if not (
+          (ckpt_path_for_cfg / "_CHECKPOINT_METADATA").exists()
+          or (ckpt_path_for_cfg / "manifest.ocdbt").exists()
+      ):
+        try:
+          ckpt_path_for_cfg = _resolve_latest_checkpoint_dir(ckpt_path_for_cfg)
+        except FileNotFoundError:
+          ckpt_path_for_cfg = ckpt_path_for_cfg
+      config_path = ckpt_path_for_cfg / "config.json"
+      if not config_path.exists():
+        parent_config = ckpt_path_for_cfg.parent / "config.json"
+        if parent_config.exists():
+          config_path = parent_config
+      if config_path.exists():
+        with open(config_path, "r", encoding="utf-8") as fp:
+          saved_env_cfg = json.load(fp)
+        env_cfg = _merge_config_dict(env_cfg, saved_env_cfg)
+        env_cfg["impl"] = _IMPL.value
+        print(f"Merged checkpoint env config from: {config_path}")
+
   ppo_params = get_rl_config(_ENV_NAME.value)
+  if _LOAD_CHECKPOINT_PATH.value is not None:
+    ckpt_path_for_net = epath.Path(_LOAD_CHECKPOINT_PATH.value).resolve()
+    if ckpt_path_for_net.is_dir() and not (
+        (ckpt_path_for_net / "_CHECKPOINT_METADATA").exists()
+        or (ckpt_path_for_net / "manifest.ocdbt").exists()
+    ):
+      try:
+        ckpt_path_for_net = _resolve_latest_checkpoint_dir(ckpt_path_for_net)
+      except FileNotFoundError:
+        pass
+    if ckpt_path_for_net.is_dir():
+      _merge_network_factory_from_checkpoint(ppo_params, ckpt_path_for_net)
 
   if _NUM_TIMESTEPS.present:
     ppo_params.num_timesteps = _NUM_TIMESTEPS.value

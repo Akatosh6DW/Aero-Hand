@@ -29,6 +29,7 @@ from mujoco_playground._src.manipulation.franka_emika_panda_robotiq import push_
 from mujoco_playground._src.manipulation.leap_hand import reorient as leap_cube_reorient
 from mujoco_playground._src.manipulation.leap_hand import rotate_z as leap_rotate_z
 from mujoco_playground._src.manipulation.aero_hand import grasp_cube as aero_hand_grasp_cube
+from mujoco_playground._src.manipulation.aero_hand import grasp_bottle_v2_force as aero_hand_grasp_bottle_v2_force
 from mujoco_playground._src.manipulation.aero_hand import grasp_cube_hw6_force as aero_hand_grasp_cube_hw6_force
 from mujoco_playground._src.manipulation.aero_hand import grasp_cube_v2_force as aero_hand_grasp_cube_v2_force
 from mujoco_playground._src.manipulation.aero_hand import rotate_z as aero_hand_rotate_z
@@ -51,6 +52,7 @@ _envs = {
     "AeroCubeRotateZAxis": aero_hand_rotate_z.CubeRotateZAxis,
     "AeroCubeGraspV2Force": aero_hand_grasp_cube_v2_force.CubeGraspV2Force,
     "AeroCubeGraspV2ForceCoacd": aero_hand_grasp_cube_v2_force.CubeGraspV2ForceCoacd,
+    "AeroBottleGraspV2Force": aero_hand_grasp_bottle_v2_force.BottleGraspV2Force,
 }
 
 _cfgs = {
@@ -71,6 +73,7 @@ _cfgs = {
     "AeroCubeRotateZAxis": aero_hand_rotate_z.default_config,
     "AeroCubeGraspV2Force": aero_hand_grasp_cube_v2_force.default_config,
     "AeroCubeGraspV2ForceCoacd": aero_hand_grasp_cube_v2_force.default_config,
+    "AeroBottleGraspV2Force": aero_hand_grasp_bottle_v2_force.default_config,
 }
 
 _randomizer = {
@@ -84,6 +87,7 @@ _randomizer = {
     "AeroCubeRotateZAxis": aero_hand_rotate_z.domain_randomize,
     "AeroCubeGraspV2Force": aero_hand_grasp_cube_v2_force.domain_randomize,
     "AeroCubeGraspV2ForceCoacd": aero_hand_grasp_cube_v2_force.domain_randomize,
+    "AeroBottleGraspV2Force": aero_hand_grasp_bottle_v2_force.domain_randomize,
 }
 
 
