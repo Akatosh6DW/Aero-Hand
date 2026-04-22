@@ -7,8 +7,10 @@ mujoco_menagerie
 checkpoints/
 logs/*
 !logs/AeroBottleGraspV2Force-20260422-161207-B09_late_release_wrapcurr_nodr_4096/
-logs/AeroBottleGraspV2Force-20260422-161207-B09_late_release_wrapcurr_nodr_4096/*
-!logs/AeroBottleGraspV2Force-20260422-161207-B09_late_release_wrapcurr_nodr_4096/metrics.csv
+!logs/AeroBottleGraspV2Force-20260422-161207-B09_late_release_wrapcurr_nodr_4096/**
+!logs/AeroBottleGraspV2Force-20260422-161207-B09_late_release_wrapcurr_nodr_4096/checkpoints/
+!logs/AeroBottleGraspV2Force-20260422-161207-B09_late_release_wrapcurr_nodr_4096/checkpoints/**
 !logs/AeroBottleGraspV2Force-20260422-165804-B13_pure_hold_stage_nodr_4096/
-logs/AeroBottleGraspV2Force-20260422-165804-B13_pure_hold_stage_nodr_4096/*
-!logs/AeroBottleGraspV2Force-20260422-165804-B13_pure_hold_stage_nodr_4096/metrics.csv
+!logs/AeroBottleGraspV2Force-20260422-165804-B13_pure_hold_stage_nodr_4096/**
+!logs/AeroBottleGraspV2Force-20260422-165804-B13_pure_hold_stage_nodr_4096/checkpoints/
+!logs/AeroBottleGraspV2Force-20260422-165804-B13_pure_hold_stage_nodr_4096/checkpoints/**
