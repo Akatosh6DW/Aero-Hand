@@ -216,6 +216,53 @@ def default_config() -> config_dict.ConfigDict:
   )
 
 
+def default_config_qbr() -> config_dict.ConfigDict:
+  """Current-hand cube config tuned for qbr thumb coupling under DR."""
+  cfg = default_config()
+  scales = cfg.reward_config.scales
+  # C50: C48 already reaches full-episode survival under DR. The remaining gap
+  # is that the primary-contact diagnostic is slightly too strict after the
+  # hand-parameter update, so keep the stable C48 shaping and recalibrate the
+  # force-contact thresholds a notch lower.
+  scales.stable_hold = 185.0
+  scales.progressive_hold = 55.0
+  scales.post_release_survival = 155.0
+  scales.post_release_pose_hold = 60.0
+  scales.drop_risk = -45.0
+  scales.palm_contact = -28.0
+  scales.nonprimary_contact = -20.0
+  scales.pre_release_grasp = 35.0
+  scales.post_release_grasp = 125.0
+  scales.primary_finger_force = 65.0
+  scales.thumb_opposition = 30.0
+  scales.three_finger_proximity = 15.0
+
+  # Keep the same DR envelope that C47/C48 proved learnable.
+  pcfg = cfg.perturbation_config
+  pcfg.external_force_magnitude = 0.10
+  pcfg.external_force_interval = 35
+  pcfg.external_force_min_hold_steps = 90
+  pcfg.gravity_tilt_max_rad = 0.40
+  pcfg.gravity_tilt_change_interval = 70
+  pcfg.gravity_tilt_min_hold_steps = 170
+  pcfg.orientation_flip_force_scale = 1.00
+  pcfg.orientation_flip_change_interval = 120
+  pcfg.orientation_flip_min_hold_steps = 400
+
+  cfg.reset_config.pre_grasp_noise_scale = 0.15
+  cfg.reset_config.lifted_grasp_fraction = 0.0
+  cfg.reset_config.lifted_grasp_noise_scale = 0.06
+  cfg.reset_config.lifted_cube_z_offset = 0.01
+
+  cfg.support_config.random_release_min_sec = 1.5
+  cfg.support_config.random_release_max_sec = 2.5
+
+  cfg.reward_config.force_contact_threshold = 0.06
+  cfg.reward_config.finger_active_threshold = 0.08
+  cfg.reward_config.soft_contact_fmin = 0.1
+  return cfg
+
+
 class CubeGraspV2Force(aero_hand_base.AeroHandEnv):
   """V2 灵犀手方块抓握任务 (force-aware, 6 通道直接关节控制)。"""
 
@@ -294,6 +341,11 @@ class CubeGraspV2Force(aero_hand_base.AeroHandEnv):
     # 生成位置
     self._spawn_z = jp.array(self._config.spawn_config.cube_pos[2], dtype=jp.float32)
     self._spawn_pos = jp.array(self._config.spawn_config.cube_pos, dtype=jp.float32)
+
+    # Passive coupling defaults for the legacy cube hand model.
+    self._finger_pip_coupling = 0.925
+    self._thumb_passive_source_id = _V2_THUMB_ABD_ID
+    self._thumb_passive_ratio = 0.16
 
     # 触觉权重
     self._taxel_weights = self._build_taxel_weights()
@@ -377,6 +429,15 @@ class CubeGraspV2Force(aero_hand_base.AeroHandEnv):
       if geom_id >= 0:
         ids.append(int(geom_id))
     return ids
+
+  def _apply_passive_joint_couplings(self, q_hand: jax.Array) -> jax.Array:
+    q_hand = q_hand.at[jp.array(_V2_FINGER_PIP_IDS)].set(
+        self._finger_pip_coupling * q_hand[jp.array(_V2_FINGER_MCP_IDS)],
+    )
+    q_hand = q_hand.at[_V2_THUMB_FLEX_ID].set(
+        self._thumb_passive_ratio * q_hand[self._thumb_passive_source_id],
+    )
+    return jp.clip(q_hand, self._lowers, self._uppers)
 
   def _geom_ids_by_prefixes(self, prefixes: list[str]) -> list[int]:
     ids = []
@@ -504,13 +565,7 @@ class CubeGraspV2Force(aero_hand_base.AeroHandEnv):
         self._uppers,
     )
     # Keep passive equality-coupled joints consistent after reset noise.
-    q_hand = q_hand.at[jp.array(_V2_FINGER_PIP_IDS)].set(
-        0.925 * q_hand[jp.array(_V2_FINGER_MCP_IDS)],
-    )
-    q_hand = q_hand.at[_V2_THUMB_FLEX_ID].set(
-        0.16 * q_hand[_V2_THUMB_ABD_ID],
-    )
-    q_hand = jp.clip(q_hand, self._lowers, self._uppers)
+    q_hand = self._apply_passive_joint_couplings(q_hand)
     v_hand = jp.zeros(consts.V2_NV)
 
     rng, p_rng = jax.random.split(rng)
@@ -1714,6 +1769,49 @@ class CubeGraspV2ForceCoacd(CubeGraspV2Force):
         config=config,
         config_overrides=config_overrides,
         xml_path=xml_path or consts.GRASP_V2_COACD_XML.as_posix(),
+    )
+
+
+class CubeGraspV2ForceCoacdQbr(CubeGraspV2Force):
+  """Cube grasp task using the current QBR-style thumb flex coupling."""
+
+  def __init__(
+      self,
+      config: config_dict.ConfigDict = default_config_qbr(),
+      config_overrides: Optional[Dict[str, Union[str, int, list[Any]]]] = None,
+      xml_path: Optional[str] = None,
+  ):
+    super().__init__(
+        config=config,
+        config_overrides=config_overrides,
+        xml_path=xml_path or consts.GRASP_V2_COACD_QBR_XML.as_posix(),
+    )
+    middle_mcp_id = _V2_FINGER_MCP_IDS[1]
+    middle_target = 0.62
+    thumb_equiv_mcp = float((0.16 * 1.3788) / 0.6666667)
+    self._thumb_passive_source_id = _V2_THUMB_MCP_ID
+    self._thumb_passive_ratio = 0.6666667
+    self._default_ctrl = self._default_ctrl.at[1].set(thumb_equiv_mcp)
+    self._default_ctrl = self._default_ctrl.at[3].set(middle_target)
+    self._default_pose = self._default_pose.at[middle_mcp_id].set(middle_target)
+    self._pre_grasp_pose = self._pre_grasp_pose.at[_V2_THUMB_MCP_ID].set(
+        thumb_equiv_mcp
+    )
+    self._pre_grasp_pose = self._pre_grasp_pose.at[middle_mcp_id].set(
+        middle_target
+    )
+    self._lifted_grasp_pose = self._lifted_grasp_pose.at[_V2_THUMB_MCP_ID].set(
+        thumb_equiv_mcp
+    )
+    self._lifted_grasp_pose = self._lifted_grasp_pose.at[middle_mcp_id].set(
+        middle_target
+    )
+    self._lifted_grasp_ctrl = self._lifted_grasp_ctrl.at[1].set(thumb_equiv_mcp)
+    self._lifted_grasp_ctrl = self._lifted_grasp_ctrl.at[3].set(middle_target)
+    self._default_pose = self._apply_passive_joint_couplings(self._default_pose)
+    self._pre_grasp_pose = self._apply_passive_joint_couplings(self._pre_grasp_pose)
+    self._lifted_grasp_pose = self._apply_passive_joint_couplings(
+        self._lifted_grasp_pose
     )
 
 

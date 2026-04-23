@@ -125,6 +125,11 @@ _VISION = flags.DEFINE_boolean("vision", False, "Use vision input")
 _LOAD_CHECKPOINT_PATH = flags.DEFINE_string(
     "load_checkpoint_path", None, "Path to load checkpoint from"
 )
+_IGNORE_CHECKPOINT_ENV_CONFIG = flags.DEFINE_boolean(
+    "ignore_checkpoint_env_config",
+    False,
+    "Restore checkpoint weights without merging the checkpoint env config.",
+)
 _SUFFIX = flags.DEFINE_string("suffix", None, "Suffix for the experiment name")
 _PLAY_ONLY = flags.DEFINE_boolean(
     "play_only", False, "If true, only play with the model and do not train"
@@ -291,7 +296,7 @@ def main(argv):
   env_cfg = registry.get_default_config(_ENV_NAME.value)
   env_cfg["impl"] = _IMPL.value
 
-  if _LOAD_CHECKPOINT_PATH.value is not None:
+  if _LOAD_CHECKPOINT_PATH.value is not None and not _IGNORE_CHECKPOINT_ENV_CONFIG.value:
     ckpt_path_for_cfg = epath.Path(_LOAD_CHECKPOINT_PATH.value).resolve()
     if ckpt_path_for_cfg.is_dir():
       if not (

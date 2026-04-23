@@ -1,0 +1,23 @@
+Traceback (most recent call last):
+  File "/root/autodl-tmp/Aero-Hand/sim_rl/mujoco_playground/learning/train_jax_ppo.py", line 29, in <module>
+    from brax.training.agents.ppo import networks as ppo_networks
+  File "/root/miniconda3/envs/aero_rl/lib/python3.11/site-packages/brax/__init__.py", line 19, in <module>
+    from brax.base import Motion
+  File "/root/miniconda3/envs/aero_rl/lib/python3.11/site-packages/brax/base.py", line 28, in <module>
+    import mujoco
+  File "/root/miniconda3/envs/aero_rl/lib/python3.11/site-packages/mujoco/__init__.py", line 62, in <module>
+    from mujoco.gl_context import *
+  File "/root/miniconda3/envs/aero_rl/lib/python3.11/site-packages/mujoco/gl_context.py", line 38, in <module>
+    from mujoco.osmesa import GLContext as _GLContext
+  File "/root/miniconda3/envs/aero_rl/lib/python3.11/site-packages/mujoco/osmesa/__init__.py", line 31, in <module>
+    from OpenGL import GL
+  File "/root/miniconda3/envs/aero_rl/lib/python3.11/site-packages/OpenGL/GL/__init__.py", line 4, in <module>
+    from OpenGL.GL.VERSION.GL_1_1 import *
+  File "/root/miniconda3/envs/aero_rl/lib/python3.11/site-packages/OpenGL/GL/VERSION/GL_1_1.py", line 14, in <module>
+    from OpenGL.raw.GL.VERSION.GL_1_1 import *
+  File "/root/miniconda3/envs/aero_rl/lib/python3.11/site-packages/OpenGL/raw/GL/VERSION/GL_1_1.py", line 7, in <module>
+    from OpenGL.raw.GL import _errors
+  File "/root/miniconda3/envs/aero_rl/lib/python3.11/site-packages/OpenGL/raw/GL/_errors.py", line 4, in <module>
+    _error_checker = _ErrorChecker( _p, _p.GL.glGetError )
+                                        ^^^^^^^^^^^^^^^^
+AttributeError: 'NoneType' object has no attribute 'glGetError'

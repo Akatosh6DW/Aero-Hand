@@ -1,0 +1,253 @@
+Environment Config:
+action_repeat: 1
+action_scale:
+- 0.05
+- 0.12
+- 0.16
+- 0.16
+- 0.09
+- 0.09
+ctrl_dt: 0.05
+early_termination: true
+episode_length: 800
+force_history_len: 1
+history_len: 1
+impl: jax
+noise_config:
+  force_ema_alpha: 0.85
+  level: 0.3
+  scales:
+    hw_force: 0.05
+    hw_pos: 0.005
+perturbation_config:
+  external_force_enabled: false
+  external_force_interval: 30
+  external_force_magnitude: 0.05
+  external_force_min_hold_steps: 60
+  gravity_perturbation_enabled: false
+  gravity_tilt_change_interval: 60
+  gravity_tilt_max_rad: 0.25
+  gravity_tilt_min_hold_steps: 120
+  joint_obs_noise_enabled: true
+  joint_obs_noise_std: 0.015
+  orientation_flip_change_interval: 80
+  orientation_flip_enabled: false
+  orientation_flip_force_scale: 0.85
+  orientation_flip_min_hold_steps: 320
+  total_force_clip_n: 0.35
+reset_config:
+  hand_qpos_noise_scale: 0.01
+  lifted_cube_z_offset: 0.012
+  lifted_grasp_fraction: 0.0
+  lifted_grasp_noise_scale: 0.01
+  pre_grasp_fraction: 1.0
+  pre_grasp_noise_scale: 0.01
+  termination_grace_sec: 5.0
+reward_config:
+  finger_active_threshold: 0.02
+  force_contact_saturation: 0.7
+  force_contact_threshold: 0.015
+  force_overload_soft_width: 0.18
+  force_overload_threshold: 0.65
+  hold_success_sec: 30.0
+  lift_success_threshold_m: 0.008
+  scales:
+    action_accel: -0.005
+    action_rate: -0.02
+    approach: 12.0
+    closure: 8.0
+    contact: 6.0
+    drop_risk: -62.0
+    finger_participation: 60.0
+    force_balance: 36.0
+    force_contact: 20.0
+    force_overload: -30.0
+    grip_force: 32.0
+    height: 12.0
+    hold_position: 58.0
+    human_pose: 6.0
+    idle_follow: 0.0
+    nonprimary_contact: -4.0
+    palm_contact: -12.0
+    pip_closure: 6.0
+    post_release_cheat_contact: -40.0
+    post_release_grasp: 150.0
+    post_release_pose_hold: 95.0
+    post_release_slip: -72.0
+    post_release_survival: 195.0
+    pre_release_grasp: 180.0
+    primary_finger_force: 110.0
+    primary_geom_contact: 90.0
+    progressive_hold: 85.0
+    simultaneous_wrap: 360.0
+    soft_contact: 12.0
+    stable_hold: 230.0
+    survival: 1.0
+    sustained_hold_bonus: 110.0
+    termination: -460.0
+    three_finger_proximity: 30.0
+    thumb_engage: 24.0
+    thumb_opposition: 46.0
+    torques: -3.0e-05
+    whole_hand_wrap: 220.0
+  soft_contact_fmax: 0.65
+  soft_contact_fmin: 0.015
+  target_lift_m: 0.012
+sim_dt: 0.01
+spawn_config:
+  cube_jitter:
+  - 0.0006
+  - 0.0006
+  - 0.001
+  cube_pos:
+  - 0.013113
+  - -0.040712
+  - 0.132458
+  support_enabled: true
+stability_config:
+  max_abs_action: 0.45
+  motor_delta_clip:
+  - 0.012
+  - 0.025
+  - 0.03
+  - 0.03
+  - 0.02
+  - 0.02
+  nonfinite_penalty_mult: 3.0
+  terminate_on_nonfinite: true
+support_config:
+  force_release_after_sec: 16.0
+  min_release_active_fingers: 4
+  min_release_force: 0.08
+  random_release: false
+  random_release_max_sec: 4.2
+  random_release_min_sec: 4.2
+  release_after_sec: 8.0
+  release_ramp_sec: 0.5
+  require_grasp_for_release: true
+  support_hidden_pos:
+  - 0.0
+  - 0.0
+  - -10.0
+  support_pos:
+  - 0.013113
+  - -0.040712
+  - 0.108458
+tactile_config:
+  force_saturation_n: 3.0
+  obs_force_ema_alpha: 0.7
+  taxel_weights:
+  - 0.7
+  - 1.0
+  - 1.0
+  - 0.7
+  - 1.0
+  - 1.4
+  - 1.4
+  - 1.0
+  - 1.0
+  - 1.4
+  - 1.4
+  - 1.0
+  - 0.7
+  - 1.0
+  - 1.0
+  - 0.7
+  use_pooled_obs: true
+  use_real_tactile: true
+
+PPO Training Parameters:
+action_repeat: 1
+batch_size: 1024
+discounting: 0.97
+entropy_cost: 0.01
+episode_length: 800
+learning_rate: 5.0e-05
+network_factory:
+  distribution_type: tanh_normal
+  init_noise_std: 1.0
+  mean_clip_scale: null
+  noise_std_type: scalar
+  num_quantiles: 32
+  policy_hidden_layer_sizes: !!python/tuple
+  - 128
+  - 128
+  policy_obs_key: state
+  state_dependent_std: false
+  use_distributional_critic: false
+  value_hidden_layer_sizes: !!python/tuple
+  - 128
+  - 128
+  value_obs_key: privileged_state
+normalize_observations: true
+num_envs: 4096
+num_eval_envs: 256
+num_evals: 3
+num_minibatches: 32
+num_resets_per_eval: 1
+num_timesteps: 1966080
+num_updates_per_batch: 4
+reward_scaling: 1.0
+unroll_length: 40
+
+Experiment name: AeroCanGraspV2Force-20260423-192318-CAN27_fingerdiag
+Logs are being stored in: /root/autodl-tmp/Aero-Hand/sim_rl/mujoco_playground/logs/AeroCanGraspV2Force-20260423-192318-CAN27_fingerdiag
+Restoring from checkpoint: /root/autodl-tmp/Aero-Hand/sim_rl/mujoco_playground/logs/AeroCanGraspV2Force-20260423-191537-CAN26_gentle_thresholds/checkpoints/000002621440
+Checkpoint path: /root/autodl-tmp/Aero-Hand/sim_rl/mujoco_playground/logs/AeroCanGraspV2Force-20260423-192318-CAN27_fingerdiag/checkpoints
+Traceback (most recent call last):
+  File "/root/autodl-tmp/Aero-Hand/sim_rl/mujoco_playground/learning/train_jax_ppo.py", line 782, in <module>
+    app.run(main)
+  File "/root/miniconda3/envs/aero_rl/lib/python3.11/site-packages/absl/app.py", line 367, in run
+    _run_main(main, args)
+  File "/root/miniconda3/envs/aero_rl/lib/python3.11/site-packages/absl/app.py", line 312, in _run_main
+    sys.exit(main(argv))
+             ^^^^^^^^^^
+  File "/root/autodl-tmp/Aero-Hand/sim_rl/mujoco_playground/learning/train_jax_ppo.py", line 678, in main
+    make_inference_fn, params, _ = train_fn(  # pylint: disable=no-value-for-parameter
+                                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/root/miniconda3/envs/aero_rl/lib/python3.11/site-packages/brax/training/agents/ppo/train.py", line 787, in train
+    metrics = evaluator.run_evaluation(
+              ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/root/miniconda3/envs/aero_rl/lib/python3.11/site-packages/brax/training/acting.py", line 146, in run_evaluation
+    eval_state = self._generate_eval_unroll(
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/root/miniconda3/envs/aero_rl/lib/python3.11/site-packages/brax/training/acting.py", line 123, in generate_eval_unroll
+    return generate_unroll(
+           ^^^^^^^^^^^^^^^^
+  File "/root/miniconda3/envs/aero_rl/lib/python3.11/site-packages/brax/training/acting.py", line 73, in generate_unroll
+    (final_state, _), data = jax.lax.scan(
+                             ^^^^^^^^^^^^^
+  File "/root/miniconda3/envs/aero_rl/lib/python3.11/site-packages/brax/training/acting.py", line 67, in f
+    nstate, transition = actor_step(
+                         ^^^^^^^^^^^
+  File "/root/miniconda3/envs/aero_rl/lib/python3.11/site-packages/brax/training/acting.py", line 42, in actor_step
+    nstate = env.step(env_state, actions)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/root/miniconda3/envs/aero_rl/lib/python3.11/site-packages/brax/envs/wrappers/training.py", line 200, in step
+    nstate = self.env.step(state, action)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/root/autodl-tmp/Aero-Hand/sim_rl/mujoco_playground/mujoco_playground/_src/wrapper.py", line 186, in step
+    state = self.env.step(state, action)
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/root/miniconda3/envs/aero_rl/lib/python3.11/site-packages/brax/envs/wrappers/training.py", line 103, in step
+    state, rewards = jax.lax.scan(f, state, (), self.action_repeat)
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/root/miniconda3/envs/aero_rl/lib/python3.11/site-packages/brax/envs/wrappers/training.py", line 100, in f
+    nstate = self.env.step(state, action)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/root/miniconda3/envs/aero_rl/lib/python3.11/site-packages/brax/envs/wrappers/training.py", line 72, in step
+    return jax.vmap(self.env.step)(state, action)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/root/autodl-tmp/Aero-Hand/sim_rl/mujoco_playground/mujoco_playground/_src/manipulation/aero_hand/grasp_can_v2_force.py", line 419, in step
+    return jax.lax.cond(nonfinite_state, _handle_nonfinite, _handle_normal, operand=None)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+TypeError: cond branch outputs must have the same pytree structure, but they differ:
+
+true_fun is _handle_nonfinite at /root/autodl-tmp/Aero-Hand/sim_rl/mujoco_playground/mujoco_playground/_src/manipulation/aero_hand/grasp_can_v2_force.py:349
+false_fun is _handle_normal at /root/autodl-tmp/Aero-Hand/sim_rl/mujoco_playground/mujoco_playground/_src/manipulation/aero_hand/grasp_can_v2_force.py:354
+
+true_fun output at path .metrics is a <class 'dict'> with 97 children but false_fun output at path .metrics is a <class 'dict'> with 102 children, so the numbers of children do not match, with the symmetric difference of key sets: {'diagnostic/middle_wrap_contact' 'diagnostic/index_wrap_contact' 'diagnostic/thumb_wrap_contact' 'diagnostic/triad_wrap_count' 'diagnostic/ring_wrap_contact'}.
+
+Revise true_fun and/or false_fun so that they have the same pytree structure.
+--------------------
+For simplicity, JAX has removed its internal frames from the traceback of the following exception. Set JAX_TRACEBACK_FILTERING=off to include these.

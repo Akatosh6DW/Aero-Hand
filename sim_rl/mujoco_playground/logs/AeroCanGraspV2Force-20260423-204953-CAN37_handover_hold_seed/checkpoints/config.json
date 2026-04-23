@@ -1,0 +1,181 @@
+{
+    "action_repeat": 1,
+    "action_scale": [
+        0.05,
+        0.16,
+        0.16,
+        0.16,
+        0.18,
+        0.07
+    ],
+    "ctrl_dt": 0.05,
+    "early_termination": true,
+    "episode_length": 800,
+    "force_history_len": 1,
+    "history_len": 1,
+    "impl": "jax",
+    "noise_config": {
+        "force_ema_alpha": 0.85,
+        "level": 0.3,
+        "scales": {
+            "hw_force": 0.05,
+            "hw_pos": 0.005
+        }
+    },
+    "perturbation_config": {
+        "external_force_enabled": false,
+        "external_force_interval": 30,
+        "external_force_magnitude": 0.05,
+        "external_force_min_hold_steps": 60,
+        "gravity_perturbation_enabled": false,
+        "gravity_tilt_change_interval": 60,
+        "gravity_tilt_max_rad": 0.25,
+        "gravity_tilt_min_hold_steps": 120,
+        "joint_obs_noise_enabled": true,
+        "joint_obs_noise_std": 0.015,
+        "orientation_flip_change_interval": 80,
+        "orientation_flip_enabled": false,
+        "orientation_flip_force_scale": 0.85,
+        "orientation_flip_min_hold_steps": 320,
+        "total_force_clip_n": 0.35
+    },
+    "reset_config": {
+        "hand_qpos_noise_scale": 0.01,
+        "lifted_cube_z_offset": 0.012,
+        "lifted_grasp_fraction": 0.0,
+        "lifted_grasp_noise_scale": 0.01,
+        "pre_grasp_fraction": 1.0,
+        "pre_grasp_noise_scale": 0.01,
+        "termination_grace_sec": 5.0
+    },
+    "reward_config": {
+        "finger_active_threshold": 0.02,
+        "force_contact_saturation": 0.7,
+        "force_contact_threshold": 0.015,
+        "force_overload_soft_width": 0.18,
+        "force_overload_threshold": 0.65,
+        "hold_success_sec": 30.0,
+        "lift_success_threshold_m": 0.008,
+        "scales": {
+            "action_accel": -0.005,
+            "action_rate": -0.02,
+            "approach": 12.0,
+            "closure": 8.0,
+            "contact": 6.0,
+            "core_contact": 2200.0,
+            "core_cup_wrap": 320.0,
+            "drop_risk": -62.0,
+            "finger_participation": 60.0,
+            "force_balance": 36.0,
+            "force_contact": 20.0,
+            "force_overload": -30.0,
+            "grip_force": 32.0,
+            "height": 12.0,
+            "hold_position": 150.0,
+            "human_pose": 6.0,
+            "idle_follow": 0.0,
+            "nonprimary_contact": -4.0,
+            "palm_contact": -12.0,
+            "pip_closure": 6.0,
+            "post_release_cheat_contact": -40.0,
+            "post_release_grasp": 240.0,
+            "post_release_pose_hold": 95.0,
+            "post_release_slip": -72.0,
+            "post_release_survival": 360.0,
+            "pre_release_grasp": 90.0,
+            "primary_finger_force": 110.0,
+            "primary_geom_contact": 90.0,
+            "progressive_hold": 120.0,
+            "ring_engage": 80.0,
+            "ring_proximity": 20.0,
+            "short_hold_seed": 160.0,
+            "simultaneous_wrap": 360.0,
+            "soft_contact": 12.0,
+            "stable_hold": 360.0,
+            "supported_hold_position": 180.0,
+            "survival": 1.0,
+            "sustained_hold_bonus": 160.0,
+            "termination": -460.0,
+            "three_finger_proximity": 30.0,
+            "thumb_engage": 24.0,
+            "thumb_opposition": 46.0,
+            "torques": -3e-05,
+            "whole_hand_wrap": 220.0
+        },
+        "soft_contact_fmax": 0.65,
+        "soft_contact_fmin": 0.015,
+        "target_lift_m": 0.012
+    },
+    "sim_dt": 0.01,
+    "spawn_config": {
+        "cube_jitter": [
+            0.0006,
+            0.0006,
+            0.001
+        ],
+        "cube_pos": [
+            0.013113,
+            -0.040712,
+            0.132458
+        ],
+        "support_enabled": true
+    },
+    "stability_config": {
+        "max_abs_action": 0.45,
+        "motor_delta_clip": [
+            0.012,
+            0.025,
+            0.03,
+            0.03,
+            0.02,
+            0.02
+        ],
+        "nonfinite_penalty_mult": 3.0,
+        "terminate_on_nonfinite": true
+    },
+    "support_config": {
+        "force_release_after_sec": 20.0,
+        "min_release_active_fingers": 4,
+        "min_release_force": 0.08,
+        "random_release": false,
+        "random_release_max_sec": 4.2,
+        "random_release_min_sec": 4.2,
+        "release_after_sec": 12.0,
+        "release_ramp_sec": 0.5,
+        "require_grasp_for_release": false,
+        "support_hidden_pos": [
+            0.0,
+            0.0,
+            -10.0
+        ],
+        "support_pos": [
+            0.013113,
+            -0.040712,
+            0.118458
+        ]
+    },
+    "tactile_config": {
+        "force_saturation_n": 3.0,
+        "obs_force_ema_alpha": 0.7,
+        "taxel_weights": [
+            0.7,
+            1.0,
+            1.0,
+            0.7,
+            1.0,
+            1.4,
+            1.4,
+            1.0,
+            1.0,
+            1.4,
+            1.4,
+            1.0,
+            0.7,
+            1.0,
+            1.0,
+            0.7
+        ],
+        "use_pooled_obs": true,
+        "use_real_tactile": true
+    }
+}

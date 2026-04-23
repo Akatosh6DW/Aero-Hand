@@ -81,3 +81,82 @@
 ### 说明
 - 这次我只更新了 baseline 起点，没有额外改 `cube_jitter` / `pre_grasp_noise_scale` 等训练噪声项。
 - 如果你希望“每次 reset 都严格从这组姿态开始”，下一步我可以把这些 noise/jitter 一并清零。
+
+## CAN04: 用户确认新的最终训练目标 (2026-04-23)
+
+### 新目标
+- 在当前脚本提供的圆柱 / 易拉罐初始姿态上继续训练，不再回到旧矿泉水瓶任务。
+- 训练目标不是短时接触，而是：
+  - **稳定持握 30s+ 不掉落**
+  - **不能靠过大法向挤压造成易拉罐变形**
+  - **握住后在晃动/扰动下仍不掉落**
+  - **包含 DR 与扰动鲁棒性，不只是固定物理成功**
+- 训练过程必须自主迭代：
+  - 每轮读 `metrics.csv` / stdout / 视频或离线评估
+  - 按失败模式修改 reward、release 逻辑、初始状态课程、扰动时序
+  - 不能只是重复同一条训练命令
+
+### 当前状态判断
+- `AeroCanGraspV2Force` 已完成场景、初始位姿、拇指 flex 代理与更软接触参数接入。
+- 但截至当前，还**没有**一个真正训练过并达到 `30s+` 的 can checkpoint。
+- 后续 can 训练要与 cube 线严格分开记录，不改坏 cube 主线。
+
+## CAN05: cube 完成后切入当前 pose 的 can/cylinder 基线 (2026-04-23)
+
+### 前置条件
+- cube 的当前手参数适配线已完成 `30s+`：
+  - `AeroCubeGraspV2ForceCoacdQbr`
+  - `C52b_qbr_middle_bias_8192`
+- 按用户流程，cube 达标后自动切换到当前圆柱 / 易拉罐任务。
+
+### 本轮策略
+- 保持当前脚本里确认过的圆柱初始姿态不变。
+- 先读取当前 `AeroCanGraspV2Force` 的基线表现，再按失败模式决定是：
+  - 先收紧“易变形不能大力捏”的 force shaping
+  - 还是先改 unsupported hold / release / wrap reward
+- 训练与日志继续和 cube 线隔离记录。
+
+### CAN05 结果
+- `CAN05_currentpose_baseline`
+  - 直接用“unsupported start + 已开 DR”的当前 can 默认配置起跑。
+  - 首个 eval:
+    - `avg_episode_length ≈ 100`
+    - `contact_duration = 0`
+    - `drop = 100%`
+    - `lift_success ≈ 0.78`
+  - 判断:
+    - 这不是一个可学的起点；
+    - 说明当前圆柱任务不能一开始就让策略在无支撑 + 扰动条件下学。
+
+## CAN06: support + no-DR baseline (2026-04-23)
+
+### 改动
+- `spawn.support_enabled: False -> True`
+- `reset.pre_grasp_fraction: 0.0 -> 1.0`
+- `reset.lifted_grasp_fraction: 1.0 -> 0.0`
+- `support.random_release: True -> False`
+- `support.release_after_sec: 3.8 -> 4.2`
+- `support.force_release_after_sec: 5.2 -> 6.0`
+- 第一阶段关闭 DR：
+  - `external_force_enabled = False`
+  - `gravity_perturbation_enabled = False`
+  - `orientation_flip_enabled = False`
+- 将 `palm_contact / nonprimary_contact` 从正奖励改回惩罚，避免奖励函数鼓励掌心蹭住物体。
+- `force_overload` 惩罚加重，继续维护“易拉罐不能大力捏”的目标。
+
+### 结果
+- `CAN06_support_nodr`
+  - 首个 eval:
+    - `avg_episode_length ≈ 143`
+    - `contact_duration = 0`
+    - `drop = 100%`
+    - `lift_success ≈ 44.9`
+    - `palm_contact ≈ 64.5`
+    - `normal_force_mean ≈ 0.52`
+- 判断:
+  - 比 `CAN05` 前进了一步：策略已经学到“靠掌心去兜住圆柱并尝试抬起”。
+  - 但这条线**明显在走 palm cheat**，还没有形成我们要的轻力包裹抓握。
+  - 下一步不该继续原配方长跑，而要继续改：
+    - 更强抑制 palm cheating
+    - 强化真正 wrap hold 的判据/奖励
+    - 让主要接触从“掌心兜”转为“手指包裹”

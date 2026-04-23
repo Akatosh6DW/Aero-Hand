@@ -1,0 +1,367 @@
+<mujoco model="Lingxi_Hand_V2_Right_QBR">
+  <compiler angle="radian" meshdir="/home/ll/SRTP/Aero-Hand/handinformation/URDF/右/qbr/meshes/" />
+  <option timestep="0.01" integrator="Euler" iterations="20" ls_iterations="20">
+    <flag eulerdamp="disable" />
+  </option>
+  <custom>
+    <numeric data="80" name="max_contact_points" />
+    <numeric data="50" name="max_geom_pairs" />
+  </custom>
+  <asset>
+    <material name="black" rgba="0.2 0.2 0.2 1" />
+    <material name="gray" rgba="0.5 0.5 0.5 1" />
+    <material name="white" rgba="0.529 0.549 0.549 1" />
+    <material name="rubber" rgba="0.3 0.3 0.3 1" />
+    <mesh name="v2_palm" file="v2_base_link.STL" />
+    <mesh name="v2_thumb_base" file="link1.STL" />
+    <mesh name="v2_thumb_mid" file="link2.STL" />
+    <mesh name="v2_thumb_tip" file="link3.STL" />
+    <mesh name="v2_index_proximal" file="link4.STL" />
+    <mesh name="v2_index_distal" file="link5.STL" />
+    <mesh name="v2_middle_proximal" file="link6.STL" />
+    <mesh name="v2_middle_distal" file="link7.STL" />
+    <mesh name="v2_ring_proximal" file="link8.STL" />
+    <mesh name="v2_ring_distal" file="link9.STL" />
+    <mesh name="v2_pinky_proximal" file="link10.STL" />
+    <mesh name="v2_pinky_distal" file="link11.STL" />
+  </asset>
+  <default>
+    <default class="v2_hand">
+      <site group="4" />
+      <default class="visual">
+        <geom group="2" type="mesh" contype="0" conaffinity="0" density="0" material="white" />
+      </default>
+      <joint damping="0.02" armature="0.001559127" frictionloss="0.02" />
+      <position kp="3.0" />
+      <default class="mcp">
+        <joint range="0 1.3963" damping="0.1" />
+        <position ctrlrange="0 1.40" />
+      </default>
+      <default class="pip">
+        <joint range="0 1.2915" damping="0.05" />
+      </default>
+      <default class="thumb_cmc">
+        <joint range="0 1.3788" damping="0.1" />
+        <position ctrlrange="0 1.38" />
+      </default>
+      <!-- Current hardware-style thumb flex proxy: passive 30deg segment
+           follows the actively controlled thumb MCP flexion chain. -->
+      <default class="thumb_flex">
+        <joint range="0 0.5236" damping="0.05" />
+      </default>
+      <default class="thumb_mcp">
+        <joint range="0 0.7854" damping="0.05" />
+        <position ctrlrange="0 0.79" />
+      </default>
+    </default>
+  </default>
+  <contact>
+    <exclude body1="palm" body2="right_index_proximal" />
+    <exclude body1="palm" body2="right_middle_proximal" />
+    <exclude body1="palm" body2="right_ring_proximal" />
+    <exclude body1="palm" body2="right_pinky_proximal" />
+    <exclude body1="palm" body2="right_thumb_base" />
+    <exclude body1="palm" body2="right_thumb_mid" />
+    <exclude body1="palm" body2="right_ring_distal" />
+    <exclude body1="palm" body2="right_pinky_distal" />
+    <exclude body1="v2_mount" body2="right_index_proximal" />
+    <exclude body1="v2_mount" body2="right_middle_proximal" />
+    <exclude body1="v2_mount" body2="right_ring_proximal" />
+    <exclude body1="v2_mount" body2="right_pinky_proximal" />
+    <exclude body1="v2_mount" body2="right_thumb_base" />
+    <exclude body1="right_index_proximal" body2="right_index_distal" />
+    <exclude body1="right_middle_proximal" body2="right_middle_distal" />
+    <exclude body1="right_ring_proximal" body2="right_ring_distal" />
+    <exclude body1="right_pinky_proximal" body2="right_pinky_distal" />
+    <exclude body1="right_thumb_base" body2="right_thumb_mid" />
+    <exclude body1="right_thumb_mid" body2="right_thumb_tip" />
+    <exclude body1="right_index_proximal" body2="right_middle_proximal" />
+    <exclude body1="right_index_distal" body2="right_middle_distal" />
+    <exclude body1="right_middle_proximal" body2="right_ring_proximal" />
+    <exclude body1="right_middle_distal" body2="right_ring_distal" />
+    <exclude body1="right_ring_proximal" body2="right_pinky_proximal" />
+    <exclude body1="right_ring_distal" body2="right_pinky_distal" />
+    <exclude body1="right_index_proximal" body2="right_middle_distal" />
+    <exclude body1="right_middle_proximal" body2="right_ring_distal" />
+    <exclude body1="right_ring_proximal" body2="right_pinky_distal" />
+    <exclude body1="right_middle_proximal" body2="right_index_distal" />
+    <exclude body1="right_ring_proximal" body2="right_middle_distal" />
+    <exclude body1="right_pinky_proximal" body2="right_ring_distal" />
+  </contact>
+  <worldbody>
+    <body name="v2_mount" pos="0 0 0" euler="1.5708 0 0" childclass="v2_hand">
+      <body name="palm" pos="0 0 0">
+        <geom type="mesh" mesh="v2_palm" class="visual" />
+        <geom name="palm_capsule_000" type="box" size="0.019545 0.032818 0.027657" pos="-0.001294 0.013306 -0.002059" quat="-0.021394 -0.694705 0.718833 -0.014360" group="3" friction="1.5" solref="0.005 1.0" solimp="0.97 0.999 0.0001" />
+        <geom name="palm_capsule_001" type="box" size="0.055995 0.012246 0.020313" pos="-0.037477 0.088524 0.002150" quat="-0.021394 -0.694705 0.718833 -0.014360" group="3" friction="1.5" solref="0.005 1.0" solimp="0.97 0.999 0.0001" />
+        <geom name="palm_capsule_002" type="box" size="0.015020 0.023038 0.009075" pos="0.014322 0.045467 0.014280" quat="-0.021394 -0.694705 0.718833 -0.014360" group="3" friction="1.5" solref="0.005 1.0" solimp="0.97 0.999 0.0001" />
+        <geom name="palm_capsule_003" type="box" size="0.058447 0.011058 0.023732" pos="-0.017454 0.089066 -0.000677" quat="-0.021394 -0.694705 0.718833 -0.014360" group="3" friction="1.5" solref="0.005 1.0" solimp="0.97 0.999 0.0001" />
+        <geom name="palm_capsule_004" type="box" size="0.015590 0.024517 0.016455" pos="0.015471 0.045279 -0.007175" quat="-0.021394 -0.694705 0.718833 -0.014360" group="3" friction="1.5" solref="0.005 1.0" solimp="0.97 0.999 0.0001" />
+        <geom name="palm_capsule_005" type="box" size="0.001643 0.008443 0.008259" pos="0.017799 0.006857 -0.019307" quat="-0.021394 -0.694705 0.718833 -0.014360" group="3" friction="1.5" solref="0.005 1.0" solimp="0.97 0.999 0.0001" />
+        <geom name="palm_capsule_006" type="box" size="0.037733 0.026708 0.023460" pos="0.016879 0.095803 -0.000931" quat="-0.021394 -0.694705 0.718833 -0.014360" group="3" friction="1.5" solref="0.005 1.0" solimp="0.97 0.999 0.0001" />
+        <geom name="palm_capsule_007" type="box" size="0.013627 0.026278 0.013850" pos="0.017772 0.136552 -0.001137" quat="-0.021394 -0.694705 0.718833 -0.014360" group="3" friction="1.5" solref="0.005 1.0" solimp="0.97 0.999 0.0001" />
+        <site name="grasp_site" pos="0 0.085 -0.020" group="4" />
+        <body name="right_index_proximal" pos="0.034276 0.1374 0.001">
+          <inertial pos="-0.003657 0.0162 0.000274" mass="0.0686" diaginertia="7.49e-06 7.33e-06 2.82e-06" />
+          <joint name="right_index_mcp" axis="1 0 0" class="mcp" />
+          <geom type="mesh" mesh="v2_index_proximal" class="visual" />
+          <geom name="right_index_proximal_capsule_000" type="capsule" group="3" friction="1.5" solref="0.005 1.0" solimp="0.97 0.999 0.0001" fromto="-0.003733 0.008071 0.003736 -0.003793 0.026509 -0.000839" size="0.010229" />
+          <body name="right_index_distal" pos="0.00084336 0.031988 -0.0026473">
+            <inertial pos="-0.00450 0.0246 0.00927" mass="0.0755" diaginertia="1.58e-05 1.57e-05 2.47e-06" />
+            <joint name="right_index_pip" axis="1 0 0" class="pip" />
+            <geom type="mesh" mesh="v2_index_distal" class="visual" />
+            <geom name="right_index_distal_capsule_000" type="capsule" group="3" friction="1.5" solref="0.005 1.0" solimp="0.97 0.999 0.0001" fromto="-0.004533 0.003643 0.004505 -0.004547 0.015148 0.007211" size="0.008789" />
+            <geom name="right_index_distal_capsule_001" type="capsule" group="3" friction="1.5" solref="0.005 1.0" solimp="0.97 0.999 0.0001" fromto="-0.004569 0.032374 0.011263 -0.004584 0.043669 0.013920" size="0.008894" />
+            <site name="if_tip" pos="-0.004 0.052 0.005" group="4" />
+            <site name="if_tip_t00" pos="-0.007 0.042 0.005" size="0.003" />
+            <site name="if_tip_t01" pos="-0.005 0.042 0.005" size="0.003" />
+            <site name="if_tip_t02" pos="-0.003 0.042 0.005" size="0.003" />
+            <site name="if_tip_t03" pos="-0.001 0.042 0.005" size="0.003" />
+            <site name="if_tip_t04" pos="-0.007 0.045 0.005" size="0.003" />
+            <site name="if_tip_t05" pos="-0.005 0.045 0.005" size="0.003" />
+            <site name="if_tip_t06" pos="-0.003 0.045 0.005" size="0.003" />
+            <site name="if_tip_t07" pos="-0.001 0.045 0.005" size="0.003" />
+            <site name="if_tip_t08" pos="-0.007 0.048 0.005" size="0.003" />
+            <site name="if_tip_t09" pos="-0.005 0.048 0.005" size="0.003" />
+            <site name="if_tip_t10" pos="-0.003 0.048 0.005" size="0.003" />
+            <site name="if_tip_t11" pos="-0.001 0.048 0.005" size="0.003" />
+            <site name="if_tip_t12" pos="-0.007 0.051 0.005" size="0.003" />
+            <site name="if_tip_t13" pos="-0.005 0.051 0.005" size="0.003" />
+            <site name="if_tip_t14" pos="-0.003 0.051 0.005" size="0.003" />
+            <site name="if_tip_t15" pos="-0.001 0.051 0.005" size="0.003" />
+          </body>
+        </body>
+        <body name="right_middle_proximal" pos="0.012276 0.14055 0.001">
+          <inertial pos="-0.003657 0.0162 0.000274" mass="0.0686" diaginertia="7.49e-06 7.33e-06 2.82e-06" />
+          <joint name="right_middle_mcp" axis="1 0 0" class="mcp" />
+          <geom type="mesh" mesh="v2_middle_proximal" class="visual" />
+          <geom name="right_middle_proximal_capsule_000" type="capsule" group="3" friction="1.5" solref="0.005 1.0" solimp="0.97 0.999 0.0001" fromto="-0.003733 0.008071 0.003736 -0.003793 0.026509 -0.000839" size="0.010229" />
+          <body name="right_middle_distal" pos="0 0.02968 -0.0024563">
+            <inertial pos="-0.00366 0.0269 0.00908" mass="0.0755" diaginertia="1.58e-05 1.57e-05 2.47e-06" />
+            <joint name="right_middle_pip" axis="1 0 0" class="pip" />
+            <geom type="mesh" mesh="v2_middle_distal" class="visual" />
+            <geom name="right_middle_distal_capsule_000" type="capsule" group="3" friction="1.5" solref="0.005 1.0" solimp="0.97 0.999 0.0001" fromto="-0.003689 0.005951 0.004314 -0.003704 0.017455 0.007020" size="0.008789" />
+            <geom name="right_middle_distal_capsule_001" type="capsule" group="3" friction="1.5" solref="0.005 1.0" solimp="0.97 0.999 0.0001" fromto="-0.003726 0.034682 0.011072 -0.003740 0.045977 0.013729" size="0.008894" />
+            <site name="mf_tip" pos="-0.004 0.052 0.005" group="4" />
+            <site name="mf_tip_t00" pos="-0.007 0.042 0.005" size="0.003" />
+            <site name="mf_tip_t01" pos="-0.005 0.042 0.005" size="0.003" />
+            <site name="mf_tip_t02" pos="-0.003 0.042 0.005" size="0.003" />
+            <site name="mf_tip_t03" pos="-0.001 0.042 0.005" size="0.003" />
+            <site name="mf_tip_t04" pos="-0.007 0.045 0.005" size="0.003" />
+            <site name="mf_tip_t05" pos="-0.005 0.045 0.005" size="0.003" />
+            <site name="mf_tip_t06" pos="-0.003 0.045 0.005" size="0.003" />
+            <site name="mf_tip_t07" pos="-0.001 0.045 0.005" size="0.003" />
+            <site name="mf_tip_t08" pos="-0.007 0.048 0.005" size="0.003" />
+            <site name="mf_tip_t09" pos="-0.005 0.048 0.005" size="0.003" />
+            <site name="mf_tip_t10" pos="-0.003 0.048 0.005" size="0.003" />
+            <site name="mf_tip_t11" pos="-0.001 0.048 0.005" size="0.003" />
+            <site name="mf_tip_t12" pos="-0.007 0.051 0.005" size="0.003" />
+            <site name="mf_tip_t13" pos="-0.005 0.051 0.005" size="0.003" />
+            <site name="mf_tip_t14" pos="-0.003 0.051 0.005" size="0.003" />
+            <site name="mf_tip_t15" pos="-0.001 0.051 0.005" size="0.003" />
+          </body>
+        </body>
+        <body name="right_ring_proximal" pos="-0.009724 0.1374 0.001">
+          <inertial pos="-0.003657 0.0162 0.000274" mass="0.0686" diaginertia="7.49e-06 7.33e-06 2.82e-06" />
+          <joint name="right_ring_mcp" axis="1 0 0" class="mcp" />
+          <geom type="mesh" mesh="v2_ring_proximal" class="visual" />
+          <geom name="right_ring_proximal_capsule_000" type="capsule" group="3" friction="1.5" solref="0.005 1.0" solimp="0.97 0.999 0.0001" fromto="-0.003733 0.008071 0.003736 -0.003793 0.026509 -0.000839" size="0.010229" />
+          <body name="right_ring_distal" pos="0 0.02968 -0.0024563">
+            <inertial pos="-0.00366 0.0269 0.00908" mass="0.0755" diaginertia="1.58e-05 1.57e-05 2.47e-06" />
+            <joint name="right_ring_pip" axis="1 0 0" class="pip" />
+            <geom type="mesh" mesh="v2_ring_distal" class="visual" />
+            <geom name="right_ring_distal_capsule_000" type="capsule" group="3" friction="1.5" solref="0.005 1.0" solimp="0.97 0.999 0.0001" fromto="-0.003689 0.005951 0.004314 -0.003704 0.017455 0.007020" size="0.008789" />
+            <geom name="right_ring_distal_capsule_001" type="capsule" group="3" friction="1.5" solref="0.005 1.0" solimp="0.97 0.999 0.0001" fromto="-0.003726 0.034682 0.011072 -0.003740 0.045977 0.013729" size="0.008894" />
+            <site name="rf_tip" pos="-0.004 0.052 0.005" group="4" />
+            <site name="rf_tip_t00" pos="-0.007 0.042 0.005" size="0.003" />
+            <site name="rf_tip_t01" pos="-0.005 0.042 0.005" size="0.003" />
+            <site name="rf_tip_t02" pos="-0.003 0.042 0.005" size="0.003" />
+            <site name="rf_tip_t03" pos="-0.001 0.042 0.005" size="0.003" />
+            <site name="rf_tip_t04" pos="-0.007 0.045 0.005" size="0.003" />
+            <site name="rf_tip_t05" pos="-0.005 0.045 0.005" size="0.003" />
+            <site name="rf_tip_t06" pos="-0.003 0.045 0.005" size="0.003" />
+            <site name="rf_tip_t07" pos="-0.001 0.045 0.005" size="0.003" />
+            <site name="rf_tip_t08" pos="-0.007 0.048 0.005" size="0.003" />
+            <site name="rf_tip_t09" pos="-0.005 0.048 0.005" size="0.003" />
+            <site name="rf_tip_t10" pos="-0.003 0.048 0.005" size="0.003" />
+            <site name="rf_tip_t11" pos="-0.001 0.048 0.005" size="0.003" />
+            <site name="rf_tip_t12" pos="-0.007 0.051 0.005" size="0.003" />
+            <site name="rf_tip_t13" pos="-0.005 0.051 0.005" size="0.003" />
+            <site name="rf_tip_t14" pos="-0.003 0.051 0.005" size="0.003" />
+            <site name="rf_tip_t15" pos="-0.001 0.051 0.005" size="0.003" />
+          </body>
+        </body>
+        <body name="right_pinky_proximal" pos="-0.031724 0.13417 0.001">
+          <inertial pos="-0.003657 0.0162 0.000274" mass="0.0686" diaginertia="7.49e-06 7.33e-06 2.82e-06" />
+          <joint name="right_pinky_mcp" axis="1 0 0" class="mcp" />
+          <geom type="mesh" mesh="v2_pinky_proximal" class="visual" />
+          <geom name="right_pinky_proximal_capsule_000" type="capsule" group="3" friction="1.5" solref="0.005 1.0" solimp="0.97 0.999 0.0001" fromto="-0.003733 0.008071 0.003736 -0.003793 0.026509 -0.000839" size="0.010229" />
+          <body name="right_pinky_distal" pos="0.00084336 0.031988 -0.0026473">
+            <inertial pos="-0.00450 0.0246 0.00927" mass="0.0755" diaginertia="1.58e-05 1.57e-05 2.47e-06" />
+            <joint name="right_pinky_pip" axis="1 0 0" class="pip" />
+            <geom type="mesh" mesh="v2_pinky_distal" class="visual" />
+            <geom name="right_pinky_distal_capsule_000" type="capsule" group="3" friction="1.5" solref="0.005 1.0" solimp="0.97 0.999 0.0001" fromto="-0.004533 0.003643 0.004505 -0.004547 0.015148 0.007211" size="0.008789" />
+            <geom name="right_pinky_distal_capsule_001" type="capsule" group="3" friction="1.5" solref="0.005 1.0" solimp="0.97 0.999 0.0001" fromto="-0.004569 0.032374 0.011263 -0.004584 0.043669 0.013920" size="0.008894" />
+            <site name="pf_tip" pos="-0.004 0.052 0.005" group="4" />
+            <site name="pf_tip_t00" pos="-0.007 0.042 0.005" size="0.003" />
+            <site name="pf_tip_t01" pos="-0.005 0.042 0.005" size="0.003" />
+            <site name="pf_tip_t02" pos="-0.003 0.042 0.005" size="0.003" />
+            <site name="pf_tip_t03" pos="-0.001 0.042 0.005" size="0.003" />
+            <site name="pf_tip_t04" pos="-0.007 0.045 0.005" size="0.003" />
+            <site name="pf_tip_t05" pos="-0.005 0.045 0.005" size="0.003" />
+            <site name="pf_tip_t06" pos="-0.003 0.045 0.005" size="0.003" />
+            <site name="pf_tip_t07" pos="-0.001 0.045 0.005" size="0.003" />
+            <site name="pf_tip_t08" pos="-0.007 0.048 0.005" size="0.003" />
+            <site name="pf_tip_t09" pos="-0.005 0.048 0.005" size="0.003" />
+            <site name="pf_tip_t10" pos="-0.003 0.048 0.005" size="0.003" />
+            <site name="pf_tip_t11" pos="-0.001 0.048 0.005" size="0.003" />
+            <site name="pf_tip_t12" pos="-0.007 0.051 0.005" size="0.003" />
+            <site name="pf_tip_t13" pos="-0.005 0.051 0.005" size="0.003" />
+            <site name="pf_tip_t14" pos="-0.003 0.051 0.005" size="0.003" />
+            <site name="pf_tip_t15" pos="-0.001 0.051 0.005" size="0.003" />
+          </body>
+        </body>
+        <body name="right_thumb_base" pos="0.028693 0.069894 0.010325" quat="0.999048 0 0 0.043619">
+          <inertial pos="0.013775 -0.009814 0.002084" mass="0.08488" diaginertia="1.03e-05 9.49e-06 5.67e-06" />
+          <joint name="right_thumb_cmc_abd" axis="0 -1 0" class="thumb_cmc" />
+          <geom type="mesh" mesh="v2_thumb_base" class="visual" />
+          <geom name="right_thumb_base_capsule_000" type="box" size="0.015325 0.013443 0.017225" pos="0.019292 -0.009593 0.002956" quat="0.237188 0.108156 0.803420 0.535313" group="3" friction="1.5" solref="0.005 1.0" solimp="0.97 0.999 0.0001" />
+          <geom name="right_thumb_base_capsule_001" type="box" size="0.008344 0.008646 0.008403" pos="-0.002984 -0.008688 -0.002984" quat="0.237188 0.108156 0.803420 0.535313" group="3" friction="1.5" solref="0.005 1.0" solimp="0.97 0.999 0.0001" />
+          <body name="right_thumb_mid" pos="0.02679 -0.0045 0.0045976" quat="0.641137 -0.027549 -0.766225 -0.032924">
+            <inertial pos="0 0.01832 -0.01287" mass="0.18907" diaginertia="4.62e-05 4.25e-05 1.60e-05" />
+            <joint name="right_thumb_cmc_flex" axis="1 0 0" class="thumb_flex" />
+            <geom type="mesh" mesh="v2_thumb_mid" class="visual" />
+            <geom name="right_thumb_mid_capsule_000" type="capsule" group="3" friction="1.5" solref="0.005 1.0" solimp="0.97 0.999 0.0001" fromto="0.000259 0.029240 -0.018406 0.000155 0.011437 -0.004140" size="0.016560" />
+            <body name="right_thumb_tip" pos="0.0055478 0.0413 -0.024172">
+              <inertial pos="-0.005551 0.005391 -0.014448" mass="0.07660" diaginertia="8.30e-06 8.00e-06 4.06e-06" />
+              <joint name="right_thumb_mcp" axis="1 0 0" class="thumb_mcp" />
+              <geom type="mesh" mesh="v2_thumb_tip" class="visual" />
+              <geom name="right_thumb_tip_capsule_000" type="capsule" group="3" friction="1.5" solref="0.005 1.0" solimp="0.97 0.999 0.0001" fromto="-0.005496 0.010877 -0.025065 -0.005505 0.009894 -0.023324" size="0.011363" />
+              <geom name="right_thumb_tip_capsule_001" type="capsule" group="3" friction="1.5" solref="0.005 1.0" solimp="0.97 0.999 0.0001" fromto="-0.005586 0.001141 -0.007809 -0.005595 0.000159 -0.006067" size="0.010936" />
+              <site name="th_tip" pos="-0.006 0.021 -0.020" group="4" />
+              <site name="th_tip_t00" pos="-0.010 0.008 -0.020" size="0.003" />
+              <site name="th_tip_t01" pos="-0.007 0.008 -0.020" size="0.003" />
+              <site name="th_tip_t02" pos="-0.004 0.008 -0.020" size="0.003" />
+              <site name="th_tip_t03" pos="-0.001 0.008 -0.020" size="0.003" />
+              <site name="th_tip_t04" pos="-0.010 0.012 -0.020" size="0.003" />
+              <site name="th_tip_t05" pos="-0.007 0.012 -0.020" size="0.003" />
+              <site name="th_tip_t06" pos="-0.004 0.012 -0.020" size="0.003" />
+              <site name="th_tip_t07" pos="-0.001 0.012 -0.020" size="0.003" />
+              <site name="th_tip_t08" pos="-0.010 0.016 -0.020" size="0.003" />
+              <site name="th_tip_t09" pos="-0.007 0.016 -0.020" size="0.003" />
+              <site name="th_tip_t10" pos="-0.004 0.016 -0.020" size="0.003" />
+              <site name="th_tip_t11" pos="-0.001 0.016 -0.020" size="0.003" />
+              <site name="th_tip_t12" pos="-0.010 0.020 -0.020" size="0.003" />
+              <site name="th_tip_t13" pos="-0.007 0.020 -0.020" size="0.003" />
+              <site name="th_tip_t14" pos="-0.004 0.020 -0.020" size="0.003" />
+              <site name="th_tip_t15" pos="-0.001 0.020 -0.020" size="0.003" />
+            </body>
+          </body>
+        </body>
+      </body>
+    </body>
+  </worldbody>
+  <actuator>
+    <position name="hw_thumb_rot" joint="right_thumb_cmc_abd" class="thumb_cmc" kp="5" />
+    <position name="hw_thumb_flex" joint="right_thumb_mcp" class="thumb_mcp" kp="3" />
+    <position name="hw_index" joint="right_index_mcp" class="mcp" kp="3" />
+    <position name="hw_middle" joint="right_middle_mcp" class="mcp" kp="3" />
+    <position name="hw_ring" joint="right_ring_mcp" class="mcp" kp="3" />
+    <position name="hw_pinky" joint="right_pinky_mcp" class="mcp" kp="3" />
+  </actuator>
+  <sensor>
+    <jointpos name="hw_pos_thumb_rot" joint="right_thumb_cmc_abd" />
+    <jointpos name="hw_pos_thumb_flex" joint="right_thumb_mcp" />
+    <jointpos name="hw_pos_index" joint="right_index_mcp" />
+    <jointpos name="hw_pos_middle" joint="right_middle_mcp" />
+    <jointpos name="hw_pos_ring" joint="right_ring_mcp" />
+    <jointpos name="hw_pos_pinky" joint="right_pinky_mcp" />
+    <touch name="hw_tip_frc_thumb_00" site="th_tip_t00" />
+    <touch name="hw_tip_frc_thumb_01" site="th_tip_t01" />
+    <touch name="hw_tip_frc_thumb_02" site="th_tip_t02" />
+    <touch name="hw_tip_frc_thumb_03" site="th_tip_t03" />
+    <touch name="hw_tip_frc_thumb_04" site="th_tip_t04" />
+    <touch name="hw_tip_frc_thumb_05" site="th_tip_t05" />
+    <touch name="hw_tip_frc_thumb_06" site="th_tip_t06" />
+    <touch name="hw_tip_frc_thumb_07" site="th_tip_t07" />
+    <touch name="hw_tip_frc_thumb_08" site="th_tip_t08" />
+    <touch name="hw_tip_frc_thumb_09" site="th_tip_t09" />
+    <touch name="hw_tip_frc_thumb_10" site="th_tip_t10" />
+    <touch name="hw_tip_frc_thumb_11" site="th_tip_t11" />
+    <touch name="hw_tip_frc_thumb_12" site="th_tip_t12" />
+    <touch name="hw_tip_frc_thumb_13" site="th_tip_t13" />
+    <touch name="hw_tip_frc_thumb_14" site="th_tip_t14" />
+    <touch name="hw_tip_frc_thumb_15" site="th_tip_t15" />
+    <touch name="hw_tip_frc_index_00" site="if_tip_t00" />
+    <touch name="hw_tip_frc_index_01" site="if_tip_t01" />
+    <touch name="hw_tip_frc_index_02" site="if_tip_t02" />
+    <touch name="hw_tip_frc_index_03" site="if_tip_t03" />
+    <touch name="hw_tip_frc_index_04" site="if_tip_t04" />
+    <touch name="hw_tip_frc_index_05" site="if_tip_t05" />
+    <touch name="hw_tip_frc_index_06" site="if_tip_t06" />
+    <touch name="hw_tip_frc_index_07" site="if_tip_t07" />
+    <touch name="hw_tip_frc_index_08" site="if_tip_t08" />
+    <touch name="hw_tip_frc_index_09" site="if_tip_t09" />
+    <touch name="hw_tip_frc_index_10" site="if_tip_t10" />
+    <touch name="hw_tip_frc_index_11" site="if_tip_t11" />
+    <touch name="hw_tip_frc_index_12" site="if_tip_t12" />
+    <touch name="hw_tip_frc_index_13" site="if_tip_t13" />
+    <touch name="hw_tip_frc_index_14" site="if_tip_t14" />
+    <touch name="hw_tip_frc_index_15" site="if_tip_t15" />
+    <touch name="hw_tip_frc_middle_00" site="mf_tip_t00" />
+    <touch name="hw_tip_frc_middle_01" site="mf_tip_t01" />
+    <touch name="hw_tip_frc_middle_02" site="mf_tip_t02" />
+    <touch name="hw_tip_frc_middle_03" site="mf_tip_t03" />
+    <touch name="hw_tip_frc_middle_04" site="mf_tip_t04" />
+    <touch name="hw_tip_frc_middle_05" site="mf_tip_t05" />
+    <touch name="hw_tip_frc_middle_06" site="mf_tip_t06" />
+    <touch name="hw_tip_frc_middle_07" site="mf_tip_t07" />
+    <touch name="hw_tip_frc_middle_08" site="mf_tip_t08" />
+    <touch name="hw_tip_frc_middle_09" site="mf_tip_t09" />
+    <touch name="hw_tip_frc_middle_10" site="mf_tip_t10" />
+    <touch name="hw_tip_frc_middle_11" site="mf_tip_t11" />
+    <touch name="hw_tip_frc_middle_12" site="mf_tip_t12" />
+    <touch name="hw_tip_frc_middle_13" site="mf_tip_t13" />
+    <touch name="hw_tip_frc_middle_14" site="mf_tip_t14" />
+    <touch name="hw_tip_frc_middle_15" site="mf_tip_t15" />
+    <touch name="hw_tip_frc_ring_00" site="rf_tip_t00" />
+    <touch name="hw_tip_frc_ring_01" site="rf_tip_t01" />
+    <touch name="hw_tip_frc_ring_02" site="rf_tip_t02" />
+    <touch name="hw_tip_frc_ring_03" site="rf_tip_t03" />
+    <touch name="hw_tip_frc_ring_04" site="rf_tip_t04" />
+    <touch name="hw_tip_frc_ring_05" site="rf_tip_t05" />
+    <touch name="hw_tip_frc_ring_06" site="rf_tip_t06" />
+    <touch name="hw_tip_frc_ring_07" site="rf_tip_t07" />
+    <touch name="hw_tip_frc_ring_08" site="rf_tip_t08" />
+    <touch name="hw_tip_frc_ring_09" site="rf_tip_t09" />
+    <touch name="hw_tip_frc_ring_10" site="rf_tip_t10" />
+    <touch name="hw_tip_frc_ring_11" site="rf_tip_t11" />
+    <touch name="hw_tip_frc_ring_12" site="rf_tip_t12" />
+    <touch name="hw_tip_frc_ring_13" site="rf_tip_t13" />
+    <touch name="hw_tip_frc_ring_14" site="rf_tip_t14" />
+    <touch name="hw_tip_frc_ring_15" site="rf_tip_t15" />
+    <touch name="hw_tip_frc_pinky_00" site="pf_tip_t00" />
+    <touch name="hw_tip_frc_pinky_01" site="pf_tip_t01" />
+    <touch name="hw_tip_frc_pinky_02" site="pf_tip_t02" />
+    <touch name="hw_tip_frc_pinky_03" site="pf_tip_t03" />
+    <touch name="hw_tip_frc_pinky_04" site="pf_tip_t04" />
+    <touch name="hw_tip_frc_pinky_05" site="pf_tip_t05" />
+    <touch name="hw_tip_frc_pinky_06" site="pf_tip_t06" />
+    <touch name="hw_tip_frc_pinky_07" site="pf_tip_t07" />
+    <touch name="hw_tip_frc_pinky_08" site="pf_tip_t08" />
+    <touch name="hw_tip_frc_pinky_09" site="pf_tip_t09" />
+    <touch name="hw_tip_frc_pinky_10" site="pf_tip_t10" />
+    <touch name="hw_tip_frc_pinky_11" site="pf_tip_t11" />
+    <touch name="hw_tip_frc_pinky_12" site="pf_tip_t12" />
+    <touch name="hw_tip_frc_pinky_13" site="pf_tip_t13" />
+    <touch name="hw_tip_frc_pinky_14" site="pf_tip_t14" />
+    <touch name="hw_tip_frc_pinky_15" site="pf_tip_t15" />
+  </sensor>
+  <equality>
+    <joint joint1="right_index_pip" joint2="right_index_mcp" polycoef="0 0.925 0 0 0" solref="0.005 1" solimp="0.95 0.99 0.001" />
+    <joint joint1="right_middle_pip" joint2="right_middle_mcp" polycoef="0 0.925 0 0 0" solref="0.005 1" solimp="0.95 0.99 0.001" />
+    <joint joint1="right_ring_pip" joint2="right_ring_mcp" polycoef="0 0.925 0 0 0" solref="0.005 1" solimp="0.95 0.99 0.001" />
+    <joint joint1="right_pinky_pip" joint2="right_pinky_mcp" polycoef="0 0.925 0 0 0" solref="0.005 1" solimp="0.95 0.99 0.001" />
+    <joint joint1="right_thumb_cmc_flex" joint2="right_thumb_mcp" polycoef="0 0.6666667 0 0 0" solref="0.005 1" solimp="0.95 0.99 0.001" />
+  </equality>
+</mujoco>

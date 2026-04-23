@@ -2891,3 +2891,137 @@ python learning/train_jax_ppo.py \
 - checkpoints:
   - `logs/AeroCubeGraspV2ForceCoacd-20260422-083941-C41_motorclip03/checkpoints/000002621440`
   - `logs/AeroCubeGraspV2ForceCoacd-20260422-083941-C41_motorclip03/checkpoints/000005242880`
+
+### C42-C50: 当前手参数(QBR)下的 cube 迁移适配 (2026-04-23)
+
+- 背景:
+  - 用户更新了当前手参数；训练前已核对 `handinformation`、`qbr.urdf/qbr.csv` 与场景 XML。
+  - 为避免破坏原方块主线，新增了独立环境 `AeroCubeGraspV2ForceCoacdQbr` 与独立手模：
+    - `xmls/right_hand_v2_vertical_coacd_qbr.xml`
+    - `xmls/scene_mjx_grasp_v2_coacd_qbr.xml`
+  - `QBR` 线与原 `AeroCubeGraspV2ForceCoacd` 分开，不直接改老方块 checkpoint 的行为定义。
+
+- 关键结构改动:
+  - 将拇指被动联动从旧 `0.16 * thumb_abd` 切为更接近当前手语义的 `thumb_cmc_flex = 0.6667 * thumb_mcp`。
+  - 在 `grasp_cube_v2_force.py` 中抽象了被动关节耦合，并新增 `CubeGraspV2ForceCoacdQbr`。
+  - 为了兼容旧 C41 几何形态，给 QBR 线增加了 thumb geometry bridge，使旧策略能在新 hand 参数下恢复到近似抓取姿态。
+
+- 迭代结论概览:
+  - `C42_qbr_adapt_baseline`:
+    - 直接把旧 `C41` 放到新手参数上，几乎立刻崩成弱基线；
+    - 说明手参数变化确实会破坏旧方块策略。
+  - `C43_qbr_geom_bridge`:
+    - 加入 thumb geometry bridge 后恢复最明显；
+    - `step 7.86M`: `contact_duration=28.22s`, `drop=4.69%`, `hold_success=78.09`, `nonfinite=0.0`
+    - 这是本轮 QBR 迁移真正的起点。
+  - `C44b_qbr_cleanup`:
+    - 加强 palm/nonprimary 清理后，作弊接触下降，但 `hold_success/contact_duration` 一起回落；
+    - 结论: cleanup 不能再继续加重。
+  - `C45_qbr_holdboost`:
+    - 强行提高 hold 类奖励后，`episode_reward` 上涨，但 `hold_success` 仍弱于 `C43`；
+    - 结论: reward 被拉偏，不能只看总回报。
+  - `C46_qbr_dr_hold30`:
+    - 轻度放缓 DR + 改配方，结果继续退化；
+    - 结论: 新手参数下最有效的不是重写配方，而是沿 `C43` 主线继续长跑。
+  - `C47_qbr_c43_continue`:
+    - 直接继续 `C43` 配方最有效；
+    - `step 7.86M`: `contact_duration=28.85s`, `drop=1.56%`, `slip=0.78%`, `palm=0.027`, `nonprimary=0.074`, `nonfinite=0.0`
+  - `C48_qbr_hold30_finalpush`:
+    - 在 `C47` 基础上继续续训；
+    - `step 7.86M`: `contact_duration=29.11s`, `drop=0.0%`, `slip=0.0%`, `palm=0.0`, `nonprimary=0.0`, `nonfinite=0.0`
+    - 结论: 物理稳定性已经足够强，剩余差距主要是“三指主抓接触时长”而不是掉落。
+  - `C49_qbr_primaryhold_push`:
+    - 尝试加大 `primary_finger_force / thumb_opposition / three_finger_proximity`；
+    - 首个 eval 可到 `29.61s`，但后续没能稳定越过 `30s`；
+    - 结论: 继续硬推主抓奖励收益有限。
+  - `C50_qbr_threshold_calib`:
+    - 在 `C48` 稳定配方上，仅将 `finger_active_threshold: 0.08 -> 0.07`
+      与 `force_contact_threshold: 0.06 -> 0.055` 进行校准，试图贴合新手参数下更轻的触力；
+    - 首个 eval: `contact_duration=28.89s`, `drop=0.78%`, `slip=0.39%`, `palm=0.0`, `nonprimary=0.0`
+    - 这条线尚未证明能稳定越过 `30s`。
+
+- 当前最佳 QBR cube checkpoint:
+  - `logs/AeroCubeGraspV2ForceCoacdQbr-20260423-033328-C48_qbr_hold30_finalpush/checkpoints/000007864320`
+
+- 当前判断:
+  - 新 hand 参数下，cube 主线已经恢复到“DR 下几乎不掉、不滑、不作弊”的强稳定区间。
+  - 但 `contact_duration` 仍卡在 `29s` 左右，距离用户要求的 `30s+` 还差最后一步。
+  - 因此当前还没有转入 can/cylinder 训练；只有 cube 线先过 `30s`，才继续下一任务。
+
+### C51-C52b: middle-finger diagnosis and final 30s+ breakthrough (2026-04-23)
+
+- 诊断:
+  - 对 `C48` 做主抓三指逐指统计后发现：
+    - `index active ≈ 800/800`
+    - `thumb active ≈ 800/800`
+    - `middle active ≈ 592.5/800`
+  - 所以 `29.1s` 的真正瓶颈不是掌心或非主抓指作弊，而是中指偶尔掉出主抓接触。
+
+- 结论先行:
+  - 当前 cube 抓取已经可以明确判断为**主抓三指捏握**，不是掌心托物：
+    - `palm_contact = 0`
+    - `nonprimary_contact = 0`
+    - `two_plus_primary_contact ≈ 全回合`
+  - 最终有效修复不是继续调 DR 或阈值，而是给 `QBR cube` 线的中指更贴近实际捏握的初始闭合。
+
+- C51: lower contact thresholds only (negative)
+  - 改动:
+    - `finger_active_threshold: 0.08 -> 0.065`
+    - `force_contact_threshold: 0.06 -> 0.05`
+  - 结果:
+    - 首个 eval 仍在 `28.93s`
+  - 结论:
+    - 单纯降阈值不能解决中指掉链子问题。
+
+- C52: middle-finger pregrasp bias (direction correct, but 12k envs OOM)
+  - 改动:
+    - `CubeGraspV2ForceCoacdQbr` 中仅对当前 cube QBR 线加中指初始闭合偏置：
+      - `middle actuator target -> 0.62`
+      - 对应 `default_pose / pre_grasp_pose / lifted_grasp_pose / lifted_grasp_ctrl` 同步调整
+    - 恢复 `C48` 的稳定阈值与 DR 配方
+  - 结果:
+    - 首个 eval 立刻跃升到
+      - `contact_duration = 31.79s`
+      - `drop = 0`
+      - `slip = 0`
+      - `palm = 0`
+      - `nonprimary = 0`
+    - 训练阶段因 `12288 envs` OOM 中断
+  - 结论:
+    - 方向命中，问题本质是中指几何/初始闭合不足，而不是 reward 主体错误。
+
+- C52b: same middle bias, smaller train scale (final accepted run)
+  - 训练:
+    - restore: `C48 final`
+    - `8192 envs`, `batch_size=2048`
+  - 结果:
+    - `step 0`:
+      - `contact_duration = 31.76s`
+      - `drop = 0`
+      - `slip = 0.39%`
+      - `palm = 0`
+      - `nonprimary = 0`
+    - `step 2.62M`:
+      - `contact_duration = 31.95s`
+      - `drop = 0.39%`
+      - `slip = 0`
+      - `palm = 0`
+      - `nonprimary = 0`
+    - `step 5.24M`:
+      - `contact_duration = 31.93s`
+      - `drop = 0.39%`
+      - `slip = 0`
+      - `palm = 0.031`
+      - `nonprimary = 0`
+      - `two_plus_primary_contact ≈ 797/800`
+  - 结论:
+    - **cube 线在当前手参数下已达成 30s+**
+    - 而且抓法符合要求：仍是主抓三指捏握，不靠掌心或 ring/pinky 托住。
+
+- 当前最终推荐 checkpoint:
+  - `logs/AeroCubeGraspV2ForceCoacdQbr-20260423-094432-C52b_qbr_middle_bias_8192/checkpoints/000002621440`
+  - `logs/AeroCubeGraspV2ForceCoacdQbr-20260423-094432-C52b_qbr_middle_bias_8192/checkpoints/000005242880`
+
+- 下一步:
+  - cube 已完成当前目标；
+  - 按用户流程，接着切到当前 pose 的圆柱/易拉罐任务，沿同样方式自主迭代。

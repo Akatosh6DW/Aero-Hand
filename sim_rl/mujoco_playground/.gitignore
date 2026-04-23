@@ -6,6 +6,10 @@ MUJOCO_LOG.TXT
 mujoco_menagerie
 checkpoints/
 logs/*
+!logs/AeroCanGraspV2Force-*/
+!logs/AeroCanGraspV2Force-*/**
+!logs/AeroCubeGraspV2ForceCoacdQbr-*/
+!logs/AeroCubeGraspV2ForceCoacdQbr-*/**
 !logs/AeroBottleGraspV2Force-20260422-161207-B09_late_release_wrapcurr_nodr_4096/
 !logs/AeroBottleGraspV2Force-20260422-161207-B09_late_release_wrapcurr_nodr_4096/**
 !logs/AeroBottleGraspV2Force-20260422-161207-B09_late_release_wrapcurr_nodr_4096/checkpoints/

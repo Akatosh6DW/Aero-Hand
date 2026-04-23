@@ -5,6 +5,25 @@ You are Codex working in `/home/ll/SRTP/Aero-Hand`. Continue the V2 Aero-Hand cu
 1. the policy can continuously hold the cube for 30 seconds, or
 2. more than 30 autonomous iterations have been attempted **starting from C09 on 2026-04-20**.
 
+## 2026-04-23 Superseding User Requirements
+
+The current workspace is `/root/autodl-tmp/Aero-Hand`. Treat the following as the new top-priority autonomous workflow:
+
+1. Inspect the latest hand-parameter changes first.
+2. Starting from the best existing **cube** checkpoint, adapt the cube policy to the **current hand parameters** and continue autonomous iteration until the cube task is again stable for **30s+**, with **DR enabled**.
+3. After the cube task is revalidated, continue autonomous iteration on the **can** task (the previous bottle task has been replaced by can grasping).
+4. The can task must satisfy all of the following:
+   - stable grasp for **30s+** without dropping,
+   - the can must **not be deformed / over-compressed**,
+   - when the hand is shaken while grasping the can, the can should still not drop,
+   - use the **current script-provided initial pose**,
+   - include DR and perturbation robustness, not just fixed-physics success.
+5. Do not merely rerun the same training command. After each iteration, read logs/metrics/video, diagnose the failure mode, and modify reward terms, initial-state curriculum, thresholds, or task setup accordingly.
+6. Keep cube and can iteration records separate:
+   - cube: append to `v2_iteration_docs/changelog.md`
+   - can: append to `v2_iteration_docs/can_grasp_changelog.md`
+7. Keep task files isolated. Do not break the cube task while iterating on the can task.
+
 Use `AeroCubeGraspV2ForceCoacd` with `num_envs=4096` unless a smoke/debug run is explicitly needed before a full run. The current date is 2026-04-20.
 
 ## Source Of Truth

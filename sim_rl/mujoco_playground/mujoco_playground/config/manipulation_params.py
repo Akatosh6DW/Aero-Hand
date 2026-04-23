@@ -231,7 +231,11 @@ def brax_ppo_config(
         policy_obs_key="state",
         value_obs_key="privileged_state",
     )
-  elif env_name in ("AeroCubeGraspV2Force", "AeroCubeGraspV2ForceCoacd"):
+  elif env_name in (
+      "AeroCubeGraspV2Force",
+      "AeroCubeGraspV2ForceCoacd",
+      "AeroCubeGraspV2ForceCoacdQbr",
+  ):
     # V2 灵犀手: 6 通道直接关节控制, efc_force 触觉
     rl_config.num_timesteps = 300_000_000
     rl_config.num_evals = 10
@@ -241,7 +245,7 @@ def brax_ppo_config(
     rl_config.discounting = 0.97
     rl_config.learning_rate = 3e-4
     rl_config.entropy_cost = 1e-2
-    rl_config.num_envs = 2048 if env_name.endswith("Coacd") else 8192
+    rl_config.num_envs = 2048 if "Coacd" in env_name else 8192
     rl_config.batch_size = 256
     rl_config.num_resets_per_eval = 1
     rl_config.network_factory = config_dict.create(
