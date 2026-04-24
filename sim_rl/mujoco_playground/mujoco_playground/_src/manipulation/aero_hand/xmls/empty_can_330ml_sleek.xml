@@ -27,7 +27,7 @@
 
   <worldbody>
     <!-- 横放圆柱：总长 0.06 m，直径 0.04 m。 -->
-    <body name="cube" pos="0.028 -0.082 0.1625" quat="0.70710678 0 0.70710678 0" childclass="can_shell">
+    <body name="cube" pos="0.008041 -0.040830 0.132128" quat="0.707715 -0.007412 0.706458 0.000577" childclass="can_shell">
       <freejoint name="cube_freejoint"/>
 
       <!-- 主碰撞体：
