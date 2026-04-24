@@ -1,0 +1,18 @@
+Traceback (most recent call last):
+  File "/root/autodl-tmp/Aero-Hand/sim_rl/mujoco_playground/learning/train_jax_ppo.py", line 782, in <module>
+    app.run(main)
+  File "/root/miniconda3/envs/aero_rl/lib/python3.11/site-packages/absl/app.py", line 367, in run
+    _run_main(main, args)
+  File "/root/miniconda3/envs/aero_rl/lib/python3.11/site-packages/absl/app.py", line 312, in _run_main
+    sys.exit(main(argv))
+             ^^^^^^^^^^
+  File "/root/autodl-tmp/Aero-Hand/sim_rl/mujoco_playground/learning/train_jax_ppo.py", line 296, in main
+    env_cfg = registry.get_default_config(_ENV_NAME.value)
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/root/autodl-tmp/mujoco_playground/mujoco_playground/_src/registry.py", line 46, in get_default_config
+    raise ValueError(f"Env '{env_name}' not found in default configs.")
+ValueError: Env 'AeroCanGraspV2Force' not found in default configs.
+
+ERROR conda.cli.main_run:execute(124): `conda run python learning/train_jax_ppo.py --env_name=AeroCanGraspV2Force --load_checkpoint_path=/root/autodl-tmp/Aero-Hand/sim_rl/mujoco_playground/logs/AeroCanGraspV2Force-20260424-044958-CAN59_soft_cradle_sliplock/checkpoints --ignore_checkpoint_env_config=True --num_timesteps=1310720 --num_evals=3 --num_envs=4096 --num_eval_envs=128 --episode_length=800 --unroll_length=20 --num_minibatches=4 --num_updates_per_batch=2 --batch_size=4096 --learning_rate=3e-4 --normalize_observations=True --camera=side --num_videos=1 --render_collision_debug=True --suffix=CAN61_postrelease_holdcount` failed. (See above for error)
+Mihomo 代理已随 aero_rl 环境启动 (Port: 7897)
+

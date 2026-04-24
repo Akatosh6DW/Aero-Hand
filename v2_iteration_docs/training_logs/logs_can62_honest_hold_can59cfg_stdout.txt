@@ -1,0 +1,10 @@
+Traceback (most recent call last):
+  File "/root/autodl-tmp/Aero-Hand/sim_rl/mujoco_playground/learning/train_jax_ppo.py", line 45, in <module>
+    import mujoco_playground
+  File "/root/autodl-tmp/Aero-Hand/sim_rl/mujoco_playground/mujoco_playground/__init__.py", line 18, in <module>
+    from mujoco_playground._src import manipulation
+  File "/root/autodl-tmp/Aero-Hand/sim_rl/mujoco_playground/mujoco_playground/_src/manipulation/__init__.py", line 33, in <module>
+    from mujoco_playground._src.manipulation.aero_hand import grasp_can_v2_force as aero_hand_grasp_can_v2_force
+  File "/root/autodl-tmp/Aero-Hand/sim_rl/mujoco_playground/mujoco_playground/_src/manipulation/aero_hand/grasp_can_v2_force.py", line 36
+    cfg.support_config.release_after_sec = 10.2
+IndentationError: unexpected indent

@@ -1,0 +1,21 @@
+Traceback (most recent call last):
+  File "/root/autodl-tmp/Aero-Hand/sim_rl/mujoco_playground/learning/train_jax_ppo.py", line 36, in <module>
+    from brax.training.agents.ppo import networks as ppo_networks
+  File "/root/miniconda3/envs/aero_rl/lib/python3.11/site-packages/brax/__init__.py", line 19, in <module>
+    from brax.base import Motion
+  File "/root/miniconda3/envs/aero_rl/lib/python3.11/site-packages/brax/base.py", line 28, in <module>
+    import mujoco
+  File "/root/miniconda3/envs/aero_rl/lib/python3.11/site-packages/mujoco/__init__.py", line 62, in <module>
+    from mujoco.gl_context import *
+  File "/root/miniconda3/envs/aero_rl/lib/python3.11/site-packages/mujoco/gl_context.py", line 41, in <module>
+    from mujoco.egl import GLContext as _GLContext
+  File "/root/miniconda3/envs/aero_rl/lib/python3.11/site-packages/mujoco/egl/__init__.py", line 31, in <module>
+    from mujoco.egl import egl_ext as EGL
+  File "/root/miniconda3/envs/aero_rl/lib/python3.11/site-packages/mujoco/egl/egl_ext.py", line 27, in <module>
+    from OpenGL import EGL
+  File "/root/miniconda3/envs/aero_rl/lib/python3.11/site-packages/OpenGL/EGL/__init__.py", line 2, in <module>
+    from OpenGL.raw.EGL._types import *
+  File "/root/miniconda3/envs/aero_rl/lib/python3.11/site-packages/OpenGL/raw/EGL/_types.py", line 87, in <module>
+    raw_eglQueryString = _p.PLATFORM.EGL.eglQueryString
+                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AttributeError: 'NoneType' object has no attribute 'eglQueryString'

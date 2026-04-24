@@ -26,103 +26,103 @@ _CAN_DIAGNOSTIC_KEYS = (
 
 
 def default_config() -> config_dict.ConfigDict:
-  cfg = grasp_bottle_v2_force.default_config()
+    cfg = grasp_bottle_v2_force.default_config()
 
-  # 当前目标改为更小的圆柱代理，控制和接触阈值再收紧一档。
-  # CAN06: 第一阶段先让策略在“当前 pose + 支撑存在 + 无DR”下学会稳定包裹，
-  # 后续再逐层加回晃动/翻转扰动。
-  cfg.action_scale = [0.07, 0.22, 0.22, 0.22, 0.24, 0.09]
+    # 当前目标改为更小的圆柱代理，控制和接触阈值再收紧一档。
+    # CAN06: 第一阶段先让策略在“当前 pose + 支撑存在 + 无DR”下学会稳定包裹，
+    # 后续再逐层加回晃动/翻转扰动。
+    cfg.action_scale = [0.07, 0.22, 0.22, 0.22, 0.24, 0.09]
 
-  cfg.support_config.release_after_sec = 9.8
-  cfg.support_config.release_ramp_sec = 1.6
-  cfg.support_config.force_release_after_sec = 13.2
-  # Keep the user-provided can/hand pose fixed.  The support top surface is
-  # aligned with the can bottom instead of intersecting the can body, so the
-  # hand must learn the load transfer rather than relying on penetration.
-  cfg.support_config.support_pos = [0.008041, -0.040830, 0.108128]
-  cfg.support_config.random_release = False
-  cfg.support_config.random_release_min_sec = 4.2
-  cfg.support_config.random_release_max_sec = 4.2
-  cfg.support_config.min_release_active_fingers = 4
-  cfg.support_config.min_release_force = 0.12
-  cfg.support_config.require_grasp_for_release = True
+    cfg.support_config.release_after_sec = 10.2
+    cfg.support_config.release_ramp_sec = 1.8
+    cfg.support_config.force_release_after_sec = 14.0
+    # Keep the user-provided can/hand pose fixed.  The support top surface is
+    # aligned with the can bottom instead of intersecting the can body, so the
+    # hand must learn the load transfer rather than relying on penetration.
+    cfg.support_config.support_pos = [0.008041, -0.040830, 0.108128]
+    cfg.support_config.random_release = False
+    cfg.support_config.random_release_min_sec = 4.2
+    cfg.support_config.random_release_max_sec = 4.2
+    cfg.support_config.min_release_active_fingers = 4
+    cfg.support_config.min_release_force = 0.125
+    cfg.support_config.require_grasp_for_release = True
 
-  cfg.spawn_config.cube_pos = [0.008041, -0.040830, 0.132128]
-  cfg.spawn_config.cube_jitter = [0.0, 0.0, 0.0]
-  cfg.spawn_config.support_enabled = True
+    cfg.spawn_config.cube_pos = [0.008041, -0.040830, 0.132128]
+    cfg.spawn_config.cube_jitter = [0.0, 0.0, 0.0]
+    cfg.spawn_config.support_enabled = True
 
-  cfg.reset_config.pre_grasp_fraction = 1.0
-  cfg.reset_config.pre_grasp_noise_scale = 0.01
-  cfg.reset_config.lifted_grasp_fraction = 0.0
-  cfg.reset_config.lifted_grasp_noise_scale = 0.01
-  cfg.reset_config.lifted_cube_z_offset = 0.012
+    cfg.reset_config.pre_grasp_fraction = 1.0
+    cfg.reset_config.pre_grasp_noise_scale = 0.01
+    cfg.reset_config.lifted_grasp_fraction = 0.0
+    cfg.reset_config.lifted_grasp_noise_scale = 0.01
+    cfg.reset_config.lifted_cube_z_offset = 0.012
 
-  cfg.perturbation_config.external_force_enabled = False
-  cfg.perturbation_config.gravity_perturbation_enabled = False
-  cfg.perturbation_config.orientation_flip_enabled = False
+    cfg.perturbation_config.external_force_enabled = False
+    cfg.perturbation_config.gravity_perturbation_enabled = False
+    cfg.perturbation_config.orientation_flip_enabled = False
 
-  scales = cfg.reward_config.scales
-  scales.hold_position = 900.0
-  scales.stable_hold = 600.0
-  scales.progressive_hold = 200.0
-  scales.sustained_hold_bonus = 260.0
-  scales.supported_hold_position = 5.0
-  scales.short_hold_seed = 4.0
-  scales.late_support_dependence = -110.0
-  scales.release_height_retention = 980.0
-  scales.post_release_force_support = 520.0
-  scales.post_release_joint_palm_hold = 1040.0
-  scales.cradle_lock = 820.0
-  scales.core_force_tripod = 100.0
-  scales.joint_palm_clamp = 820.0
-  scales.whole_hand_wrap = 120.0
-  scales.simultaneous_wrap = 240.0
-  scales.core_cup_wrap = 300.0
-  scales.core_contact = 700.0
-  scales.ring_engage = 190.0
-  scales.ring_proximity = 55.0
-  scales.contact = 6.0
-  scales.closure = 8.0
-  scales.pip_closure = 6.0
-  scales.force_contact = 28.0
-  scales.grip_force = 60.0
-  scales.force_balance = 180.0
-  scales.finger_participation = 60.0
-  scales.thumb_engage = 24.0
-  scales.thumb_opposition = 46.0
-  scales.soft_contact = 12.0
-  scales.primary_finger_force = 190.0
-  scales.primary_geom_contact = 90.0
-  scales.human_pose = 6.0
-  scales.pre_release_grasp = 150.0
-  scales.post_release_grasp = 360.0
-  scales.post_release_survival = 1650.0
-  scales.post_release_cheat_contact = -40.0
-  scales.post_release_slip = -140.0
-  scales.post_release_pose_hold = 140.0
-  scales.height = 12.0
-  scales.termination = -700.0
-  scales.drop_risk = -180.0
-  scales.palm_contact = -2.0
-  scales.nonprimary_contact = -4.0
-  scales.three_finger_proximity = 30.0
-  scales.force_overload = -30.0
+    scales = cfg.reward_config.scales
+    scales.hold_position = 900.0
+    scales.stable_hold = 600.0
+    scales.progressive_hold = 200.0
+    scales.sustained_hold_bonus = 260.0
+    scales.supported_hold_position = 8.0
+    scales.short_hold_seed = 8.0
+    scales.late_support_dependence = -90.0
+    scales.release_height_retention = 980.0
+    scales.post_release_force_support = 520.0
+    scales.post_release_joint_palm_hold = 980.0
+    scales.cradle_lock = 760.0
+    scales.core_force_tripod = 100.0
+    scales.joint_palm_clamp = 820.0
+    scales.whole_hand_wrap = 120.0
+    scales.simultaneous_wrap = 240.0
+    scales.core_cup_wrap = 300.0
+    scales.core_contact = 700.0
+    scales.ring_engage = 190.0
+    scales.ring_proximity = 55.0
+    scales.contact = 6.0
+    scales.closure = 8.0
+    scales.pip_closure = 6.0
+    scales.force_contact = 28.0
+    scales.grip_force = 60.0
+    scales.force_balance = 180.0
+    scales.finger_participation = 60.0
+    scales.thumb_engage = 24.0
+    scales.thumb_opposition = 46.0
+    scales.soft_contact = 12.0
+    scales.primary_finger_force = 190.0
+    scales.primary_geom_contact = 90.0
+    scales.human_pose = 6.0
+    scales.pre_release_grasp = 160.0
+    scales.post_release_grasp = 340.0
+    scales.post_release_survival = 1560.0
+    scales.post_release_cheat_contact = -40.0
+    scales.post_release_slip = -140.0
+    scales.post_release_pose_hold = 140.0
+    scales.height = 12.0
+    scales.termination = -700.0
+    scales.drop_risk = -180.0
+    scales.palm_contact = -2.0
+    scales.nonprimary_contact = -4.0
+    scales.three_finger_proximity = 30.0
+    scales.force_overload = -30.0
 
-  cfg.reward_config.force_contact_threshold = 0.015
-  cfg.reward_config.force_contact_saturation = 0.90
-  cfg.reward_config.force_overload_threshold = 0.85
-  cfg.reward_config.force_overload_soft_width = 0.18
-  cfg.reward_config.soft_contact_fmin = 0.015
-  cfg.reward_config.soft_contact_fmax = 0.65
-  cfg.reward_config.finger_active_threshold = 0.020
-  cfg.reward_config.target_lift_m = 0.012
-  cfg.reward_config.lift_success_threshold_m = 0.008
-  cfg.stability_config.max_abs_action = 0.55
-  cfg.stability_config.motor_delta_clip = [0.016, 0.035, 0.040, 0.040, 0.028, 0.026]
-  cfg.stability_config.terminate_on_nonfinite = True
-  cfg.stability_config.nonfinite_penalty_mult = 3.0
+    cfg.reward_config.force_contact_threshold = 0.015
+    cfg.reward_config.force_contact_saturation = 0.90
+    cfg.reward_config.force_overload_threshold = 0.85
+    cfg.reward_config.force_overload_soft_width = 0.18
+    cfg.reward_config.soft_contact_fmin = 0.015
+    cfg.reward_config.soft_contact_fmax = 0.65
+    cfg.reward_config.finger_active_threshold = 0.020
+    cfg.reward_config.target_lift_m = 0.012
+    cfg.reward_config.lift_success_threshold_m = 0.008
+    cfg.stability_config.max_abs_action = 0.55
+    cfg.stability_config.motor_delta_clip = [0.016, 0.035, 0.040, 0.040, 0.028, 0.026]
+    cfg.stability_config.terminate_on_nonfinite = True
+    cfg.stability_config.nonfinite_penalty_mult = 3.0
 
-  return cfg
+    return cfg
 
 
 class CanGraspV2Force(grasp_bottle_v2_force.BottleGraspV2Force):
@@ -304,6 +304,7 @@ class CanGraspV2Force(grasp_bottle_v2_force.BottleGraspV2Force):
 
   def step(self, state: mjx_env.State, action: jax.Array) -> mjx_env.State:
     action = self._stabilize_action(action)
+    support_released = state.info["support_released"]
     action_scale = jp.array(self._config.action_scale, dtype=jp.float32)
     motor_targets = jp.clip(
         self._default_ctrl + action * action_scale,
@@ -317,7 +318,6 @@ class CanGraspV2Force(grasp_bottle_v2_force.BottleGraspV2Force):
     data = state.data
     pcfg = self._config.perturbation_config
     hold_steps = state.info["stable_hold_steps"]
-    support_released = state.info["support_released"]
     step_rng = state.info["rng"]
     step_rng, force_rng, tilt_rng, flip_rng = jax.random.split(step_rng, 4)
 
@@ -457,6 +457,7 @@ class CanGraspV2Force(grasp_bottle_v2_force.BottleGraspV2Force):
           cube_above
           & hold_ready
           & (mean_wrap_force > 0.018)
+          & support_released
       )
       info["stable_hold_steps"] = jp.where(
           is_holding,
@@ -875,8 +876,8 @@ class CanGraspV2Force(grasp_bottle_v2_force.BottleGraspV2Force):
         ) * released_gate * hold_gate,
         "force_contact": self._reward_force_contact(tip_finger_forces) * released_gate,
         "primary_geom_contact": self._reward_primary_geom_contact(tip_contact_flags),
-        "progressive_hold": self._reward_progressive_hold(info) * hold_gate,
-        "sustained_hold_bonus": self._reward_sustained_hold_bonus(info) * hold_gate,
+        "progressive_hold": self._reward_progressive_hold(info) * released_gate * hold_gate,
+        "sustained_hold_bonus": self._reward_sustained_hold_bonus(info) * released_gate * hold_gate,
         "force_balance": self._reward_force_balance(tip_finger_forces) * (1.0 - cheat_contact),
         "finger_participation": self._reward_finger_participation(tip_finger_forces) * (0.35 + 0.65 * clean_wrap_gate),
         "thumb_opposition": self._reward_thumb_opposition(

@@ -160,3 +160,147 @@
     - 更强抑制 palm cheating
     - 强化真正 wrap hold 的判据/奖励
     - 让主要接触从“掌心兜”转为“手指包裹”
+
+  ## CAN61b: honest post-release hold count (2026-04-24)
+
+  ### 改动
+  - 将 `stable_hold_steps` 的累计改为只在 `support_released=True` 后生效。
+  - 将 `progressive_hold / sustained_hold_bonus` 改为只在 support release 后发放。
+  - 保持当前 can 初始状态不变，继续从 `CAN59_soft_cradle_sliplock` checkpoint 续训。
+
+  ### 训练与环境修复
+  - 训练环境固定为 `aero_rl`：
+    - `/root/miniconda3/envs/aero_rl/bin/python`
+  - 强制使用本地仓库包，避免误导入外部安装版 `mujoco_playground`：
+    - `PYTHONPATH=/root/autodl-tmp/Aero-Hand/sim_rl/mujoco_playground`
+  - 为无头环境补齐 OpenGL 依赖，并确认 `train_jax_ppo.py` 在 MuJoCo/Brax import 前设置渲染环境变量。
+
+  ### 结果
+  - `reward`: `34829.891 -> 30029.562`
+  - `contact_duration_sec`: `11.05 -> 10.65`
+
+  ### 结论
+  - 单独把 hold count 改诚实，并不会自动把 unsupported hold 往上推。
+  - 这一轮同时暴露出一个混杂因素：当时默认 can config 已经漂到更接近 `CAN60`，不能直接拿来判断 `CAN59` 主线是否失效。
+
+  ## CAN62: honest hold count + restored CAN59 config (2026-04-24)
+
+  ### 改动
+  - 修复 `grasp_can_v2_force.py` 里 `default_config()` 的缩进损坏，恢复可导入状态。
+  - 将 can 默认 release / reward 配置恢复到 `CAN59` checkpoint 对应值：
+    - `release_after_sec = 10.2`
+    - `release_ramp_sec = 1.8`
+    - `force_release_after_sec = 14.0`
+    - `min_release_force = 0.125`
+    - `post_release_joint_palm_hold = 980.0`
+    - `cradle_lock = 760.0`
+    - `pre_release_grasp = 160.0`
+    - `post_release_grasp = 340.0`
+    - `post_release_survival = 1560.0`
+  - 保留 `CAN61b` 的 honest post-release hold count 逻辑。
+  - 为避免无头渲染再次打断训练，本轮使用 `--num_videos=0` 只跑训练与评估。
+
+  ### 结果
+  - 日志目录：
+    - `sim_rl/mujoco_playground/logs/AeroCanGraspV2Force-20260424-101845-CAN62_honest_hold_can59cfg`
+  - `reward`: `31326.922`
+  - `contact_duration_sec`: `11.059`
+  - `hold_success`: `0.0`
+  - `support_released`: `38.891`
+  - `slip_event`: `1.070`
+  - `post_release_survival_reward`: `4104.167`
+
+  ### 结论
+  - honest hold count 在真正 `CAN59` handover config 下基本与 `CAN59` 持平，说明它本身不是主要退化源。
+  - 但时长仍卡在 `11s` 左右，30s 目标没有任何实质突破。
+
+  ## CAN63: stronger post-release anti-slip weights on CAN59 release (2026-04-24)
+
+  ### 改动
+  - 保持 `CAN59` release 时序不变，只把若干 post-release 权重向 `CAN60` 靠拢：
+    - `post_release_joint_palm_hold = 1040.0`
+    - `cradle_lock = 820.0`
+    - `pre_release_grasp = 150.0`
+    - `post_release_grasp = 360.0`
+    - `post_release_survival = 1650.0`
+
+  ### 结果
+  - 日志目录：
+    - `sim_rl/mujoco_playground/logs/AeroCanGraspV2Force-20260424-103122-CAN63_postrelease_antislip_can59release`
+  - `reward`: `31294.102`
+  - `contact_duration_sec`: `11.056`
+  - `hold_success`: `0.0`
+  - `support_released`: `38.891`
+  - `slip_event`: `1.102`
+
+  ### 结论
+  - 单纯提高 post-release anti-slip 权重，没有把时长抬出 `CAN62`/`CAN59` 平台。
+  - 问题更像是 reward 激活形态或控制动态，而不是“同样信号强度还不够大”。
+
+  ## CAN64: keep slip penalty active through release phase (2026-04-24)
+
+  ### 改动
+  - 将 `post_release_slip` 从 `released_gate * hold_gate` 改为只乘 `released_gate`，避免物体一开始滑落时惩罚同步衰减。
+  - 其他保持 `CAN63` 配置不变。
+
+  ### 结果
+  - 日志目录：
+    - `sim_rl/mujoco_playground/logs/AeroCanGraspV2Force-20260424-104427-CAN64_releasephase_slippenalty`
+  - `reward`: `31240.365`
+  - `contact_duration_sec`: `11.057`
+  - `hold_success`: `0.0`
+  - `support_released`: `38.961`
+  - `slip_event`: `1.000`
+  - `post_release_survival_reward`: `4309.780`
+  - `cradle_lock`: `459.141`
+  - `post_release_joint_palm_hold`: `842.793`
+
+  ### 结论
+  - 把 slip penalty 提前持续激活也没有带来时长提升。
+  - 这个方向不足以解释当前 `11s` 平台。
+
+  ## CAN65: release-phase action damping (2026-04-24)
+
+  ### 改动
+  - 先撤回 `CAN63/CAN64` 的失败 reward 改动，回到 `CAN62` 的 reward 基线。
+  - 仅新增一项 release 后动作收敛实验：
+    - `support_released` 后将动作幅度乘以 `0.88`
+
+  ### 结果
+  - 日志目录：
+    - `sim_rl/mujoco_playground/logs/AeroCanGraspV2Force-20260424-105959-CAN65_release_action_damp`
+  - `reward`: `31056.953`
+  - `contact_duration_sec`: `10.978`
+  - `hold_success`: `0.0`
+  - `support_released`: `38.875`
+  - `slip_event`: `0.977`
+  - `post_release_survival`: `3587.697`
+  - `cradle_lock`: `382.671`
+  - `post_release_joint_palm_hold`: `713.552`
+
+  ### 结论
+  - release 后动作降幅会直接削弱当前已经学到的 unsupported retention 形态，表现比 `CAN62` 更差。
+  - 因此仓库最终保留 `CAN62` 状态：
+    - honest post-release hold count 保留
+    - `CAN59` default config 保留
+    - 不保留 `CAN63/CAN64/CAN65` 的失败试验改动
+
+  ## 当前判断
+
+  ### 已证伪的方向
+  - 只把 hold count 改诚实，不会自动提升 unsupported hold。
+  - 只提高 post-release anti-slip 权重，不会突破 `11s` 平台。
+  - 让 slip penalty 在整个 released phase 持续激活，也没有带来时长提升。
+  - release 后动作收敛会伤害当前 grasp retention。
+
+  ### 当前最好可继续主线
+  - 代码状态：`CAN62`
+    - honest post-release hold count
+    - `CAN59` handover / reward config
+  - 当前最好续训切片：
+    - 从 `CAN59_soft_cradle_sliplock` checkpoint 继续
+    - 使用上面的 `CAN62` 代码状态
+
+  ### 当前结论
+  - can 线已经稳定达到约 `11s` unsupported hold，但离 `30s+` 仍有很大差距。
+  - 继续只在现有 reward 权重附近微调，边际收益已经很低；下一轮若还要冲 30s，需要换更结构性的突破口，而不是重复当前局部权重搜索。
