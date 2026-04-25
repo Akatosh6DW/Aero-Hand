@@ -21,6 +21,17 @@
 - 训练易拉罐时，不可以破坏方块任务现有文件和已有最佳 checkpoint 的可复现性。
 - 若需要把“当前手参”同步到方块线，优先新建独立 XML / scene / env 入口，而不是直接覆盖历史方块主线文件。
 - 易拉罐线记录写入 `v2_iteration_docs/can_grasp_changelog.md`，方块线记录继续写入 `v2_iteration_docs/changelog.md`。
+- 对 can 任务，每一轮迭代结束后、开始下一轮之前，必须追加写入 `v2_iteration_docs/can_grasp_changelog.md`：
+  - 改了什么代码；
+  - 为什么改；
+  - 预期效果；
+  - 实际效果；
+  - smoke test 是否通过；
+  - 训练命令 / checkpoint 来源；
+  - `contact_duration_sec` 的 first / last / max / best_step；
+  - 与前几轮相比的趋势分析；
+  - 下一轮建议。
+- 这项记录要求是硬约束，不能省略，且不能和方块线日志混写。
 
 ## 总目标
 

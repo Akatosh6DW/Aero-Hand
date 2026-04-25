@@ -23,6 +23,17 @@ The current workspace is `/root/autodl-tmp/Aero-Hand`. Treat the following as th
    - cube: append to `v2_iteration_docs/changelog.md`
    - can: append to `v2_iteration_docs/can_grasp_changelog.md`
 7. Keep task files isolated. Do not break the cube task while iterating on the can task.
+8. For every can iteration, before moving on to the next experiment, you must append a can-specific log entry to `v2_iteration_docs/can_grasp_changelog.md` that includes:
+   - exact code changes,
+   - exact training command / checkpoint source,
+   - smoke test status,
+   - `contact_duration_sec` first / last / max / best step,
+   - metric analysis and comparison vs. previous can runs,
+   - why the change was made,
+   - expected effect,
+   - actual effect,
+   - next-step recommendation.
+   Do not mix can logs into cube logs.
 
 Use `AeroCubeGraspV2ForceCoacd` with `num_envs=4096` unless a smoke/debug run is explicitly needed before a full run. The current date is 2026-04-20.
 
@@ -160,14 +171,20 @@ Run up to 30 continuation iterations from C09 (C08 was initial state calibration
      - collision/visual mismatch.
 
 4. **Logging**
-   Append to `V2_iteration_changelog.md` (参考已有日志风格，详细记录):
+   Append to the task-specific changelog (cube -> `v2_iteration_docs/changelog.md`, can -> `v2_iteration_docs/can_grasp_changelog.md`) and do this on every iteration before starting the next one (参考已有日志风格，详细记录):
    - iteration id,
+   - exact code changes,
    - exact command,
+   - checkpoint source / restore path,
+   - smoke test result,
    - score and diagnostic metrics (包含各 reward component 的均值/趋势变化),
+   - `contact_duration_sec` first / last / max / best_step,
    - 各关键指标的趋势分析 (与前几轮对比，是否改善/恶化/持平),
    - video observations,
    - failure-mode analysis (详细分析当前瓶颈和失败原因),
    - implemented changes (本轮做了什么改动，为什么),
+   - expected effect (预期效果),
+   - actual effect (实际效果),
    - reward component definitions/weights/units,
    - 涉及的论文/算法思路 (如 EUREKA reward evolution, contact semantics, curriculum learning 等),
    - reward hacking risks,

@@ -21,6 +21,7 @@
   <worldbody>
     <camera name="side" pos="-0.304 -0.242 0.280" xyaxes="0.52 -0.854 0 0.365 0.222 0.904" />
     <camera name="palm" pos="-0.332 0.020 0.212" xyaxes="0 -1 0 0.358 0 0.934" />
+    <camera name="front" pos="0.382 -0.040 0.212" xyaxes="0 1 0 -0.358 0 0.934" />
 
     <geom
         name="floor"

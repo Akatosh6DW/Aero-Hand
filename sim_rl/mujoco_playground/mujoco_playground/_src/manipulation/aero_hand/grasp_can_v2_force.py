@@ -31,15 +31,21 @@ def default_config() -> config_dict.ConfigDict:
     # 当前目标改为更小的圆柱代理，控制和接触阈值再收紧一档。
     # CAN06: 第一阶段先让策略在“当前 pose + 支撑存在 + 无DR”下学会稳定包裹，
     # 后续再逐层加回晃动/翻转扰动。
-    cfg.action_scale = [0.07, 0.22, 0.22, 0.22, 0.24, 0.09]
+    # Actuator order is [thumb_rot, thumb_flex, index, middle, ring, pinky].
+    # Keep the CAN147 action-space mainline while we probe morphology through
+    # the nominal grasp pose.
+    cfg.action_scale = [0.07, 0.255, 0.22, 0.22, 0.24, 0.082]
 
-    cfg.support_config.release_after_sec = 10.2
-    cfg.support_config.release_ramp_sec = 1.8
-    cfg.support_config.force_release_after_sec = 14.0
-    # Keep the user-provided can/hand pose fixed.  The support top surface is
-    # aligned with the can bottom instead of intersecting the can body, so the
-    # hand must learn the load transfer rather than relying on penetration.
-    cfg.support_config.support_pos = [0.008041, -0.040830, 0.108128]
+    cfg.support_config.release_after_sec = 7.8
+    cfg.support_config.release_ramp_sec = 0.4125
+    cfg.support_config.force_release_after_sec = 8.4
+    cfg.support_config.release_ready_sec = 0.20
+    cfg.support_config.probe_hold_sec = 0.30
+    cfg.support_config.probe_drop_m = 0.018
+    cfg.support_config.clear_drop_m = 0.055
+    # Keep the stable CAN79 handover scaffold and only bias the hand shape
+    # slightly toward index-led clamp in control space.
+    cfg.support_config.support_pos = [0.010041, -0.040830, 0.106128]
     cfg.support_config.random_release = False
     cfg.support_config.random_release_min_sec = 4.2
     cfg.support_config.random_release_max_sec = 4.2
@@ -47,7 +53,7 @@ def default_config() -> config_dict.ConfigDict:
     cfg.support_config.min_release_force = 0.125
     cfg.support_config.require_grasp_for_release = True
 
-    cfg.spawn_config.cube_pos = [0.008041, -0.040830, 0.132128]
+    cfg.spawn_config.cube_pos = [0.010041, -0.040830, 0.130128]
     cfg.spawn_config.cube_jitter = [0.0, 0.0, 0.0]
     cfg.spawn_config.support_enabled = True
 
@@ -75,6 +81,7 @@ def default_config() -> config_dict.ConfigDict:
     scales.cradle_lock = 760.0
     scales.core_force_tripod = 100.0
     scales.joint_palm_clamp = 820.0
+    scales.index_palm_press = 120.0
     scales.whole_hand_wrap = 120.0
     scales.simultaneous_wrap = 240.0
     scales.core_cup_wrap = 300.0
@@ -151,7 +158,7 @@ class CanGraspV2Force(grasp_bottle_v2_force.BottleGraspV2Force):
         0.2775,
         1.18,
         0.1200,
-        0.18,
+        0.1800,
     ], dtype=np.float32)
     self._lifted_grasp_pose = self._pre_grasp_pose.copy()
     self._spawn_quat = jp.array([
@@ -163,6 +170,18 @@ class CanGraspV2Force(grasp_bottle_v2_force.BottleGraspV2Force):
     self._lifted_grasp_ctrl = np.array([
         1.18, 0.36, 0.74, 0.78, 0.72, 0.52,
     ], dtype=np.float32)
+    probe_hold_sec = float(
+        getattr(self._config.support_config, "probe_hold_sec", 0.0)
+    )
+    self._support_probe_steps = max(
+        0, int(np.round(probe_hold_sec / self.dt)),
+    )
+    self._support_probe_drop = float(
+        getattr(self._config.support_config, "probe_drop_m", 0.010)
+    )
+    self._support_clear_drop = float(
+        getattr(self._config.support_config, "clear_drop_m", 0.060)
+    )
 
   def reset(self, rng: jax.Array) -> mjx_env.State:
     state = super().reset(rng)
@@ -174,11 +193,16 @@ class CanGraspV2Force(grasp_bottle_v2_force.BottleGraspV2Force):
         ctrl=state.data.ctrl,
         mocap_pos=state.data.mocap_pos,
     )
-    obs = self._get_obs(data, state.info, state.obs["state"])
+    info = state.info.copy()
+    info["release_ready_steps"] = jp.array(0, dtype=jp.int32)
+    info["probe_ready_steps"] = jp.array(0, dtype=jp.int32)
+    info["support_clear_started"] = jp.array(False)
+    info["support_clear_timer"] = jp.array(0, dtype=jp.int32)
+    obs = self._get_obs(data, info, state.obs["state"])
     metrics = state.metrics.copy()
     for key in _CAN_DIAGNOSTIC_KEYS:
       metrics[key] = jp.zeros(())
-    return state.replace(data=data, obs=obs, metrics=metrics)
+    return state.replace(data=data, obs=obs, metrics=metrics, info=info)
 
   def _reward_closure(self, hand_q: jax.Array) -> jax.Array:
     """Reward gentle closure from the user-provided starting pose."""
@@ -232,18 +256,25 @@ class CanGraspV2Force(grasp_bottle_v2_force.BottleGraspV2Force):
     abs_f = jp.abs(tip_force)
     wrap = jp.array([abs_f[0], abs_f[1], abs_f[2], abs_f[4]], dtype=jp.float32)
     per_finger = jp.clip(wrap / 0.08, 0.0, 1.0)
-    weights = jp.array([1.0, 1.0, 0.9, 1.1], dtype=jp.float32)
+    weights = jp.array([1.25, 1.0, 0.9, 0.95], dtype=jp.float32)
     return jp.sum(weights * per_finger) / jp.sum(weights)
 
   def _reward_force_balance(self, tip_force: jax.Array) -> jax.Array:
-    """Encourage balanced load-bearing force over index/middle/thumb."""
+    """Encourage index-led load sharing with thumb as support."""
     abs_f = jp.abs(tip_force)
     core = jp.array([abs_f[0], abs_f[1], abs_f[4]], dtype=jp.float32)
     mean_f = jp.mean(core)
     force_level = jp.clip((mean_f - 0.015) / 0.10, 0.0, 1.0)
     rel_std = jp.std(core) / (mean_f + 1e-6)
     ring_assist = jp.clip(abs_f[2] / 0.05, 0.0, 1.0)
-    return force_level * jp.clip(1.0 - rel_std, 0.0, 1.0) * (0.9 + 0.1 * ring_assist)
+    index_load = jp.clip((abs_f[0] - 0.012) / 0.060, 0.0, 1.0)
+    thumb_not_dominant = jp.clip(1.15 - abs_f[4] / (abs_f[0] + abs_f[1] + 1e-6), 0.0, 1.0)
+    return (
+        force_level
+        * jp.clip(1.0 - rel_std, 0.0, 1.0)
+        * (0.75 + 0.20 * index_load + 0.05 * ring_assist)
+        * (0.75 + 0.25 * thumb_not_dominant)
+    )
 
   def _reward_primary_geom_contact(self, tip_contact_flags: jax.Array) -> jax.Array:
     """Reward simultaneous wrap contact over index/middle/ring/thumb."""
@@ -253,8 +284,8 @@ class CanGraspV2Force(grasp_bottle_v2_force.BottleGraspV2Force):
         tip_contact_flags[2],
         tip_contact_flags[4],
     ], dtype=jp.float32)
-    triad = jp.mean(wrap[:3])
-    return jp.mean(wrap) * (0.25 + 0.45 * triad + 0.30 * wrap[3])
+    triad = jp.clip(0.45 * wrap[0] + 0.30 * wrap[1] + 0.25 * wrap[2], 0.0, 1.0)
+    return jp.mean(wrap) * (0.20 + 0.50 * triad + 0.20 * wrap[0] + 0.10 * wrap[3])
 
   def _reward_finger_participation(self, tip_force: jax.Array) -> jax.Array:
     """Prioritize the four wrap digits; pinky can help but should not dominate."""
@@ -262,7 +293,8 @@ class CanGraspV2Force(grasp_bottle_v2_force.BottleGraspV2Force):
     active = (jp.abs(tip_force) > th).astype(jp.float32)
     wrap = jp.array([active[0], active[1], active[2], active[4]], dtype=jp.float32)
     pinky = active[3]
-    return 0.85 * jp.mean(wrap) + 0.15 * pinky
+    wrap_score = jp.dot(wrap, jp.array([1.25, 1.0, 0.9, 0.85], dtype=jp.float32)) / 4.0
+    return 0.85 * wrap_score + 0.15 * pinky
 
   def _reward_contact(self, tip_world, cube_pos):
     del cube_pos
@@ -287,11 +319,19 @@ class CanGraspV2Force(grasp_bottle_v2_force.BottleGraspV2Force):
     thumb_tip = tip_world[4]
     thumb_delta = cube_pos - thumb_tip
     thumb_near = jp.exp(-18.0 * jp.linalg.norm(thumb_delta))
+    thumb_index_gap = jp.linalg.norm(thumb_tip - tip_world[0])
+    thumb_index_clear = jp.clip((thumb_index_gap - 0.024) / 0.018, 0.0, 1.0)
     # Bias the policy toward a thumb pose that sits slightly below the can
     # centerline and contributes load support while the fingers press inward.
     thumb_under = jp.clip((cube_pos[2] - thumb_tip[2] + 0.018) / 0.040, 0.0, 1.0)
-    finger_clamp = jp.clip(0.45 * middle_soft + 0.30 * index_soft + 0.25 * ring_soft, 0.0, 1.0)
-    return thumb_soft * thumb_near * (0.25 + 0.75 * finger_clamp) * (0.35 + 0.65 * thumb_under)
+    finger_clamp = jp.clip(0.55 * index_soft + 0.25 * middle_soft + 0.20 * ring_soft, 0.0, 1.0)
+    return (
+        thumb_soft
+        * thumb_near
+        * (0.25 + 0.75 * finger_clamp)
+        * (0.35 + 0.65 * thumb_under)
+        * (0.85 + 0.15 * thumb_index_clear)
+    )
 
   def _get_wrap_contact_flags(self, data) -> jax.Array:
     return jp.array([
@@ -388,15 +428,142 @@ class CanGraspV2Force(grasp_bottle_v2_force.BottleGraspV2Force):
         + (1.0 - obs_alpha) * whole_finger_forces
     )
 
+    cube_pos_release = self.get_cube_position(data)
+    cube_linvel_release = self.get_cube_linvel(data)
+    wrap_forces_release, wrap_active_release, wrap_count_release = self._get_wrap_contact_state(
+        ema_finger_forces, whole_contact_flags,
+    )
+    triad_release = jp.sum(wrap_active_release[:3])
+    thumb_release = wrap_active_release[3] > 0.0
+    palm_release = self._has_cube_contact(data, self._palm_contact_gids)
+    soft_margin = self._config.reward_config.finger_active_threshold * 0.75
+    wrap_soft_release = jp.maximum(
+        jp.clip((wrap_forces_release - soft_margin) / 0.05, 0.0, 1.0),
+        wrap_active_release,
+    )
+    joint_band_release = jp.clip(
+        0.48 * wrap_soft_release[0]
+        + 0.34 * wrap_soft_release[1]
+        + 0.28 * wrap_soft_release[2],
+        0.0,
+        1.0,
+    )
+    thumb_soft_release = wrap_soft_release[3]
+    joint_palm_clamp_release = (
+        palm_release
+        * (0.2 + 0.8 * joint_band_release)
+        * (0.25 + 0.75 * thumb_soft_release)
+    )
+    ulnar_wrap_release = (
+        jp.minimum(wrap_soft_release[1], wrap_soft_release[2])
+        * (0.25 + 0.75 * palm_release)
+        * (0.25 + 0.75 * thumb_soft_release)
+    )
+    palm_pos_release = self.get_palm_position(data)
+    tip_world_release = self.get_fingertip_positions(data).reshape(5, 3) + palm_pos_release
+    thumb_index_gap_release = jp.linalg.norm(
+        tip_world_release[4] - tip_world_release[0]
+    )
+    thumb_index_clear_release = jp.clip(
+        (thumb_index_gap_release - 0.024) / 0.018,
+        0.0,
+        1.0,
+    )
+    thumb_under_release = jp.clip(
+        (cube_pos_release[2] - tip_world_release[4, 2] + 0.028) / 0.070,
+        0.0,
+        1.0,
+    )
+    index_palm_press_release = (
+        palm_release
+        * wrap_soft_release[0]
+        * (0.35 + 0.65 * thumb_under_release)
+        * (0.85 + 0.15 * thumb_index_clear_release)
+    )
+    probe_cradle_score = (
+        0.42 * joint_palm_clamp_release
+        + 0.30 * index_palm_press_release
+        + 0.13 * ulnar_wrap_release
+        + 0.15 * thumb_under_release
+    )
+    release_shape_ready = (
+        ((wrap_count_release >= 3.0) & thumb_release & (palm_release > 0.0))
+        | (
+            (triad_release >= 2.0)
+            & thumb_release
+            & (palm_release > 0.0)
+            & (wrap_forces_release[0] > 0.017)
+            & (wrap_forces_release[1] > 0.017)
+            & (wrap_forces_release[2] > 0.013)
+            & (wrap_forces_release[3] > 0.013)
+        )
+    )
+    release_motion_ready = (
+        (cube_pos_release[2] > (self._spawn_z - 0.006))
+        & (jp.linalg.norm(cube_linvel_release) < 0.090)
+    )
+
+    release_ready_now = self._is_grasp_ready_for_release(
+        ema_finger_forces, whole_contact_flags,
+    ) & release_shape_ready & release_motion_ready
+    release_ready_steps = jp.where(
+        (~state.info["support_released"]) & release_ready_now,
+        state.info.get("release_ready_steps", jp.array(0, dtype=jp.int32)) + 1,
+        jp.array(0, dtype=jp.int32),
+    )
+
     support_released = self._should_release_support(
         state.info["support_released"], support_timer,
         state.info["support_release_steps"], ema_finger_forces,
-        whole_contact_flags,
+        whole_contact_flags, release_ready_steps=release_ready_steps,
+    )
+    prev_clear_started = state.info.get("support_clear_started", jp.array(False))
+    prev_probe_ready_steps = state.info.get(
+        "probe_ready_steps", jp.array(0, dtype=jp.int32),
+    )
+    prev_clear_timer = state.info.get(
+        "support_clear_timer", jp.array(0, dtype=jp.int32),
+    )
+    probe_clear_ready = (
+        support_released
+        & release_shape_ready
+        & release_motion_ready
+        & (joint_palm_clamp_release > 0.24)
+        & (index_palm_press_release > 0.18)
+        & (probe_cradle_score > 0.42)
+    )
+    probe_ready_steps = jp.where(
+        support_released & (~prev_clear_started) & probe_clear_ready,
+        prev_probe_ready_steps + 1,
+        jp.array(0, dtype=jp.int32),
+    )
+    if self._support_probe_steps > 0:
+      probe_hold_ready = probe_ready_steps >= self._support_probe_steps
+    else:
+      probe_hold_ready = support_released
+    force_clear_now = (
+        support_released & (support_timer >= self._force_release_steps)
+        if self._force_release_steps > 0 else jp.array(False)
+    )
+    support_clear_started = prev_clear_started | (
+        support_released & (probe_hold_ready | force_clear_now)
+    )
+    support_clear_timer = jp.where(
+        support_clear_started,
+        jp.where(prev_clear_started, prev_clear_timer + 1, jp.array(0, dtype=jp.int32)),
+        jp.array(0, dtype=jp.int32),
     )
     data = jax.lax.cond(
         state.info["use_support"],
-        lambda d: self._set_support_state(d, support_released, support_timer),
-        lambda d: self._set_support_state(d, jp.array(True), support_timer),
+        lambda d: self._set_support_state(
+            d, support_released, support_clear_started, support_clear_timer,
+        ),
+        lambda d: self._set_support_state(
+            d,
+            jp.array(True),
+            jp.array(True),
+            jp.array(self._support_ramp_steps, dtype=jp.int32),
+        ),
         data,
     )
 
@@ -408,6 +575,10 @@ class CanGraspV2Force(grasp_bottle_v2_force.BottleGraspV2Force):
     info["obs_tactile_ema"] = obs_tactile_ema
     info["support_released"] = support_released
     info["support_timer"] = support_timer
+    info["release_ready_steps"] = release_ready_steps
+    info["probe_ready_steps"] = probe_ready_steps
+    info["support_clear_started"] = support_clear_started
+    info["support_clear_timer"] = support_clear_timer
     info["gravity_tilt_angle"] = tilt_angle
     info["perturbation_force"] = ext_force
     info["orientation_flip_force"] = flip_force
@@ -425,6 +596,11 @@ class CanGraspV2Force(grasp_bottle_v2_force.BottleGraspV2Force):
 
     def _handle_normal(_):
       cube_pos_hold = self.get_cube_position(data)
+      support_cleared = self._support_is_cleared(
+          support_released,
+                    support_clear_started,
+                    support_clear_timer,
+      )
       cube_above = cube_pos_hold[2] > (self._spawn_z - 0.012)
       wrap_forces, wrap_active, wrap_count = self._get_wrap_contact_state(
           ema_finger_forces, whole_contact_flags,
@@ -457,7 +633,7 @@ class CanGraspV2Force(grasp_bottle_v2_force.BottleGraspV2Force):
           cube_above
           & hold_ready
           & (mean_wrap_force > 0.018)
-          & support_released
+          & support_cleared
       )
       info["stable_hold_steps"] = jp.where(
           is_holding,
@@ -486,7 +662,7 @@ class CanGraspV2Force(grasp_bottle_v2_force.BottleGraspV2Force):
       }
       reward = sum(rewards.values()) * self.dt
       diagnostics = self._get_diagnostics(
-          data, ema_finger_forces, whole_contact_flags, support_released,
+          data, ema_finger_forces, whole_contact_flags, support_cleared,
           info["stable_hold_steps"], done,
       )
       diagnostics["diagnostic/lifted_reset"] = info.get(
@@ -508,6 +684,92 @@ class CanGraspV2Force(grasp_bottle_v2_force.BottleGraspV2Force):
       )
 
     return jax.lax.cond(nonfinite_state, _handle_nonfinite, _handle_normal, operand=None)
+
+  def _support_is_cleared(
+      self,
+      support_released: jax.Array,
+            support_clear_started: jax.Array,
+            support_clear_timer: jax.Array,
+  ) -> jax.Array:
+        clear_active = support_released & support_clear_started
+        if self._support_ramp_steps <= 0:
+            return clear_active
+        return clear_active & (support_clear_timer >= self._support_ramp_steps)
+
+  def _should_release_support(
+      self,
+      already_released: jax.Array,
+      support_timer: jax.Array,
+      release_steps: jax.Array = None,
+      tip_finger_forces: jax.Array | None = None,
+      tip_contact_flags: jax.Array | None = None,
+      release_ready_steps: jax.Array | None = None,
+  ) -> jax.Array:
+    threshold = (
+        release_steps if release_steps is not None else self._support_release_steps
+    )
+    time_ready = support_timer >= threshold
+    if tip_finger_forces is None:
+      grasp_ready = jp.array(True)
+    else:
+      grasp_ready = self._is_grasp_ready_for_release(
+          tip_finger_forces, tip_contact_flags,
+      )
+
+    min_ready_sec = float(
+        getattr(self._config.support_config, "release_ready_sec", 0.0)
+    )
+    min_ready_steps = jp.array(
+        int(np.round(min_ready_sec / self.dt)), dtype=jp.int32,
+    )
+    if release_ready_steps is None:
+      dwell_ready = jp.array(True)
+    else:
+      dwell_ready = release_ready_steps >= min_ready_steps
+
+    require_grasp = jp.array(
+        bool(getattr(self._config.support_config, "require_grasp_for_release", True))
+    )
+    force_release = (
+        (support_timer >= self._force_release_steps)
+        if self._force_release_steps > 0 else jp.array(False)
+    )
+    release_now = (
+        time_ready
+        & (grasp_ready | ~require_grasp)
+        & dwell_ready
+    ) | force_release
+    return jp.logical_or(already_released, release_now)
+
+  def _set_support_state(
+      self,
+      data,
+      support_released: jax.Array,
+            support_clear_started: jax.Array,
+            support_clear_timer: jax.Array,
+  ):
+        if self.mj_model.nmocap == 0:
+            return data
+        probe_pos = self._support_pos.at[2].set(
+                self._support_pos[2] - self._support_probe_drop,
+        )
+        if self._support_ramp_steps > 0:
+            alpha = jp.clip(
+                    support_clear_timer.astype(jp.float32) / float(self._support_ramp_steps),
+                    0.0,
+                    1.0,
+            )
+            clear_pos = self._support_pos.at[2].set(
+                    self._support_pos[2] - self._support_clear_drop,
+            )
+            ramped_pos = (1.0 - alpha) * probe_pos + alpha * clear_pos
+            clear_stage_pos = jp.where(alpha >= 1.0, self._support_hidden_pos, ramped_pos)
+        else:
+            clear_stage_pos = self._support_hidden_pos
+        released_pos = jp.where(support_clear_started, clear_stage_pos, probe_pos)
+        support_pos = jp.where(support_released, released_pos, self._support_pos)
+        mocap_pos = data.mocap_pos.at[self._support_mocap_id].set(support_pos)
+        return data.replace(mocap_pos=mocap_pos)
 
   def _is_grasp_ready_for_release(
       self,
@@ -587,6 +849,7 @@ class CanGraspV2Force(grasp_bottle_v2_force.BottleGraspV2Force):
         ((wrap_count >= 3.0) & thumb_ready)
         | ((triad_count >= 2.0) & thumb_ready & (palm_contact > 0.0))
     ).astype(jp.float32)
+    unsupported_hold_contact = hold_contact * support_released.astype(jp.float32)
     two_plus_contact = ((triad_count >= 2.0) & thumb_ready).astype(jp.float32)
 
     cube_pos = self.get_cube_position(data)
@@ -603,12 +866,12 @@ class CanGraspV2Force(grasp_bottle_v2_force.BottleGraspV2Force):
     hold_success = (
         (stable_hold_steps >= hold_success_steps)
         & (cube_above > 0.0)
-        & (hold_contact > 0.0)
+        & (unsupported_hold_contact > 0.0)
     ).astype(jp.float32)
 
     lin_speed = jp.linalg.norm(cube_linvel)
     slip_event = (
-        (hold_contact > 0.0)
+        (unsupported_hold_contact > 0.0)
         & support_released
         & ((lin_speed > 0.12) | (cube_linvel[2] < -0.03))
     ).astype(jp.float32)
@@ -620,9 +883,9 @@ class CanGraspV2Force(grasp_bottle_v2_force.BottleGraspV2Force):
 
     return {
         "diagnostic/success": hold_success,
-        "diagnostic/three_finger_contact": hold_contact,
+        "diagnostic/three_finger_contact": unsupported_hold_contact,
         "diagnostic/two_plus_primary_contact": two_plus_contact,
-        "diagnostic/contact_duration_sec": hold_contact * self.dt,
+        "diagnostic/contact_duration_sec": unsupported_hold_contact * self.dt,
         "diagnostic/lift_success": lift_success,
         "diagnostic/hold_success": hold_success,
         "diagnostic/drop": drop,
@@ -671,20 +934,27 @@ class CanGraspV2Force(grasp_bottle_v2_force.BottleGraspV2Force):
     mcp_gate = jp.clip(jp.mean(mcp_angles) / 0.8, 0.0, 1.0)
 
     support_released = info.get("support_released", jp.array(True))
-    if self._support_ramp_steps > 0:
-      support_timer = info.get("support_timer", jp.array(0))
-      ramp_elapsed = jp.clip(
-          (support_timer - self._support_release_steps).astype(jp.float32),
-          0.0, float(self._support_ramp_steps),
-      )
-      released_gate = jp.where(
-          support_released, ramp_elapsed / float(self._support_ramp_steps), 0.0,
-      )
-    else:
-      released_gate = support_released.astype(jp.float32)
     support_timer = info.get("support_timer", jp.array(0))
+    support_clear_started = info.get(
+        "support_clear_started", support_released,
+    )
+    support_clear_timer = info.get(
+        "support_clear_timer", jp.array(0, dtype=jp.int32),
+    )
+    support_cleared = self._support_is_cleared(
+        support_released, support_clear_started, support_clear_timer,
+    )
+    clear_elapsed = jp.maximum(
+        support_clear_timer - self._support_ramp_steps,
+        jp.array(0, dtype=jp.int32),
+    ).astype(jp.float32)
+    released_gate = jp.where(
+        support_cleared,
+        jp.clip(clear_elapsed / 20.0, 0.0, 1.0),
+        0.0,
+    )
     late_support_steps = jp.maximum(
-        support_timer - (self._support_release_steps + max(5, self._support_ramp_steps // 2)),
+        support_timer - (self._support_release_steps + max(5, self._support_probe_steps)),
         jp.array(0, dtype=jp.int32),
     ).astype(jp.float32)
     late_support_gate = jp.clip(late_support_steps / 30.0, 0.0, 1.0)
@@ -710,6 +980,8 @@ class CanGraspV2Force(grasp_bottle_v2_force.BottleGraspV2Force):
         self._has_cube_contact(data, self._finger_contact_gids["pinky"]),
     )
     palm_only_contact = palm_contact * (1.0 - jp.clip(triad_count / 2.0, 0.0, 1.0))
+    thumb_index_gap = jp.linalg.norm(tip_world[4] - tip_world[0])
+    thumb_index_clear = jp.clip((thumb_index_gap - 0.024) / 0.018, 0.0, 1.0)
     cheat_contact = jp.clip(jp.maximum(palm_only_contact, 0.6 * pinky_contact), 0.0, 1.0)
     clean_wrap_gate = jp.maximum(wrap_gate, 0.8 * palm_wrap_gate) * (1.0 - cheat_contact)
     clean_strong_wrap_gate = strong_wrap_gate * (1.0 - cheat_contact)
@@ -720,12 +992,23 @@ class CanGraspV2Force(grasp_bottle_v2_force.BottleGraspV2Force):
         wrap_active,
     )
     joint_band_soft = jp.clip(
-        0.18 * wrap_soft[0] + 0.60 * wrap_soft[1] + 0.55 * wrap_soft[2],
+        0.48 * wrap_soft[0] + 0.34 * wrap_soft[1] + 0.28 * wrap_soft[2],
         0.0,
         1.0,
     )
     joint_band_active = jp.clip(
-        0.18 * wrap_active[0] + 0.60 * wrap_active[1] + 0.55 * wrap_active[2],
+        0.48 * wrap_active[0] + 0.34 * wrap_active[1] + 0.28 * wrap_active[2],
+        0.0,
+        1.0,
+    )
+    thumb_force_soft = jp.clip((wrap_forces[3] - 0.010) / 0.035, 0.0, 1.0)
+    thumb_pose_under = jp.clip(
+        (cube_pos[2] - tip_world[4, 2] + 0.028) / 0.070,
+        0.0,
+        1.0,
+    )
+    thumb_under_soft = jp.clip(
+        0.55 * thumb_force_soft + 0.45 * thumb_pose_under,
         0.0,
         1.0,
     )
@@ -733,6 +1016,13 @@ class CanGraspV2Force(grasp_bottle_v2_force.BottleGraspV2Force):
         palm_contact
         * (0.2 + 0.8 * joint_band_soft)
         * (0.25 + 0.75 * thumb_active)
+        * (1.0 - palm_only_contact)
+    )
+    index_palm_press = (
+        palm_contact
+        * wrap_soft[0]
+        * (0.35 + 0.65 * thumb_under_soft)
+        * (0.85 + 0.15 * thumb_index_clear)
         * (1.0 - palm_only_contact)
     )
     ulnar_wrap = (
@@ -750,11 +1040,14 @@ class CanGraspV2Force(grasp_bottle_v2_force.BottleGraspV2Force):
     hold_gate = jp.maximum(
         clean_strong_wrap_gate,
         jp.maximum(
-            0.92 * joint_palm_clamp,
             jp.maximum(
-                0.75 * core_cup_wrap * (1.0 - cheat_contact),
-                0.70 * ulnar_wrap,
+                0.92 * joint_palm_clamp,
+                jp.maximum(
+                    0.75 * core_cup_wrap * (1.0 - cheat_contact),
+                    0.70 * ulnar_wrap,
+                ),
             ),
+            0.50 * index_palm_press,
         ),
     )
     core_contact = (
@@ -782,17 +1075,6 @@ class CanGraspV2Force(grasp_bottle_v2_force.BottleGraspV2Force):
         * (0.35 + 0.65 * thumb_active)
         * (1.0 - palm_only_contact)
     )
-    thumb_force_soft = jp.clip((wrap_forces[3] - 0.010) / 0.035, 0.0, 1.0)
-    thumb_pose_under = jp.clip(
-        (cube_pos[2] - tip_world[4, 2] + 0.028) / 0.070,
-        0.0,
-        1.0,
-    )
-    thumb_under_soft = jp.clip(
-        0.55 * thumb_force_soft + 0.45 * thumb_pose_under,
-        0.0,
-        1.0,
-    )
     z_keep = jp.clip((cube_pos[2] - (self._spawn_z - 0.012)) / 0.020, 0.0, 1.0)
     xy_keep = jp.exp(-10.0 * jp.linalg.norm((cube_pos - self._spawn_pos)[:2]))
     slow_keep = jp.exp(-3.5 * jp.linalg.norm(cube_linvel))
@@ -808,6 +1090,7 @@ class CanGraspV2Force(grasp_bottle_v2_force.BottleGraspV2Force):
     post_release_force_support = (
         released_gate
         * z_keep
+        * (0.70 + 0.30 * index_palm_press)
         * (0.35 + 0.65 * joint_palm_clamp)
         * core_force_level
         * (0.45 + 0.55 * core_force_balance)
@@ -817,6 +1100,7 @@ class CanGraspV2Force(grasp_bottle_v2_force.BottleGraspV2Force):
         * z_keep
         * xy_keep
         * slow_keep
+        * (0.70 + 0.30 * index_palm_press)
         * joint_palm_clamp
         * (0.25 + 0.75 * ulnar_wrap)
         * (0.30 + 0.70 * ring_engage)
@@ -827,6 +1111,7 @@ class CanGraspV2Force(grasp_bottle_v2_force.BottleGraspV2Force):
         * (0.35 + 0.65 * xy_keep)
         * (0.35 + 0.65 * slow_keep)
         * (0.25 + 0.75 * palm_contact)
+        * (0.65 + 0.35 * index_palm_press)
         * (0.30 + 0.70 * thumb_under_soft)
         * (0.30 + 0.70 * joint_palm_clamp)
         * (0.20 + 0.80 * ulnar_wrap)
@@ -849,6 +1134,7 @@ class CanGraspV2Force(grasp_bottle_v2_force.BottleGraspV2Force):
         "core_cup_wrap": core_cup_wrap,
         "core_contact": core_contact,
         "joint_palm_clamp": joint_palm_clamp,
+        "index_palm_press": index_palm_press * released_gate,
         "core_force_tripod": core_force_tripod,
         "ring_engage": ring_engage,
         "ring_proximity": ring_proximity,
