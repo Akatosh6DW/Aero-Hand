@@ -37,11 +37,11 @@ def default_config() -> config_dict.ConfigDict:
     cfg.action_scale = [0.07, 0.255, 0.22, 0.22, 0.24, 0.082]
 
     cfg.support_config.release_after_sec = 7.8
-    cfg.support_config.release_ramp_sec = 0.4125
+    cfg.support_config.release_ramp_sec = 0.40625
     cfg.support_config.force_release_after_sec = 8.4
     cfg.support_config.release_ready_sec = 0.20
     cfg.support_config.probe_hold_sec = 0.30
-    cfg.support_config.probe_drop_m = 0.018
+    cfg.support_config.probe_drop_m = 0.01725
     cfg.support_config.clear_drop_m = 0.055
     # Keep the stable CAN79 handover scaffold and only bias the hand shape
     # slightly toward index-led clamp in control space.

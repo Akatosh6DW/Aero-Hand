@@ -3025,3 +3025,3788 @@ python learning/train_jax_ppo.py \
 - 下一步:
   - cube 已完成当前目标；
   - 按用户流程，接着切到当前 pose 的圆柱/易拉罐任务，沿同样方式自主迭代。
+
+### C53-C54: current bottle-palm proxy regression check and recovery restart (2026-04-26)
+
+- 背景:
+  - 用户要求先检查“当前手掌碰撞模型”是否伤害既有 cube 策略；若下降，先把 cube 恢复到 `30s+`，再继续 can。
+  - 为此新增了一个仅用于 cube 兼容评估的代理场景：
+    - `AeroCubeGraspV2ForceCapsuleBottlePalmQbr`
+    - `scene_mjx_grasp_v2_capsule_bottlepalm_cube.xml`
+    - `right_hand_v2_vertical_bottle_cube_eval.xml`
+  - 其中 `right_hand_v2_vertical_bottle_cube_eval.xml` 是当前 bottle/can 手模的 cube-eval 代理版：为绕过 MJX 的 `ellipsoid-box` 不支持，只在 cube 评估代理里把 ellipsoid 机械替换成了 box；真正的 can 主线手模没有改成 box。
+
+- 评估工具修正:
+  - 在这次回归检查里发现，原 `eval_aero_jax_checkpoint.py` 把 `diagnostic/contact_duration_sec` 这类“逐步统计量”误当成了“最终一步诊断”，会把 `30s+` 策略误读成 `0.05s` 量级。
+  - 因此先修正脚本，新增并区分：
+    - `diagnostic_last_*`
+    - `diagnostic_step_*`
+    - `diagnostic_sum_*`
+  - 后续所有 cube / can 的独立诊断都以 `diagnostic_sum_mean["diagnostic/contact_duration_sec"]` 这类累计口径为准。
+
+- 当前回归是否真实:
+  - 同一个 `C52b` 最佳 checkpoint 在原始 QBR cube env 下：
+    - `contact_duration ≈ 36.51s`
+    - `hold_success_sum ≈ 121.5`
+    - `three_finger_contact_sum ≈ 730.25`
+    - `palm = 0`, `nonprimary = 0`
+  - 放到当前掌心代理 env 后直接掉到：
+    - `contact_duration ≈ 2.89s`
+    - `hold_success_sum = 0`
+    - `three_finger_contact_sum ≈ 57.75`
+    - `palm = 0`, `nonprimary = 0`
+  - 结论:
+    - 这是**真实回归**，不是评估脚本假报警。
+    - 现掌心代理并没有立刻诱导 palm/nonprimary 作弊，而是把原本的三指主抓骨架打散了。
+
+- C53: pure continuation adaptation probe on current bottle-palm proxy
+  - 改动:
+    - 不改 cube reward，不改 cube 几何主逻辑。
+    - 只修了代理 scene 的 `home` 姿态兼容问题（拇指 flex 对齐原 QBR scene），然后直接用 `C52b` checkpoint 跨几何续训，验证“是否能仅靠 continuation 恢复”。
+  - smoke:
+    - `AeroCubeGraspV2ForceCapsuleBottlePalmQbr` CPU smoke 通过。
+  - 训练:
+    - env: `AeroCubeGraspV2ForceCapsuleBottlePalmQbr`
+    - restore: `C52b 000005242880`
+    - run: `logs/AeroCubeGraspV2ForceCapsuleBottlePalmQbr-20260426-191053-C53_probe_capsule_bottlepalm_adapt_2048`
+    - `1048576 timesteps`, `2 evals`, `2048 envs`
+  - metrics.csv:
+    - `first = 3.3687s`
+    - `last = 8.7250s`
+    - `max = 8.7250s`
+  - 独立 eval（末 checkpoint `000001310720`）:
+    - `contact_duration ≈ 19.00s`
+    - `hold_success_sum ≈ 84.75`
+    - `three_finger_contact_sum ≈ 380.0`
+    - `palm = 0`, `nonprimary = 0`
+    - `drop_sum ≈ 0.25`
+  - 对比:
+    - 相比当前代理 env 的回归基线 `2.89s`，`C53` 已经明显恢复。
+    - 但离原 QBR 线 `36.51s` 仍有明显差距，且已经出现少量掉落。
+  - 修改原因:
+    - 先验证“当前掌心代理是否还可学”，避免在没有必要时过早大改 reward 或几何。
+  - 预期效果:
+    - 若 continuation 本身能恢复到较高时长，则优先沿最小改动主线走。
+  - 实际效果:
+    - continuation 有效，说明当前掌心代理**不是不可学**；
+    - 但恢复还远不够，下一轮需要用更长训练验证能否继续逼近 `30s+`，再决定是否引入单一几何修复。
+- 下一轮建议:
+  - 直接从 `C53` 末 checkpoint 做长续训验证；
+  - 只有在长训确认停滞后，才改单一结构变量。
+
+- C54: long continuation from C53
+  - 改动:
+    - 不改 reward，不改手模，不改代理场景结构。
+    - 只从 `C53` 末 checkpoint 继续做更长的 continuation，验证恢复趋势是否能在更长 horizon 下延续。
+  - 训练:
+    - env: `AeroCubeGraspV2ForceCapsuleBottlePalmQbr`
+    - restore: `C53 000001310720`
+    - run: `logs/AeroCubeGraspV2ForceCapsuleBottlePalmQbr-20260426-191924-C54_long_from_C53_capsule_bottlepalm_2048`
+    - `2097152 timesteps`, `4 evals`, `2048 envs`
+  - metrics.csv:
+    - `first = 8.8645s`
+    - `last = 13.6227s`
+    - `max = 13.6227s`
+  - 中间趋势:
+    - eval1: `8.86s`, 当时 `palm/nonprimary/drop` 偏高
+    - eval2: `9.09s`, `palm -> 0.14`, `nonprimary -> 0`
+    - eval3: `11.41s`, `palm=0`, `nonprimary=0`
+    - eval4: `13.62s`, `palm=0`, `nonprimary=0`, `drop≈0.07`
+  - 独立 eval（中后段 checkpoint `000001966080`）:
+    - `contact_duration ≈ 12.09s`
+    - `hold_success_sum ≈ 30.0`
+    - `three_finger_contact_sum ≈ 241.75`
+    - `palm = 0`, `nonprimary = 0`, `drop = 0`
+  - 对比:
+    - 相比代理回归基线 `2.89s`，恢复明显；
+    - 相比 `C53` 独立 eval 的 `19.0s`，训练曲线和独立 eval 量级尚未完全一致，但都稳定说明“继续同线恢复”是正方向。
+  - 修改原因:
+    - 验证 `C53` 的恢复是否只是短探测偶然值，还是可继续放大的真实适配趋势。
+  - 预期效果:
+    - 若长训继续上升且清理掉 palm/nonprimary 作弊接触，则优先保留 continuation 主线。
+  - 实际效果:
+    - 方向成立；
+    - 训练中一度出现掌心/非主抓补偿，但后续 eval 自行清理干净，最终回到“主抓三指、无 palm/nonprimary 作弊”的更干净接触结构。
+  - 下一轮建议:
+    - 继续从 `C54` 最优 checkpoint 往上推；
+    - 在 `contact_duration` 趋势明显停滞前，不急着大改 reward 或几何。
+
+- C55: continue from C54 and re-cross 20s
+  - 改动:
+    - 继续保持 reward、代理 hand 几何、训练超参不变。
+    - 仅从 `C54` 最优 checkpoint 继续长训，验证恢复线是否还能继续抬高三指主抓时长。
+  - 训练:
+    - env: `AeroCubeGraspV2ForceCapsuleBottlePalmQbr`
+    - restore: `C54 000002949120`
+    - run: `logs/AeroCubeGraspV2ForceCapsuleBottlePalmQbr-20260426-193016-C55_long_from_C54_capsule_bottlepalm_2048`
+    - `2097152 timesteps`, `4 evals`, `2048 envs`
+  - metrics.csv:
+    - `first = 13.2086s`
+    - `last = 20.2574s`
+    - `max = 20.2574s`
+  - 中间趋势:
+    - eval1: `13.21s`, `palm=0`, `nonprimary=0`, `drop≈0.016`
+    - eval2: `15.40s`, `palm≈0.039`, `nonprimary=0`, `drop≈0.086`
+    - eval3: `18.16s`, `palm=0`, `nonprimary=0`, `drop≈0.172`
+    - eval4: `20.26s`, `palm=0`, `nonprimary=0`, `drop≈0.141`
+  - 独立 eval（末 checkpoint `000002949120`）:
+    - `contact_duration ≈ 19.90s`
+    - `hold_success_sum ≈ 43.25`
+    - `three_finger_contact_sum ≈ 398.0`
+    - `palm = 0`, `nonprimary = 0`, `drop = 0`
+  - 对比:
+    - 相比回归基线 `2.89s`，已恢复到 `~20s` 量级；
+    - 相比 `C54` 独立 eval `12.09s`，继续明显提升；
+    - 说明 continuation 仍未到平台期。
+  - 修改原因:
+    - `C54` 已经证明这条线会自己清理掉 palm/nonprimary 作弊接触，因此优先沿最小改动主线追恢复，而不是过早插入新变量。
+  - 预期效果:
+    - 若继续同配方，应该先逼近 `20s+`，再观察是否还能自然冲向 `30s+`。
+  - 实际效果:
+    - 命中预期；训练内 contact_duration 首次重新跨过 `20s`，且主抓接触依然干净。
+  - 下一轮建议:
+    - 继续从 `C55` 末 checkpoint 往上推，优先验证能否自然逼近 `30s`；
+    - 只有在 `20s` 附近明显平台化后，才考虑插入单一结构或阈值变量。
+
+- C56: continue from C55 and push into low-20s
+  - 改动:
+    - 继续保持 reward / 几何 / 超参不变。
+    - 仅从 `C55` 末 checkpoint 做下一轮长 continuation。
+  - 训练:
+    - env: `AeroCubeGraspV2ForceCapsuleBottlePalmQbr`
+    - restore: `C55 000002949120`
+    - run: `logs/AeroCubeGraspV2ForceCapsuleBottlePalmQbr-20260426-194115-C56_long_from_C55_capsule_bottlepalm_2048`
+    - `2097152 timesteps`, `4 evals`, `2048 envs`
+  - metrics.csv:
+    - `first = 19.7625s`
+    - `last = 23.6284s`
+    - `max = 23.6284s`
+  - 中间趋势:
+    - eval1: `19.76s`, `palm≈0.008`, `nonprimary=0`
+    - eval2: `20.98s`, `palm=0`, `nonprimary=0`
+    - eval3: `22.00s`, `palm=0`, `nonprimary=0`
+    - eval4: `23.63s`, `palm=0`, `nonprimary≈0.008`
+  - 独立 eval（末 checkpoint `000002949120`）:
+    - `contact_duration ≈ 21.51s`
+    - `hold_success_sum ≈ 56.75`
+    - `three_finger_contact_sum ≈ 430.25`
+    - `palm = 0`, `nonprimary = 0`
+    - `drop_sum ≈ 0.25`
+  - 对比:
+    - 相比 `C55` 独立 eval `19.90s`，继续提升；
+    - 相比训练内末评 `23.63s`，独立 eval 略保守，但方向一致。
+  - 修改原因:
+    - `C55` 尚未显示平台化，且主抓接触仍然干净，因此继续走最小变量 continuation。
+  - 预期效果:
+    - 若趋势延续，下一轮应继续向 `25s+` 靠近。
+  - 实际效果:
+    - 命中；策略在当前掌心代理上已经稳定恢复到 `20s+` 区间。
+  - 下一轮建议:
+    - 继续从 `C56` 末 checkpoint 往上推；
+    - 在未确认平台前，不引入新的 reward/几何变量。
+
+- C57: plain continuation near the emerging plateau
+  - 改动:
+    - 继续保持 reward / hand proxy / 超参不变。
+    - 仅从 `C56` 末 checkpoint 继续长训，确认 `23s` 左右是否已经平台。
+  - 训练:
+    - env: `AeroCubeGraspV2ForceCapsuleBottlePalmQbr`
+    - restore: `C56 000002949120`
+    - run: `logs/AeroCubeGraspV2ForceCapsuleBottlePalmQbr-20260426-195151-C57_long_from_C56_capsule_bottlepalm_2048`
+    - `2097152 timesteps`, `4 evals`, `2048 envs`
+  - metrics.csv:
+    - `first = 23.3027s`
+    - `last = 23.7300s`
+    - `max = 24.3093s`
+  - 中间趋势:
+    - `23.30 -> 23.70 -> 24.31 -> 23.73s`
+    - palm 几乎始终为 `0`
+    - nonprimary 从 `0.0469` 清回 `0`
+  - 结论:
+    - 纯 continuation 开始接近平台，虽然没有退化，但已经不像 C54/C55/C56 那样持续抬升。
+    - 因此下一轮不再机械续训，而是插入一个单一结构变量。
+
+- C58: stronger middle-finger closing bias on bottle-palm proxy
+  - 改动:
+    - 仅对 `CubeGraspV2ForceCapsuleBottlePalmQbr` 增强中指闭合偏置：
+      - `middle_target: 0.62 -> 0.66`
+      - 同步到 `default_ctrl / default_pose / pre_grasp_pose / lifted_grasp_pose / lifted_grasp_ctrl`
+    - 其它 reward、几何、训练超参全部不动。
+  - smoke:
+    - 初次默认设备 smoke 因 GPU OOM 失败；
+    - 改为 `JAX_PLATFORMS=cpu` 后 smoke 通过。
+  - 训练:
+    - env: `AeroCubeGraspV2ForceCapsuleBottlePalmQbr`
+    - restore: `C57 000001966080`
+    - run: `logs/AeroCubeGraspV2ForceCapsuleBottlePalmQbr-20260426-200202-C58_probe_middle066_capsule_bottlepalm_2048`
+    - `1048576 timesteps`, `2 evals`, `2048 envs`
+  - metrics.csv:
+    - `first = 24.4140s`
+    - `last = 25.1327s`
+    - `max = 25.1327s`
+  - 中间趋势:
+    - eval1: `24.41s`, 伴随 `palm≈0.87`, `nonprimary≈0.086`
+    - eval2: `25.13s`, `palm=0`, `nonprimary=0`
+  - 对比:
+    - 相比 `C57` 的 `max 24.31s`，C58 用单一中指变量把上限继续推高到 `25.13s`。
+  - 修改原因:
+    - `C57` 已进入平台边缘，而这条线从最早的 QBR cube 迁移开始就被诊断为“中指掉链子”是主瓶颈之一；
+    - 因此优先测试更强的中指主抓偏置，而不是重写 reward。
+  - 预期效果:
+    - 若更强中指闭合能抬高三指主抓时长，说明当前剩余瓶颈仍是第三主抓指接触不够稳。
+  - 实际效果:
+    - 命中预期；
+    - 虽然首评出现了 palm/nonprimary 代偿，但末评已自行清理回干净接触，同时把时长提升到新的局部最优。
+  - 下一轮建议:
+    - 保留 `middle_target=0.66`；
+    - 直接从 `C58` 末 checkpoint 继续长训，验证能否顺势冲向 `30s+`。
+
+- C59: continue from C58 with `middle_target=0.66`
+  - 改动:
+    - 保留 `CubeGraspV2ForceCapsuleBottlePalmQbr` 的 `middle_target=0.66`。
+    - 不改 reward，不改其它几何项，只做长 continuation。
+  - 训练:
+    - env: `AeroCubeGraspV2ForceCapsuleBottlePalmQbr`
+    - restore: `C58 000001310720`
+    - run: `logs/AeroCubeGraspV2ForceCapsuleBottlePalmQbr-20260426-200824-C59_long_from_C58_middle066_capsule_bottlepalm_2048`
+    - `2097152 timesteps`, `4 evals`, `2048 envs`
+  - metrics.csv:
+    - `first = 24.9593s`
+    - `last = 26.0175s`
+    - `max = 26.3241s`
+  - 中间趋势:
+    - `24.96 -> 25.86 -> 26.32 -> 26.02s`
+    - palm 始终 `0`
+    - nonprimary 仅在第三评出现 `0.0078` 量级，随后清回 `0`
+  - 结论:
+    - `middle_target=0.66` 不是假阳性，长训后仍能继续把当前掌心代理下的 cube 恢复线往上抬。
+    - 这条线已经从最初的 `2.89s` 回到 `26s` 量级，距离 `30s+` 只剩最后一段。
+  - 下一轮建议:
+    - 直接从 `C59` 最优 checkpoint 继续；
+    - 除非下一轮明确平台，否则先不再插入新变量。
+
+- C60: continue from C59 after the middle-bias keep
+  - 改动:
+    - 保留 `middle_target=0.66`。
+    - 继续不改 reward / 其它几何，只做长 continuation。
+  - 训练:
+    - env: `AeroCubeGraspV2ForceCapsuleBottlePalmQbr`
+    - restore: `C59 000001966080`
+    - run: `logs/AeroCubeGraspV2ForceCapsuleBottlePalmQbr-20260426-204712-C60_long_from_C59_middle066_capsule_bottlepalm_2048`
+    - `2097152 timesteps`, `4 evals`, `2048 envs`
+  - metrics.csv:
+    - `first = 25.4378s`
+    - `last = 26.8944s`
+    - `max = 26.8944s`
+  - 中间趋势:
+    - `25.44 -> 26.16 -> 26.33 -> 26.89s`
+    - 第三评短暂出现 `palm≈0.195`
+    - 末评又清回 `palm=0`, `nonprimary=0`
+  - 结论:
+    - 这条恢复线仍在向上，但斜率确实比 C54-C56 阶段更小。
+    - 说明当前主线还没死，但已经进入“每轮小幅增益”的后段。
+  - 下一轮建议:
+    - 继续从 `C60` 往上推一轮，看看能否直接摸到 `27s+`；
+    - 若后续仍只是 0.5~1s 级抬升，再考虑新的窄变量。
+
+- C61: continue from C60 and approach the high-20s
+  - 改动:
+    - 保留 `middle_target=0.66`。
+    - 不改 reward / 其它几何，继续长 continuation。
+  - 训练:
+    - env: `AeroCubeGraspV2ForceCapsuleBottlePalmQbr`
+    - restore: `C60 000002949120`
+    - run: `logs/AeroCubeGraspV2ForceCapsuleBottlePalmQbr-20260426-205610-C61_long_from_C60_middle066_capsule_bottlepalm_2048`
+    - `2097152 timesteps`, `4 evals`, `2048 envs`
+  - metrics.csv:
+    - `first = 26.4440s`
+    - `last = 27.6499s`
+    - `max = 27.6499s`
+  - 中间趋势:
+    - `26.44 -> 27.00 -> 27.25 -> 27.65s`
+    - palm 全程 `0`
+    - nonprimary 全程 `0`
+  - 独立 eval（末 checkpoint `000002949120`）:
+    - `contact_duration ≈ 21.35s`
+    - `hold_success_sum ≈ 50.5`
+    - `three_finger_contact_sum ≈ 427.0`
+    - `palm = 0`, `nonprimary = 0`, `drop = 0`
+  - 结论:
+    - 训练内主线仍然在抬升，并且接触形态非常干净；
+    - 但独立 eval 仍显著低于训练内末评，说明这条线还需要继续拉稳，而不是只追瞬时峰值。
+  - 下一轮建议:
+    - 继续从 `C61` 末 checkpoint 推一轮，优先看训练内是否能摸到 `28s+`；
+    - 若训练内继续上升但独立 eval 持续滞后，再考虑更窄的稳态变量。
+
+- C63: proxy-only triad shaping nudge
+  - 改动:
+    - 仅对 `CubeGraspV2ForceCapsuleBottlePalmQbr` 这条当前掌心代理线做轻微 triad shaping 增强：
+      - `three_finger_proximity: 15.0 -> 18.0`
+      - `primary_finger_force: 65.0 -> 72.0`
+    - 保留 `middle_target=0.66`
+    - 其它 reward、几何、超参都不动。
+  - smoke:
+    - CPU smoke 通过：`smoke_ok_cube_capsule_bottlepalm_c63_cpu`
+  - 训练:
+    - env: `AeroCubeGraspV2ForceCapsuleBottlePalmQbr`
+    - restore: `C61 000002949120`
+    - run: `logs/AeroCubeGraspV2ForceCapsuleBottlePalmQbr-20260426-212124-C63_probe_triad18_force72_capsule_bottlepalm_2048`
+    - `1048576 timesteps`, `2 evals`, `2048 envs`
+  - metrics.csv:
+    - `first = 27.3241s`
+    - `last = 27.9612s`
+    - `max = 27.9612s`
+  - 接触形态:
+    - eval1: `palm≈0.0703`, `nonprimary=0`
+    - eval2: `palm=0`, `nonprimary=0`
+  - 结论:
+    - 这是正样本，但增益不大；
+    - 说明轻微 triad shaping 增强能继续推平台，但不足以单轮冲过 `30s`。
+  - 下一轮建议:
+    - 保留这次改动与 `middle_target=0.66`；
+    - 继续长训一轮，验证它能否在更长 horizon 下把 `27.9s` 再抬上去；
+    - 若仍只提升不到 1s，就需要换下一类窄变量。
+
+- C64: long continuation after C63 triad-shaping nudge
+  - 改动:
+    - 保留 `middle_target=0.66`
+    - 保留 proxy-only triad shaping:
+      - `three_finger_proximity = 18.0`
+      - `primary_finger_force = 72.0`
+    - 其它不动。
+  - 训练:
+    - env: `AeroCubeGraspV2ForceCapsuleBottlePalmQbr`
+    - restore: `C63 000001310720`
+    - run: `logs/AeroCubeGraspV2ForceCapsuleBottlePalmQbr-20260426-212652-C64_long_from_C63_triad18_force72_capsule_bottlepalm_2048`
+    - `2097152 timesteps`, `4 evals` 目标，但实际只写出 3 个 eval
+  - metrics.csv:
+    - `first = 27.1346s`
+    - `last = 27.4190s`
+    - `max = 27.7811s`
+  - 接触形态:
+    - 所有 eval 均为 `palm=0`, `nonprimary=0`
+    - drop 低且继续收敛
+  - 结论:
+    - `C64` 维持了干净三指主抓，但没有对 `C63` 形成明显突破；
+    - 当前主线已经基本卡在 `27~28s` 平台。
+  - 下一轮建议:
+    - 不再继续机械续训；
+    - 改一个新的窄变量去突破平台。
+
+- C65: lower contact thresholds on the bottle-palm proxy (negative)
+  - 改动:
+    - 保留 `middle_target=0.66`
+    - 保留 `three_finger_proximity=18.0`
+    - 保留 `primary_finger_force=72.0`
+    - 仅降低接触阈值：
+      - `finger_active_threshold: 0.08 -> 0.075`
+      - `force_contact_threshold: 0.06 -> 0.055`
+  - smoke:
+    - CPU smoke 通过：`smoke_ok_cube_capsule_bottlepalm_c65_cpu`
+  - 训练:
+    - env: `AeroCubeGraspV2ForceCapsuleBottlePalmQbr`
+    - restore: `C64 000001966080`
+    - run: `logs/AeroCubeGraspV2ForceCapsuleBottlePalmQbr-20260426-213518-C65_probe_thresh0075_fc0055_capsule_bottlepalm_2048`
+    - `1048576 timesteps`, `2 evals`, `2048 envs`
+  - metrics.csv:
+    - `first = 26.9827s`
+    - `last = 27.6909s`
+    - `max = 27.6909s`
+  - 接触形态:
+    - eval1: `palm=0`, `nonprimary=0`
+    - eval2: `palm=0`, `nonprimary≈0.164`
+  - 结论:
+    - 这条阈值校准没有比 `C63/C64` 更好；
+    - 而且末评把 `nonprimary` 带脏了。
+  - 下一轮建议:
+    - 回退这组阈值改动；
+    - 不再沿“放宽接触阈值”这条线继续。
+
+- C66: stronger middle bias `0.68` on the bottle-palm proxy (negative)
+  - 改动:
+    - 保留 `three_finger_proximity=18.0`
+    - 保留 `primary_finger_force=72.0`
+    - 仅把 proxy-env 的 `middle_target: 0.66 -> 0.68`
+  - smoke:
+    - CPU smoke 通过：`smoke_ok_cube_capsule_bottlepalm_c66b_cpu`
+  - 训练:
+    - env: `AeroCubeGraspV2ForceCapsuleBottlePalmQbr`
+    - restore: `C64 000001966080`
+    - run: `logs/AeroCubeGraspV2ForceCapsuleBottlePalmQbr-20260426-214205-C66_probe_middle068_triad18_force72_capsule_bottlepalm_2048`
+    - `1048576 timesteps`, `2 evals`, `2048 envs`
+  - metrics.csv:
+    - `first = 27.1116s`
+    - `last = 27.4276s`
+    - `max = 27.4276s`
+  - 接触形态:
+    - 两次 eval 均为 `palm=0`, `nonprimary=0`
+  - 结论:
+    - 接触形态很干净，但性能不如 `C63/C64`；
+    - 说明把中指再往里收并没有突破当前平台，反而略降。
+  - 下一轮建议:
+    - 回退 `middle_target=0.68`，恢复 `0.66`
+    - 不再沿“继续加大中指闭合”这条线深入。
+
+- C67: stronger thumb opposition on the bottle-palm proxy (negative)
+  - 改动:
+    - 回退 `middle_target` 到主线 `0.66`
+    - 保留 `three_finger_proximity=18.0`
+    - 保留 `primary_finger_force=72.0`
+    - 仅把 proxy-env 的 `thumb_opposition: 30.0 -> 34.0`
+  - smoke:
+    - CPU smoke 通过：`smoke_ok_cube_capsule_bottlepalm_c67_cpu`
+  - 训练:
+    - env: `AeroCubeGraspV2ForceCapsuleBottlePalmQbr`
+    - restore: `C64 000002949120`
+    - run: `logs/AeroCubeGraspV2ForceCapsuleBottlePalmQbr-20260426-220523-C67_probe_thumbopp34_triad18_force72_capsule_bottlepalm_2048`
+    - `1048576 timesteps`, `2 evals`, `2048 envs`
+  - metrics.csv:
+    - `first = 26.4452s`
+    - `last = 27.3397s`
+    - `max = 27.3397s`
+    - `best_step = 1310720`
+  - 接触形态:
+    - 两次 eval 均为 `palm=0`, `nonprimary=0`
+    - `three_finger_contact: 528.91 -> 546.80`
+    - `primary_active_count: 2126.07 -> 2144.73`
+  - 组件统计:
+    - `thumb_opposition: 183.22 -> 183.28`，明显高于 `C63/C64` 的约 `161~162`
+    - `post_release_grasp: 19092.88 -> 18747.88`
+    - `primary_finger_force: 4648.99 -> 4586.20`
+    - `post_release_survival: 75950.30 -> 77168.21`
+  - 修改原因:
+    - `C63/C64` 已是干净平台，想验证“拇指对立不足”是否是三指持续承载不稳的主因。
+  - 预期效果:
+    - 提高食指/中指把方块压向掌心时的拇指下托对立，提升 unsupported 持时。
+  - 实际效果:
+    - 对立分量确实被抬高，接触仍然干净；
+    - 但 `contact_duration_sec` 仍低于 `C63` 的 `27.9612s`，也低于 `C64` 的 `27.7811s` 峰值。
+  - 失败模式分析:
+    - 这轮更像把拇指姿态强化了，但没有改善 release 后主动夹持保持；
+    - `post_release_grasp` 和 `primary_finger_force` 末评仍在回落，说明当前平台更像 release 后 triad retention 不够，而不是单纯拇指对立不足。
+  - 下一轮建议:
+    - 回退 `thumb_opposition=34.0`
+    - 保留 `middle_target=0.66` 和 triad shaping
+    - 改试更直接的 `post_release_grasp` 窄增强，而不是继续加拇指对立
+
+- C68: stronger post-release grasp retention on the bottle-palm proxy
+  - 改动:
+    - 保留 `middle_target=0.66`
+    - 保留 `three_finger_proximity=18.0`
+    - 保留 `primary_finger_force=72.0`
+    - 回退 `thumb_opposition` 到主线 `30.0`
+    - 仅把 proxy-env 的 `post_release_grasp: 125.0 -> 135.0`
+  - smoke:
+    - CPU smoke 通过：`smoke_ok_cube_capsule_bottlepalm_c68_cpu`
+  - 训练:
+    - env: `AeroCubeGraspV2ForceCapsuleBottlePalmQbr`
+    - restore: `C64 000002949120`
+    - run: `logs/AeroCubeGraspV2ForceCapsuleBottlePalmQbr-20260426-221204-C68_probe_postgrasp135_triad18_force72_capsule_bottlepalm_2048`
+    - `1048576 timesteps`, `2 evals`, `2048 envs`
+  - metrics.csv:
+    - `first = 26.4448s`
+    - `last = 27.6292s`
+    - `max = 27.6292s`
+    - `best_step = 1310720`
+  - 接触形态:
+    - 两次 eval 均为 `palm=0`, `nonprimary=0`
+    - `drop: 0.0078 -> 0.0`
+    - `three_finger_contact: 528.90 -> 552.59`
+    - `primary_active_count: 2127.99 -> 2152.57`
+  - 组件统计:
+    - `post_release_grasp: 20608.37 -> 20272.57`
+    - `post_release_pose_hold: 36520.90 -> 37256.48`
+    - `post_release_survival: 75963.02 -> 77610.20`
+    - `post_release_slip: -263.22 -> -254.37`
+    - `primary_finger_force: 4653.53 -> 4572.50`
+    - `thumb_opposition: 161.84 -> 161.91`
+  - 修改原因:
+    - `C67` 说明“拇指更对立”不是当前平台主因，真正缺的是 release 后 triad retention；
+    - 因此直接增强 release 后主动夹持保持，而不再扭拇指姿态。
+  - 预期效果:
+    - 提高 support clear 之后的持续承载，减少抓握骨架在后段松掉。
+  - 实际效果:
+    - 相比 `C67`，`last` 从 `27.3397s` 提到 `27.6292s`，末评接触仍然完全干净；
+    - `three_finger_contact`、`primary_active_count`、`post_release_pose_hold`、`post_release_survival` 都更好；
+    - 但仍未超过 `C63` 的 `27.9612s` 峰值，也未突破 `28s`。
+  - 失败模式分析:
+    - 这条线是正样本，但增益仍偏小；
+    - `post_release_grasp` 本身被抬高后，`primary_finger_force` 末评仍在回落，说明 release 后保持确实更稳了一些，但主要承载力闭合还没有被真正推上新台阶。
+  - 下一轮建议:
+    - 保留 `post_release_grasp=135.0` 做一次长训验证，确认它是否能在更长 horizon 里继续积累；
+    - 若长训仍卡在 `27~28s`，下一轮改试更直接的 `post_release_pose_hold` 小幅增强，而不是继续叠加更高的 `post_release_grasp`
+
+- C69: long validation after `post_release_grasp=135.0`
+  - 改动:
+    - 保留 `middle_target=0.66`
+    - 保留 `three_finger_proximity=18.0`
+    - 保留 `primary_finger_force=72.0`
+    - 保留 `post_release_grasp=135.0`
+    - 其余不动，仅做长训验证。
+  - 训练:
+    - env: `AeroCubeGraspV2ForceCapsuleBottlePalmQbr`
+    - restore: `C68 000001310720`
+    - run: `logs/AeroCubeGraspV2ForceCapsuleBottlePalmQbr-20260426-221821-C69_long_from_C68_postgrasp135_triad18_force72_capsule_bottlepalm_2048`
+    - `2097152 timesteps`, `4 evals`, `2048 envs`
+  - metrics.csv:
+    - `first = 27.1362s`
+    - `last = 28.5592s`
+    - `max = 28.5592s`
+    - `best_step = 2949120`
+  - 接触形态:
+    - 四次 eval 均为 `palm=0`, `nonprimary=0`
+    - `drop: 0.0156 -> 0.0078 -> 0.0 -> 0.0`
+    - `three_finger_contact: 542.73 -> 555.09 -> 558.09 -> 571.19`
+    - `primary_active_count: 2141.07 -> 2154.09 -> 2158.05 -> 2171.19`
+  - 组件统计:
+    - `post_release_grasp: 20296.52 -> 20020.91 -> 20192.24 -> 20613.39`
+    - `post_release_pose_hold: 36951.89 -> 37336.22 -> 37480.01 -> 37906.23`
+    - `post_release_survival: 77033.58 -> 77845.63 -> 78190.68 -> 79155.64`
+    - `post_release_slip: -257.04 -> -250.10 -> -244.31 -> -242.22`
+    - `primary_finger_force: 4591.08 -> 4530.39 -> 4553.60 -> 4550.93`
+    - `three_finger_proximity: 2255.05 -> 2256.23 -> 2257.92 -> 2257.65`
+  - 修改原因:
+    - `C68` 是干净正样本，但短探测还没摸过 `28s`，需要验证这条线在更长 horizon 下是否真的能继续积累。
+  - 预期效果:
+    - 如果 `post_release_grasp=135.0` 真在补当前瓶颈，长训里应该看到 `last` 持续抬升、掉落清零、release 后组件继续同步改善。
+  - 实际效果:
+    - 这轮明确是正样本，且比 `C63/C64/C68` 都更好；
+    - `contact_duration_sec` 首次稳定推到 `28.56s`，接触始终干净，掉落清零，release 后几个核心组件同步抬升。
+  - 失败模式分析:
+    - 还没到 `30s+`，说明这条线虽然有效，但增益还不够大；
+    - `primary_finger_force` 没随 `post_release_*` 一起明显抬升，说明剩余缺口更像“release 后姿态保持还差一点”，而不只是缺一个更强的 grasp gate。
+  - 下一轮建议:
+    - 保留 `post_release_grasp=135.0`
+    - 下一轮只小幅增强 `post_release_pose_hold`，看能否把已经成形的 release 后骨架再稳住一点，冲过 `29~30s`
+
+- C70: stronger post-release pose hold on top of `C69`
+  - 改动:
+    - 保留 `middle_target=0.66`
+    - 保留 `three_finger_proximity=18.0`
+    - 保留 `primary_finger_force=72.0`
+    - 保留 `post_release_grasp=135.0`
+    - 仅把 proxy-env 的 `post_release_pose_hold: 60.0 -> 64.0`
+  - smoke:
+    - CPU smoke 通过：`smoke_ok_cube_capsule_bottlepalm_c70_cpu`
+  - 训练:
+    - env: `AeroCubeGraspV2ForceCapsuleBottlePalmQbr`
+    - restore: `C69 000002949120`
+    - run: `logs/AeroCubeGraspV2ForceCapsuleBottlePalmQbr-20260427-024528-C70_probe_posehold64_postgrasp135_triad18_force72_capsule_bottlepalm_2048`
+    - `1048576 timesteps`, `2 evals`, `2048 envs`
+  - metrics.csv:
+    - `first = 27.8120s`
+    - `last = 28.3467s`
+    - `max = 28.3467s`
+    - `best_step = 1310720`
+  - 接触形态:
+    - 两次 eval 均为 `palm=0`, `nonprimary=0`
+    - `drop: 0.0 -> 0.0`
+    - `three_finger_contact: 556.24 -> 566.94`
+    - `primary_active_count: 2156.22 -> 2166.91`
+  - 组件统计:
+    - `post_release_grasp: 20372.08 -> 20433.64`
+    - `post_release_pose_hold: 39947.49 -> 40343.04`
+    - `post_release_survival: 78329.69 -> 79188.91`
+    - `post_release_slip: -238.62 -> -242.18`
+    - `primary_finger_force: 4580.99 -> 4578.41`
+    - `three_finger_proximity: 2255.91 -> 2256.68`
+  - 修改原因:
+    - `C69` 已经把主线推到 `28.56s`，但剩余缺口更像 release 后姿态保持还差一点，因此只增强 pose-hold。
+  - 预期效果:
+    - 在不破坏干净三指接触的前提下，进一步稳定 release 后骨架，冲过 `29s` 并逼近 `30s`。
+  - 实际效果:
+    - 这轮仍是干净正样本，且起步比 `C69` 更高；
+    - 但最终 `last = 28.3467s`，低于 `C69` 的 `28.5592s`，没有形成新的主线突破。
+  - 失败模式分析:
+    - `post_release_pose_hold` 增强确实让 release 后保持组件更高，但没把最终承载时长继续推上去；
+    - 说明当前缺口不只是“姿态更像预抓姿态”这一件事，单加 pose-hold 已经开始出现边际收益递减。
+  - 下一轮建议:
+    - 回退 `post_release_pose_hold=64.0`，恢复 `60.0`
+    - 保留 `post_release_grasp=135.0` 这条已验证正向主线
+    - 下一轮改试更窄的承载力闭合方向，例如小幅增强 `primary_finger_force`，看能否把 `C69` 的干净骨架推过 `29s`
+
+- C71: stronger primary-finger force on top of `C69`
+  - 改动:
+    - 保留 `middle_target=0.66`
+    - 保留 `three_finger_proximity=18.0`
+    - 保留 `post_release_grasp=135.0`
+    - 保留 `post_release_pose_hold=60.0`
+    - 仅把 proxy-env 的 `primary_finger_force: 72.0 -> 76.0`
+  - smoke:
+    - CPU smoke 通过：`smoke_ok_cube_capsule_bottlepalm_c71_cpu`
+  - 训练:
+    - env: `AeroCubeGraspV2ForceCapsuleBottlePalmQbr`
+    - restore: `C69 000002949120`
+    - run: `logs/AeroCubeGraspV2ForceCapsuleBottlePalmQbr-20260427-025137-C71_probe_force76_postgrasp135_triad18_capsule_bottlepalm_2048`
+    - `1048576 timesteps`, `2 evals`, `2048 envs`
+  - metrics.csv:
+    - `first = 27.7588s`
+    - `last = 28.4436s`
+    - `max = 28.4436s`
+    - `best_step = 1310720`
+  - 接触形态:
+    - 两次 eval 均为 `palm=0`, `nonprimary=0`
+    - `drop: 0.0 -> 0.0`
+    - `three_finger_contact: 555.18 -> 568.88`
+    - `primary_active_count: 2155.16 -> 2168.86`
+  - 组件统计:
+    - `post_release_grasp: 20363.29 -> 20532.49`
+    - `post_release_pose_hold: 37423.43 -> 37873.98`
+    - `post_release_survival: 78288.37 -> 79313.15`
+    - `primary_finger_force: 4833.72 -> 4838.04`
+  - 修改原因:
+    - `C70` 说明单加 pose-hold 收益不够，因此改试更直接的主抓承载力闭合，看看能否把 `C69` 骨架再推高。
+  - 预期效果:
+    - 在保持干净接触的同时，让食指/中指/拇指主抓三角承担更多载荷，把 `last` 推过 `28.56s`。
+  - 实际效果:
+    - 这轮仍是干净正样本，且 `primary_finger_force` 组件确实被抬高；
+    - 但 `last = 28.4436s`，仍低于 `C69` 的 `28.5592s`，没有形成新的主线突破。
+  - 失败模式分析:
+    - 当前剩余缺口不是简单靠再加主抓力就能补上的；
+    - `post_release_*` 组件继续很好，但时长没同步继续抬高，说明平台更像 release 后的时序/过渡问题，而不是再堆单一静态承载权重。
+  - 下一轮建议:
+    - 回退 `primary_finger_force=76.0`，恢复 `72.0`
+    - 保留 `post_release_grasp=135.0`
+    - 下一轮改试更窄的 release 时序变量，例如轻微调整 `release_ramp_sec` 或 release 相关 gate，而不是继续堆 reward 静态权重
+
+- C72: sharper release ramp on top of `C69`
+  - 改动:
+    - 保留 `middle_target=0.66`
+    - 保留 `three_finger_proximity=18.0`
+    - 保留 `primary_finger_force=72.0`
+    - 保留 `post_release_grasp=135.0`
+    - 保留 `post_release_pose_hold=60.0`
+    - 仅把 proxy-env 的 `release_ramp_sec: 0.5 -> 0.4`
+  - smoke:
+    - CPU smoke 通过：`smoke_ok_cube_capsule_bottlepalm_c72_cpu`
+  - 训练:
+    - env: `AeroCubeGraspV2ForceCapsuleBottlePalmQbr`
+    - restore: `C69 000002949120`
+    - run: `logs/AeroCubeGraspV2ForceCapsuleBottlePalmQbr-20260427-025751-C72_probe_ramp040_postgrasp135_triad18_force72_capsule_bottlepalm_2048`
+    - `1048576 timesteps`, `2 evals`, `2048 envs`
+  - metrics.csv:
+    - `first = 27.7256s`
+    - `last = 28.4764s`
+    - `max = 28.4764s`
+    - `best_step = 1310720`
+  - 接触形态:
+    - 两次 eval 均为 `palm=0`, `nonprimary=0`
+    - `drop: 0.0 -> 0.0`
+    - `three_finger_contact: 554.52 -> 569.53`
+    - `primary_active_count: 2154.49 -> 2169.52`
+  - 组件统计:
+    - `post_release_grasp: 20412.07 -> 20611.59`
+    - `post_release_pose_hold: 37452.59 -> 37915.07`
+    - `post_release_survival: 78355.65 -> 79375.80`
+    - `post_release_slip: -237.87 -> -239.80`
+  - 修改原因:
+    - `C71` 说明继续堆静态承载权重收益很有限，因此改试更窄的 release 过渡变量，让 unsupported 过渡更果断。
+  - 预期效果:
+    - 更快的 release ramp 应该让已成形抓握更早进入清晰 unsupported 期，减少模糊过渡导致的后段松掉。
+  - 实际效果:
+    - 这轮仍然是干净正样本，release 后几个核心组件也都不错；
+    - 但 `last = 28.4764s`，依旧低于 `C69` 的 `28.5592s`，没有形成新的主线突破。
+  - 失败模式分析:
+    - 说明简单把 ramp 再收紧一点，并没有解决最后那一小段缺口；
+    - 当前平台更像是 release 判定 / 释放触发条件本身，或者更细的 pre/post 切换门槛问题，而不只是 ramp 时长。
+  - 下一轮建议:
+    - 回退 `release_ramp_sec=0.4`，恢复 `0.5`
+    - 保留 `post_release_grasp=135.0`
+    - 下一轮改试 release gate 本身的更窄变量，例如 `min_release_force` 或 `min_release_active_fingers` 的小步调整
+
+- C73: easier release gate by lowering `min_release_force`
+  - 改动:
+    - 保留 `middle_target=0.66`
+    - 保留 `three_finger_proximity=18.0`
+    - 保留 `primary_finger_force=72.0`
+    - 保留 `post_release_grasp=135.0`
+    - 保留 `release_ramp_sec=0.5`
+    - 仅把 proxy-env 的 `min_release_force: 0.10 -> 0.09`
+  - smoke:
+    - CPU smoke 通过：`smoke_ok_cube_capsule_bottlepalm_c73_cpu`
+  - 训练:
+    - env: `AeroCubeGraspV2ForceCapsuleBottlePalmQbr`
+    - restore: `C69 000002949120`
+    - run: `logs/AeroCubeGraspV2ForceCapsuleBottlePalmQbr-20260427-030402-C73_probe_minforce009_postgrasp135_triad18_force72_capsule_bottlepalm_2048`
+    - `1048576 timesteps`, `2 evals`, `2048 envs`
+  - metrics.csv:
+    - `first = 27.6999s`
+    - `last = 28.3858s`
+    - `max = 28.3858s`
+    - `best_step = 1310720`
+  - 接触形态:
+    - 两次 eval 均为 `palm=0`, `nonprimary=0`
+    - `drop: 0.0 -> 0.0`
+    - `three_finger_contact: 554.00 -> 567.72`
+    - `primary_active_count: 2153.98 -> 2167.70`
+  - 组件统计:
+    - `pre_release_grasp: 717.60 -> 707.45`
+    - `post_release_grasp: 20360.76 -> 20475.55`
+    - `post_release_pose_hold: 37389.31 -> 37827.50`
+    - `post_release_survival: 78219.41 -> 79164.90`
+    - `post_release_slip: -238.20 -> -241.88`
+  - 修改原因:
+    - `C72` 说明收紧 ramp 时长没解决最后缺口，因此改试更窄的 release gate，让 support 在更少主抓力下也能放手。
+  - 预期效果:
+    - 更容易触发 release，应当让策略更早暴露到 unsupported 期，并把 release 后骨架练得更稳。
+  - 实际效果:
+    - 这轮仍然干净，release 后组件也不错；
+    - 但 `last = 28.3858s`，依旧低于 `C69` 的 `28.5592s`，没有形成新的主线突破。
+  - 失败模式分析:
+    - 说明简单放松 release force gate 并没有带来更好的后段保持；
+    - 平台剩余缺口更像与“释放前几何对齐/接触就绪判定”有关，而不是单一 force gate 太严。
+  - 下一轮建议:
+    - 回退 `min_release_force=0.09`，恢复 `0.10`
+    - 保留 `post_release_grasp=135.0`
+    - 下一轮改试另一条 release gate 变量，例如 `min_release_active_fingers: 2 -> 1` 的受控 probe，确认是否是“释放前必须两指激活”这条线在卡住最后缺口
+
+
+- C74: easier release gate via `min_release_active_fingers=1`
+  - 改动:
+    - 保留 `middle_target=0.66`
+    - 保留 `three_finger_proximity=18.0`
+    - 保留 `primary_finger_force=72.0`
+    - 保留 `post_release_grasp=135.0`
+    - 保留 `release_ramp_sec=0.5`
+    - 保留 `min_release_force=0.10`
+    - 仅把 proxy-env 的 `min_release_active_fingers: 2 -> 1`
+  - smoke:
+    - CPU smoke 通过：`smoke_ok_cube_capsule_bottlepalm_c74_cpu`
+  - 训练:
+    - env: `AeroCubeGraspV2ForceCapsuleBottlePalmQbr`
+    - restore: `C69 000002949120`
+    - run: `logs/AeroCubeGraspV2ForceCapsuleBottlePalmQbr-20260427-033204-C74_probe_minactive1_postgrasp135_triad18_force72_capsule_bottlepalm_2048`
+    - `1048576 timesteps`, `2 evals`, `2048 envs`
+  - metrics.csv:
+    - `first = 27.7963s`
+    - `last = 28.2460s`
+    - `max = 28.2460s`
+    - `best_step = 1310720`
+  - 接触形态:
+    - 两次 eval 均为 `palm=0`, `nonprimary=0`
+    - `drop: 0.0 -> 0.0`
+    - `three_finger_contact: 555.93 -> 564.92`
+    - `primary_active_count: 2155.91 -> 2164.91`
+  - 组件统计:
+    - `post_release_grasp: 20381.65 -> 20521.26`
+    - `post_release_pose_hold: 37442.83 -> 37736.13`
+    - `post_release_survival: 78321.14 -> 78991.75`
+    - `post_release_slip: -238.28 -> -240.98`
+  - 修改原因:
+    - `C73` 显示单独放松 force gate 收益不够，因此改试另一条 release gate，验证“必须两指激活”是否在卡最后缺口。
+  - 预期效果:
+    - 如果 release 判定过严，这轮应让 support 更顺滑退出，并把 `last` 推过 `C69`。
+  - 实际效果:
+    - 这轮仍然干净，release 后组件也维持正向；
+    - 但 `last = 28.2460s`，低于 `C69` 的 `28.5592s`，没有形成新的主线突破。
+  - 失败模式分析:
+    - 简单降低 active-finger 门槛没有把后段保持推高，说明剩余平台并不是 release gate 太严；
+    - 更可能仍卡在 release 前就绪几何是否足够扎实，或 release 前后交接的细小时序。
+  - 下一轮建议:
+    - 回退 `min_release_active_fingers=1`，恢复 `2`
+    - 保留 `C69` 主线
+    - 下一轮改试更窄的 release-ready 变量，例如小幅增强 `pre_release_grasp`，看能否在不弄脏接触的前提下把最后缺口补上
+
+- C75: stronger `pre_release_grasp` on top of `C69`
+  - 改动:
+    - 保留 `middle_target=0.66`
+    - 保留 `three_finger_proximity=18.0`
+    - 保留 `primary_finger_force=72.0`
+    - 保留 `post_release_grasp=135.0`
+    - 保留 `min_release_active_fingers=2`
+    - 保留 `release_ramp_sec=0.5`
+    - 保留 `min_release_force=0.10`
+    - 仅把 proxy-env 的 `pre_release_grasp: 35.0 -> 40.0`
+  - smoke:
+    - CPU smoke 通过：`smoke_ok_cube_capsule_bottlepalm_c75_cpu`
+  - 训练:
+    - env: `AeroCubeGraspV2ForceCapsuleBottlePalmQbr`
+    - restore: `C69 000002949120`
+    - run: `logs/AeroCubeGraspV2ForceCapsuleBottlePalmQbr-20260427-034031-C75_probe_prerelease40_postgrasp135_triad18_force72_capsule_bottlepalm_2048`
+    - `1048576 timesteps`, `2 evals`, `2048 envs`
+  - metrics.csv:
+    - `first = 27.8042s`
+    - `last = 28.2749s`
+    - `max = 28.2749s`
+    - `best_step = 1310720`
+  - 接触形态:
+    - 两次 eval 均为 `palm=0`, `nonprimary=0`
+    - `drop: 0.0 -> 0.0`
+    - `three_finger_contact: 556.09 -> 565.50`
+    - `primary_active_count: 2156.06 -> 2165.48`
+  - 组件统计:
+    - `pre_release_grasp: 820.27 -> 808.21`
+    - `post_release_grasp: 20374.91 -> 20561.62`
+    - `post_release_pose_hold: 37448.39 -> 37767.21`
+    - `post_release_survival: 78327.74 -> 79044.06`
+    - `post_release_slip: -238.35 -> -241.08`
+    - `primary_finger_force: 4583.43 -> 4586.47`
+  - 修改原因:
+    - `C74` 说明放松 release gate 本身无效，因此改试 release 前 readiness shaping，看看 support 放手前的骨架能否再扎实一点。
+  - 预期效果:
+    - 如果最后缺口主要来自 release 前就绪不足，这轮应在保持干净接触的同时，把 `last` 推过 `C69`。
+  - 实际效果:
+    - 这轮仍然完全干净，release 后组件继续维持较高水平；
+    - 但 `last = 28.2749s`，低于 `C69` 的 `28.5592s`，没有形成新的主线突破。
+  - 失败模式分析:
+    - 更强的 pre-release shaping 并没有把最终持时继续推高，说明剩余缺口不只是“放手前骨架还不够积极”；
+    - 平台更像卡在 release 触发时间分布本身，或者 release 后 very-early unsupported 过渡窗口，而不是再加 readiness 权重。
+  - 下一轮建议:
+    - 回退 `pre_release_grasp=40.0`，恢复 `35.0`
+    - 保留 `C69` 主线
+    - 下一轮只改一个 release 时间分布变量，例如小幅推迟 `random_release_min_sec`，看能否减少过早 unsupported 带来的后段损失
+
+- C76: slightly later earliest random release on top of `C69`
+  - 改动:
+    - 保留 `middle_target=0.66`
+    - 保留 `three_finger_proximity=18.0`
+    - 保留 `primary_finger_force=72.0`
+    - 保留 `post_release_grasp=135.0`
+    - 保留 `pre_release_grasp=35.0`
+    - 保留 `min_release_active_fingers=2`
+    - 保留 `release_ramp_sec=0.5`
+    - 保留 `min_release_force=0.10`
+    - 仅把 proxy-env 的 `random_release_min_sec: 1.5 -> 1.6`
+  - smoke:
+    - CPU smoke 通过：`smoke_ok_cube_capsule_bottlepalm_c76_cpu`
+  - 训练:
+    - env: `AeroCubeGraspV2ForceCapsuleBottlePalmQbr`
+    - restore: `C69 000002949120`
+    - run: `logs/AeroCubeGraspV2ForceCapsuleBottlePalmQbr-20260427-034653-C76_probe_relmin1p6_postgrasp135_triad18_force72_capsule_bottlepalm_2048`
+    - `1048576 timesteps`, `2 evals`, `2048 envs`
+  - metrics.csv:
+    - `first = 27.6604s`
+    - `last = 27.6221s`
+    - `max = 27.6604s`
+    - `best_step = 0`
+  - 接触形态:
+    - 两次 eval 均为 `palm=0`, `nonprimary=0`
+    - `drop: 0.0 -> 0.0`
+    - `three_finger_contact: 553.21 -> 552.45`
+    - `primary_active_count: 2153.20 -> 2152.43`
+  - 组件统计:
+    - `pre_release_grasp: 718.65 -> 709.12`
+    - `post_release_grasp: 20391.49 -> 20438.71`
+    - `post_release_pose_hold: 37357.72 -> 37384.23`
+    - `post_release_survival: 78122.61 -> 78340.84`
+    - `post_release_slip: -238.70 -> -237.19`
+    - `primary_finger_force: 4581.00 -> 4579.97`
+  - 修改原因:
+    - `C75` 说明单加 readiness shaping 不够，因此改试 release 时间分布本身，减少过早 unsupported 暴露。
+  - 预期效果:
+    - 如果平台来自“最早 release 太早”，这轮应当抬高 `first` 和 `last`，同时保持接触不变脏。
+  - 实际效果:
+    - 接触仍然完全干净，但 `first` 和 `last` 双双低于 `C69`，且末评没有回升。
+  - 失败模式分析:
+    - 说明简单把 earliest release 向后推，并没有改善 release 后保持，反而削弱了整条线的主抓参与度和后段积累；
+    - 当前平台更不像“太早放手”，更像 release 分布的后沿/跨度，或者 unsupported 后 very-early shaping 仍不够稳。
+  - 下一轮建议:
+    - 回退 `random_release_min_sec=1.6`，恢复 `1.5`
+    - 保留 `C69` 主线
+    - 下一轮继续只改一个时间分布变量，例如轻微收窄 `random_release_max_sec` 或调整 force-release 上限，而不是再回头堆静态 reward
+
+- C77: narrower random-release tail on top of `C69`
+  - 改动:
+    - 保留 `middle_target=0.66`
+    - 保留 `three_finger_proximity=18.0`
+    - 保留 `primary_finger_force=72.0`
+    - 保留 `post_release_grasp=135.0`
+    - 保留 `pre_release_grasp=35.0`
+    - 保留 `min_release_active_fingers=2`
+    - 保留 `release_ramp_sec=0.5`
+    - 保留 `min_release_force=0.10`
+    - 保留 `random_release_min_sec=1.5`
+    - 仅把 proxy-env 的 `random_release_max_sec: 2.5 -> 2.4`
+  - smoke:
+    - CPU smoke 通过：`smoke_ok_cube_capsule_bottlepalm_c77_cpu`
+  - 训练:
+    - env: `AeroCubeGraspV2ForceCapsuleBottlePalmQbr`
+    - restore: `C69 000002949120`
+    - run: `logs/AeroCubeGraspV2ForceCapsuleBottlePalmQbr-20260427-035302-C77_probe_relmax2p4_postgrasp135_triad18_force72_capsule_bottlepalm_2048`
+    - `1048576 timesteps`, `2 evals`, `2048 envs`
+  - metrics.csv:
+    - `first = 28.7479s`
+    - `last = 28.0249s`
+    - `max = 28.7479s`
+    - `best_step = 0`
+  - 接触形态:
+    - 两次 eval 均为 `palm=0`, `nonprimary=0`
+    - `drop: 0.0 -> 0.0`
+    - `three_finger_contact: 574.96 -> 560.50`
+    - `primary_active_count: 2174.94 -> 2160.48`
+  - 组件统计:
+    - `post_release_grasp: 20438.98 -> 20438.03`
+    - `post_release_pose_hold: 38019.71 -> 37631.89`
+    - `post_release_survival: 79486.78 -> 78816.23`
+    - `post_release_slip: -241.20 -> -240.10`
+    - `primary_finger_force: 4587.02 -> 4574.47`
+    - `three_finger_proximity: 2256.03 -> 2256.05`
+  - 修改原因:
+    - `C76` 说明简单推迟 earliest release 没帮助，因此改试另一头的时间分布，减少过晚 release 的样本占比。
+  - 预期效果:
+    - 如果主要问题是 release 尾部太长导致策略常在更晚 support 退出上过拟合，这轮应当抬高 `first` 和 `last`，同时保持接触不变脏。
+  - 实际效果:
+    - 首评直接冲到 `28.7479s`，明显高于 `C69`，说明“收窄尾部”确实碰到了有效信号；
+    - 但末评回落到 `28.0249s`，低于 `C69` 的 `28.5592s`，没有形成新的稳定主线。
+  - 失败模式分析:
+    - 这不是纯负样本，而是“方向正确、步子过大”的典型：过晚 release 的确在拖主线后腿，但把尾部一下收到 `2.4s` 会让训练后段失去一部分稳定积累；
+    - 更合理的下一步不是放弃这条线，而是做更温和的尾部收窄，看看能否保住 `C77` 的高起步，同时减少末评退化。
+  - 下一轮建议:
+    - 保留 `C69` 其余主线不动
+    - 下一轮只做更小步的 `random_release_max_sec` 调整，例如 `2.5 -> 2.45`
+
+- C78: milder random-release tail contraction on top of `C69`
+  - 改动:
+    - 保留 `middle_target=0.66`
+    - 保留 `three_finger_proximity=18.0`
+    - 保留 `primary_finger_force=72.0`
+    - 保留 `post_release_grasp=135.0`
+    - 保留 `pre_release_grasp=35.0`
+    - 保留 `min_release_active_fingers=2`
+    - 保留 `release_ramp_sec=0.5`
+    - 保留 `min_release_force=0.10`
+    - 保留 `random_release_min_sec=1.5`
+    - 仅把 proxy-env 的 `random_release_max_sec: 2.5 -> 2.45`
+  - smoke:
+    - CPU smoke 通过：`smoke_ok_cube_capsule_bottlepalm_c78_cpu`
+  - 训练:
+    - env: `AeroCubeGraspV2ForceCapsuleBottlePalmQbr`
+    - restore: `C69 000002949120`
+    - run: `logs/AeroCubeGraspV2ForceCapsuleBottlePalmQbr-20260427-035928-C78_probe_relmax2p45_postgrasp135_triad18_force72_capsule_bottlepalm_2048`
+    - `1048576 timesteps`, `2 evals`, `2048 envs`
+  - metrics.csv:
+    - `first = 28.5948s`
+    - `last = 28.4061s`
+    - `max = 28.5948s`
+    - `best_step = 0`
+  - 接触形态:
+    - 两次 eval 均为 `palm=0`, `nonprimary=0`
+    - `drop: 0.0 -> 0.0`
+    - `three_finger_contact: 571.90 -> 568.12`
+    - `primary_active_count: 2171.88 -> 2168.11`
+  - 组件统计:
+    - `post_release_grasp: 20499.81 -> 20429.43`
+    - `post_release_pose_hold: 37930.66 -> 37836.95`
+    - `post_release_survival: 79282.72 -> 79234.91`
+    - `post_release_slip: -242.59 -> -239.45`
+    - `primary_finger_force: 4592.99 -> 4574.50`
+  - 修改原因:
+    - `C77` 首评明显变好但末评退化过大，说明方向对、步子过大，因此改成更温和的尾部收窄。
+  - 预期效果:
+    - 保留 `C77` 的高起步，同时减少后段退化，让 `last` 更接近或超过 `C69`。
+  - 实际效果:
+    - 这轮确实比 `C77` 平稳很多，`last` 从 `28.0249s` 回升到 `28.4061s`；
+    - 但仍低于 `C69` 的 `28.5592s`，还没形成新的稳定主线。
+  - 失败模式分析:
+    - release 尾部收窄方向仍然有效，但 `2.45s` 这一步对后段来说还是稍微过紧；
+    - 更合理的下一步是继续沿同一方向做更小步的插值，而不是换掉这条刚冒头的有效线索。
+  - 下一轮建议:
+    - 保留 `C69` 其余主线不动
+    - 下一轮只做更小步的 `random_release_max_sec` 调整，例如 `2.5 -> 2.475`
+
+- C79: too-small tail contraction on top of `C69`
+  - 改动:
+    - 保留 `middle_target=0.66`
+    - 保留 `three_finger_proximity=18.0`
+    - 保留 `primary_finger_force=72.0`
+    - 保留 `post_release_grasp=135.0`
+    - 保留 `pre_release_grasp=35.0`
+    - 保留 `min_release_active_fingers=2`
+    - 保留 `release_ramp_sec=0.5`
+    - 保留 `min_release_force=0.10`
+    - 保留 `random_release_min_sec=1.5`
+    - 仅把 proxy-env 的 `random_release_max_sec: 2.5 -> 2.475`
+  - smoke:
+    - CPU smoke 通过：`smoke_ok_cube_capsule_bottlepalm_c79_cpu`
+  - 训练:
+    - env: `AeroCubeGraspV2ForceCapsuleBottlePalmQbr`
+    - restore: `C69 000002949120`
+    - run: `logs/AeroCubeGraspV2ForceCapsuleBottlePalmQbr-20260427-040559-C79_probe_relmax2p475_postgrasp135_triad18_force72_capsule_bottlepalm_2048`
+    - `1048576 timesteps`, `2 evals`, `2048 envs`
+  - metrics.csv:
+    - `first = 27.7557s`
+    - `last = 28.2877s`
+    - `max = 28.2877s`
+    - `best_step = 1310720`
+  - 接触形态:
+    - 两次 eval 均为 `palm=0`, `nonprimary=0`
+    - `drop: 0.0 -> 0.0`
+    - `three_finger_contact: 555.12 -> 565.76`
+    - `primary_active_count: 2155.10 -> 2165.74`
+  - 组件统计:
+    - `post_release_grasp: 20362.99 -> 20533.54`
+    - `post_release_pose_hold: 37419.84 -> 37793.77`
+    - `post_release_survival: 78279.95 -> 79160.10`
+    - `post_release_slip: -238.04 -> -241.71`
+    - `primary_finger_force: 4581.06 -> 4592.71`
+  - 修改原因:
+    - `C78` 说明收窄 release 尾部方向有效，因此继续做更小步插值，测试是否能在不损失后段的前提下保留增益。
+  - 预期效果:
+    - 如果 `2.45s` 只是略微过紧，那么 `2.475s` 应该进一步靠近 `C69` 或超过它，同时保留一些 `C77/C78` 的高起步。
+  - 实际效果:
+    - 这轮后段能回升到 `28.2877s`，但首评明显掉回 `27.7557s`，没有保住 `C77/C78` 的高起步；
+    - 最终仍低于 `C69` 和 `C78`。
+  - 失败模式分析:
+    - `2.475s` 太接近原始 `2.5s`，已经把“收窄尾部”那条有效信号明显稀释掉了；
+    - 当前更像需要保留 `C78` 这档有效尾部收窄，同时单独处理 release 后段的稳定性，而不是继续在 `2.45~2.50` 上来回缩步。
+  - 下一轮建议:
+    - 恢复 `C78` 的 `random_release_max_sec=2.45`
+    - 下一轮只改一个后段稳定变量，例如略微放慢 `release_ramp_sec`，看能否保住 `C78` 的高起步同时减少后段回落
+
+- C80: slower release ramp on top of `C78`
+  - 改动:
+    - 保留 `middle_target=0.66`
+    - 保留 `three_finger_proximity=18.0`
+    - 保留 `primary_finger_force=72.0`
+    - 保留 `post_release_grasp=135.0`
+    - 保留 `pre_release_grasp=35.0`
+    - 保留 `min_release_active_fingers=2`
+    - 保留 `min_release_force=0.10`
+    - 保留 `random_release_min_sec=1.5`
+    - 保留 `random_release_max_sec=2.45`
+    - 仅把 proxy-env 的 `release_ramp_sec: 0.5 -> 0.55`
+  - smoke:
+    - CPU smoke 通过：`smoke_ok_cube_capsule_bottlepalm_c80_cpu`
+  - 训练:
+    - env: `AeroCubeGraspV2ForceCapsuleBottlePalmQbr`
+    - restore: `C69 000002949120`
+    - run: `logs/AeroCubeGraspV2ForceCapsuleBottlePalmQbr-20260427-041230-C80_probe_relmax2p45_ramp055_postgrasp135_triad18_force72_capsule_bottlepalm_2048`
+    - `1048576 timesteps`, `2 evals`, `2048 envs`
+  - metrics.csv:
+    - `first = 28.4444s`
+    - `last = 28.3073s`
+    - `max = 28.4444s`
+    - `best_step = 0`
+  - 接触形态:
+    - 两次 eval 均为 `palm=0`, `nonprimary=0`
+    - `drop: 0.0 -> 0.0`
+    - `three_finger_contact: 568.89 -> 566.15`
+    - `primary_active_count: 2168.88 -> 2166.13`
+  - 组件统计:
+    - `post_release_grasp: 20454.84 -> 20411.13`
+    - `post_release_pose_hold: 37812.80 -> 37756.66`
+    - `post_release_survival: 79043.48 -> 79110.52`
+    - `post_release_slip: -241.31 -> -238.53`
+    - `primary_finger_force: 4591.46 -> 4596.67`
+  - 修改原因:
+    - `C78` 有较强起步但后段略回落，因此改试更慢的 release ramp，看能否减少 unsupported 初段的学坏。
+  - 预期效果:
+    - 在不破坏 `C78` 高起步的前提下，让后半程更稳，抬高 `last`。
+  - 实际效果:
+    - 接触仍完全干净，但 `first` 和 `last` 都低于 `C78`；
+    - 没有换来更好的后段稳定性。
+  - 失败模式分析:
+    - 单独放慢 ramp 没有帮到这条线，说明 `C78` 的剩余缺口不主要来自“release 过于陡峭”；
+    - 更值得试的是保留 `C78` 的尾部分布，只收紧那些极晚 release 的兜底样本，而不是整体放慢过渡。
+  - 下一轮建议:
+    - 恢复 `C78` 的 `release_ramp_sec=0.5`
+    - 保留 `random_release_max_sec=2.45`
+    - 下一轮只改 `force_release_after_sec` 这类极晚 release 上限变量，看能否保住 `C78` 的高起步同时改善末评
+
+- C81: earlier force-release fallback on top of `C78`
+  - 改动:
+    - 保留 `middle_target=0.66`
+    - 保留 `three_finger_proximity=18.0`
+    - 保留 `primary_finger_force=72.0`
+    - 保留 `post_release_grasp=135.0`
+    - 保留 `pre_release_grasp=35.0`
+    - 保留 `min_release_active_fingers=2`
+    - 保留 `release_ramp_sec=0.5`
+    - 保留 `min_release_force=0.10`
+    - 保留 `random_release_min_sec=1.5`
+    - 保留 `random_release_max_sec=2.45`
+    - 仅把 proxy-env 的 `force_release_after_sec: 3.0 -> 2.8`
+  - smoke:
+    - CPU smoke 通过：`smoke_ok_cube_capsule_bottlepalm_c81_cpu`
+  - 训练:
+    - env: `AeroCubeGraspV2ForceCapsuleBottlePalmQbr`
+    - restore: `C69 000002949120`
+    - run: `logs/AeroCubeGraspV2ForceCapsuleBottlePalmQbr-20260427-041847-C81_probe_relmax2p45_forcerelease2p8_postgrasp135_triad18_force72_capsule_bottlepalm_2048`
+    - `1048576 timesteps`, `2 evals`, `2048 envs`
+  - metrics.csv:
+    - `first = 28.5127s`
+    - `last = 28.2889s`
+    - `max = 28.5127s`
+    - `best_step = 0`
+  - 接触形态:
+    - 两次 eval 均为 `palm=0`, `nonprimary=0`
+    - `drop: 0.0 -> 0.0`
+    - `three_finger_contact: 570.26 -> 565.78`
+    - `primary_active_count: 2170.24 -> 2165.77`
+  - 组件统计:
+    - `post_release_grasp: 20462.08 -> 20361.64`
+    - `post_release_pose_hold: 37880.64 -> 37759.85`
+    - `post_release_survival: 79198.80 -> 79031.48`
+    - `post_release_slip: -240.36 -> -239.09`
+    - `primary_finger_force: 4590.39 -> 4560.56`
+  - 修改原因:
+    - `C80` 说明整体放慢 ramp 没帮助，因此改试只收紧极晚 fallback，看看能否在不动主 release 分布的前提下减少后段拖尾。
+  - 预期效果:
+    - 保留 `C78` 的高起步，同时让末评少掉一点。
+  - 实际效果:
+    - 起步基本保住了，但 `last = 28.2889s` 仍低于 `C78` 的 `28.4061s`；
+    - 没有形成新的主线突破。
+  - 失败模式分析:
+    - 说明 `C78` 的后段回落并不是由极晚 fallback 样本主导；
+    - 更值得试的是在保留 `2.45s` 晚尾收窄的前提下，略微扩大更早的 unsupported 暴露，而不是继续裁晚端兜底。
+  - 下一轮建议:
+    - 恢复 `force_release_after_sec=3.0`
+    - 保留 `random_release_max_sec=2.45`
+    - 下一轮只改 `random_release_min_sec`，例如 `1.5 -> 1.45`
+
+- C82: earlier random-release floor on top of `C78`
+  - 改动:
+    - 保留 `middle_target=0.66`
+    - 保留 `three_finger_proximity=18.0`
+    - 保留 `primary_finger_force=72.0`
+    - 保留 `post_release_grasp=135.0`
+    - 保留 `pre_release_grasp=35.0`
+    - 保留 `min_release_active_fingers=2`
+    - 保留 `release_ramp_sec=0.5`
+    - 保留 `min_release_force=0.10`
+    - 保留 `random_release_max_sec=2.45`
+    - 保留 `force_release_after_sec=3.0`
+    - 仅把 proxy-env 的 `random_release_min_sec: 1.5 -> 1.45`
+  - smoke:
+    - CPU smoke 通过：`smoke_ok_cube_capsule_bottlepalm_c82_cpu`
+  - 训练:
+    - env: `AeroCubeGraspV2ForceCapsuleBottlePalmQbr`
+    - restore: `C69 000002949120`
+    - run: `logs/AeroCubeGraspV2ForceCapsuleBottlePalmQbr-20260427-042519-C82_probe_relmin1p45_relmax2p45_postgrasp135_triad18_force72_capsule_bottlepalm_2048`
+    - `1048576 timesteps`, `2 evals`, `2048 envs`
+  - metrics.csv:
+    - `first = 28.0127s`
+    - `last = 28.2932s`
+    - `max = 28.2932s`
+    - `best_step = 1310720`
+  - 接触形态:
+    - 两次 eval 均为 `palm=0`, `nonprimary=0`
+    - `drop: 0.0 -> 0.0`
+    - `three_finger_contact: 560.26 -> 565.87`
+    - `primary_active_count: 2160.23 -> 2165.85`
+  - 组件统计:
+    - `post_release_grasp: 20399.09 -> 20381.09`
+    - `post_release_pose_hold: 37581.63 -> 37772.20`
+    - `post_release_survival: 78619.92 -> 79106.23`
+    - `post_release_slip: -239.61 -> -237.97`
+    - `primary_finger_force: 4581.89 -> 4568.40`
+  - 修改原因:
+    - `C81` 说明裁晚端 fallback 无效，因此改试把最早随机 release 略微提前，扩大早期 unsupported 暴露，但不放回晚尾巴。
+  - 预期效果:
+    - 如果 `C78` 的后段问题来自 unsupported 暴露还是不够早，这轮应当在保持干净接触的同时改善末评。
+  - 实际效果:
+    - 接触仍完全干净，但首评显著低于 `C78`，最终 `last = 28.2932s` 也没有超过 `C78` 或 `C69`。
+  - 失败模式分析:
+    - 说明 `2.45s` 晚尾收窄与更早 release floor 叠加后，会削弱当前这条线的起步骨架；
+    - 当前最有价值的仍然是保留 `C78` 主体，而不是再去扩大更早 unsupported 暴露。
+  - 下一轮建议:
+    - 恢复 `C78` 基线：`random_release_min_sec=1.5`, `random_release_max_sec=2.45`, `release_ramp_sec=0.5`, `force_release_after_sec=3.0`
+    - 基于 `C78` 做一次长训验证，判断这条 clean timing 线在更长 horizon 下是否具备超过 `C69` 的 trainability
+
+- C83: long validation for the `C78` timing line
+  - 改动:
+    - 保留 `middle_target=0.66`
+    - 保留 `three_finger_proximity=18.0`
+    - 保留 `primary_finger_force=72.0`
+    - 保留 `post_release_grasp=135.0`
+    - 保留 `pre_release_grasp=35.0`
+    - 保留 `min_release_active_fingers=2`
+    - 保留 `random_release_min_sec=1.5`
+    - 保留 `random_release_max_sec=2.45`
+    - 保留 `release_ramp_sec=0.5`
+    - 保留 `force_release_after_sec=3.0`
+    - 不做额外代码改动，只验证 `C78` 这条 clean timing 线的长 horizon trainability。
+  - smoke:
+    - CPU smoke 通过：`smoke_ok_cube_capsule_bottlepalm_c83_cpu`
+  - 训练:
+    - env: `AeroCubeGraspV2ForceCapsuleBottlePalmQbr`
+    - restore: `C69 000002949120`
+    - run: `logs/AeroCubeGraspV2ForceCapsuleBottlePalmQbr-20260427-043157-C83_long_relmax2p45_postgrasp135_triad18_force72_capsule_bottlepalm_2048`
+    - `2097152 timesteps`, `4 evals`, `2048 envs`
+  - metrics.csv:
+    - `first = 28.5151s`
+    - `last = 29.1319s`
+    - `max = 29.1319s`
+    - `best_step = 2949120`
+  - 中间趋势:
+    - `28.5151 -> 28.3842 -> 27.5299 -> 29.1319s`
+  - 接触形态:
+    - 四次 eval 全部 `palm=0`, `nonprimary=0`, `drop=0`
+    - `three_finger_contact: 570.30 -> 567.69 -> 550.60 -> 582.64`
+    - `primary_active_count: 2170.29 -> 2167.67 -> 2150.56 -> 2182.64`
+  - 组件统计:
+    - `post_release_grasp: 20469.75 -> 20406.37 -> 20451.30 -> 20808.27`
+    - `post_release_pose_hold: 37879.41 -> 37820.77 -> 37327.15 -> 38309.57`
+    - `post_release_survival: 79171.47 -> 79193.18 -> 78221.49 -> 80319.33`
+    - `post_release_slip: -241.40 -> -240.54 -> -239.23 -> -241.35`
+    - `primary_finger_force: 4589.95 -> 4575.67 -> 4572.81 -> 4546.71`
+  - 修改原因:
+    - `C78` 是当前最有希望的 short-probe timing 线，需要确认它在更长 horizon 下到底会像 `C69` 一样平台住，还是具备新的 trainability。
+  - 预期效果:
+    - 如果 `C78` 只是短探测幻觉，长训后段会持续退化；
+    - 如果它真的改善了 trainability，最终 `last` 应当超过 `C69` 的 `28.5592s`。
+  - 实际效果:
+    - 这轮虽然在第三个 eval 出现中段回落，但末评强力回升到 `29.1319s`；
+    - 明确超过 `C69` 的 `28.5592s`，成为新的最佳 cube 主线。
+  - 失败模式分析:
+    - 还没到 `30s+`，说明 `C78` 仍有后段波动问题；
+    - 但这次 long validation 已经证明问题不再是“完全没有 trainability”，而是“trainability 明显更好，但后段还没完全稳住”。
+  - 下一轮建议:
+    - 直接从 `C83` 最佳 checkpoint 做 continuation，验证这条新主线能否自然越过 `30s`
+    - 若 continuation 再度卡在 `29.xs`，再基于 `C83` 的中段回落形态选新的单变量探针，而不是回退到旧主线
+
+- C84: continuation from the `C83` best checkpoint
+  - 改动:
+    - 不改代码，保持 `C83/C78` 主线：
+      - `middle_target=0.66`
+      - `three_finger_proximity=18.0`
+      - `primary_finger_force=72.0`
+      - `post_release_grasp=135.0`
+      - `pre_release_grasp=35.0`
+      - `min_release_active_fingers=2`
+      - `random_release_min_sec=1.5`
+      - `random_release_max_sec=2.45`
+      - `release_ramp_sec=0.5`
+      - `force_release_after_sec=3.0`
+    - 仅从 `C83` 最佳 checkpoint continuation，验证这条新主线是否还能继续往 `30s+` 长。
+  - 训练:
+    - env: `AeroCubeGraspV2ForceCapsuleBottlePalmQbr`
+    - restore: `C83 000002949120`
+    - run: `logs/AeroCubeGraspV2ForceCapsuleBottlePalmQbr-20260427-044146-C84_long_from_C83best_relmax2p45_postgrasp135_triad18_force72_capsule_bottlepalm_2048`
+    - `2097152 timesteps`, `4 evals`, `2048 envs`
+  - metrics.csv:
+    - `first = 27.9588s`
+    - `last = 29.4436s`
+    - `max = 29.4436s`
+    - `best_step = 2949120`
+  - 中间趋势:
+    - `27.9588 -> 27.6510 -> 27.5303 -> 29.4436s`
+  - 接触形态:
+    - 四次 eval 全部 `palm=0`, `nonprimary=0`, `drop=0`
+    - `three_finger_contact: 559.18 -> 553.02 -> 550.61 -> 588.88`
+    - `primary_active_count: 2159.17 -> 2153.01 -> 2150.57 -> 2188.84`
+  - 组件统计:
+    - `post_release_grasp: 20451.28 -> 20561.16 -> 20564.06 -> 21044.86`
+    - `post_release_pose_hold: 37610.00 -> 37429.99 -> 37367.83 -> 38540.30`
+    - `post_release_survival: 78965.35 -> 78417.31 -> 78316.00 -> 80698.91`
+    - `post_release_slip: -237.57 -> -239.15 -> -240.36 -> -245.26`
+    - `primary_finger_force: 4567.62 -> 4566.50 -> 4528.02 -> 4521.59`
+  - 修改原因:
+    - `C83` 已经证明 `C78` 这条 timing 线具备更好的 long-horizon trainability，因此先验证“纯 continuation”能否把末评直接推过 `30s`。
+  - 预期效果:
+    - 如果新主线确实还在爬坡，继续训应当把 `last` 推到接近或超过 `30s`。
+  - 实际效果:
+    - 前三个 eval 明显低于 `C83`，说明 continuation 并不平滑，前段会回摆；
+    - 但末评强力冲到 `29.4436s`，再次超过 `C83` 的 `29.1319s`，主线继续上移。
+  - 失败模式分析:
+    - 这轮没有自然平滑地单调变好，说明 PPO 继续训时仍会先学坏一段；
+    - 但后段能重新长回来，而且还刷新 best，说明这条主线仍值得继续追，而不是立即放弃 continuation。
+  - 下一轮建议:
+    - 直接从 `C84` 最佳 checkpoint 再做一次长训 continuation，冲击 `30s+`
+    - 若下一轮仍停在 `29.xs`，再基于“中段回摆、末段回升”的形态挑新的单变量稳定化探针
+
+- C85: continuation from the `C84` best checkpoint
+  - 改动:
+    - 不改代码，继续保持 `C84/C83/C78` 主线：
+      - `middle_target=0.66`
+      - `three_finger_proximity=18.0`
+      - `primary_finger_force=72.0`
+      - `post_release_grasp=135.0`
+      - `pre_release_grasp=35.0`
+      - `min_release_active_fingers=2`
+      - `random_release_min_sec=1.5`
+      - `random_release_max_sec=2.45`
+      - `release_ramp_sec=0.5`
+      - `force_release_after_sec=3.0`
+    - 仅从 `C84` 最佳 checkpoint continuation，验证“中段回摆、末段回升”是否可重复，以及 best 是否继续上移。
+  - 训练:
+    - env: `AeroCubeGraspV2ForceCapsuleBottlePalmQbr`
+    - restore: `C84 000002949120`
+    - run: `logs/AeroCubeGraspV2ForceCapsuleBottlePalmQbr-20260427-045135-C85_long_from_C84best_relmax2p45_postgrasp135_triad18_force72_capsule_bottlepalm_2048`
+    - `2097152 timesteps`, `4 evals`, `2048 envs`
+  - metrics.csv:
+    - `first = 28.3651s`
+    - `last = 29.2553s`
+    - `max = 29.2553s`
+    - `best_step = 2949120`
+  - 中间趋势:
+    - `28.3651 -> 27.6647 -> 27.4866 -> 29.2553s`
+  - 接触形态:
+    - 四次 eval 全部 `palm=0`, `nonprimary=0`, `drop=0`
+    - `three_finger_contact: 567.30 -> 553.30 -> 549.73 -> 585.11`
+    - `primary_active_count: 2167.30 -> 2153.28 -> 2149.70 -> 2185.11`
+  - 组件统计:
+    - `post_release_grasp: 20725.74 -> 20681.84 -> 20660.46 -> 21025.73`
+    - `post_release_pose_hold: 37888.42 -> 37495.21 -> 37410.10 -> 38491.55`
+    - `post_release_survival: 79552.41 -> 78752.95 -> 78629.98 -> 80847.70`
+    - `post_release_slip: -240.14 -> -238.16 -> -241.49 -> -244.89`
+    - `primary_finger_force: 4534.44 -> 4553.28 -> 4517.31 -> 4500.71`
+  - 修改原因:
+    - `C84` 已经把末评推到 `29.4436s`，需要确认这条 continuation 主线是持续上移，还是只是单次 luck。
+  - 预期效果:
+    - 如果主线仍在稳定爬升，这轮应复现 clean contact，并把末评保持在 `29s+` 区间，最好继续超过 `C84`。
+  - 实际效果:
+    - 这轮确实复现了同一种训练形态：中段回摆，但末段重新拉回 `29s+`；
+    - 不过 `last = 29.2553s` 低于 `C84` 的 `29.4436s`，没有继续刷新 best。
+  - 失败模式分析:
+    - 说明“纯 continuation”已经不是稳定单调上升了，当前主线更像在一个更高的平台上来回摆动；
+    - 下一步应该针对这个中段回摆做单变量稳定化，而不是继续无脑续训。
+  - 下一轮建议:
+    - 保留 `C84` 主线 timing 设置
+    - 从 `C84` 最佳 checkpoint 出发，只改一个最直接指向后段保持的变量，例如小幅增强 `post_release_pose_hold`
+
+- C86: stronger `post_release_pose_hold` from the `C84` best checkpoint
+  - 改动:
+    - 保留 `C84` 主线 timing 设置：
+      - `middle_target=0.66`
+      - `three_finger_proximity=18.0`
+      - `primary_finger_force=72.0`
+      - `post_release_grasp=135.0`
+      - `pre_release_grasp=35.0`
+      - `min_release_active_fingers=2`
+      - `random_release_min_sec=1.5`
+      - `random_release_max_sec=2.45`
+      - `release_ramp_sec=0.5`
+      - `force_release_after_sec=3.0`
+    - 仅把 `post_release_pose_hold: 60.0 -> 64.0`
+  - smoke:
+    - CPU smoke 通过：`smoke_ok_cube_capsule_bottlepalm_c86_cpu`
+  - 训练:
+    - env: `AeroCubeGraspV2ForceCapsuleBottlePalmQbr`
+    - restore: `C84 000002949120`
+    - run: `logs/AeroCubeGraspV2ForceCapsuleBottlePalmQbr-20260427-050240-C86_long_posehold64_from_C84best_relmax2p45_postgrasp135_triad18_force72_capsule_bottlepalm_2048`
+    - `2097152 timesteps`, `4 evals`, `2048 envs`
+  - metrics.csv:
+    - `first = 28.4143s`
+    - `last = 28.3624s`
+    - `max = 28.4143s`
+    - `best_step = 0`
+  - 中间趋势:
+    - `28.4143 -> 27.7432 -> 27.2417 -> 28.3624s`
+  - 接触形态:
+    - 四次 eval 全部 `palm=0`, `nonprimary=0`, `drop=0`
+    - `three_finger_contact: 568.29 -> 554.87 -> 544.84 -> 567.25`
+    - `primary_active_count: 2168.29 -> 2154.84 -> 2144.80 -> 2167.25`
+  - 组件统计:
+    - `post_release_grasp: 20703.83 -> 20776.84 -> 20720.23 -> 21075.26`
+    - `post_release_pose_hold: 40446.35 -> 40038.34 -> 39731.64 -> 40468.16`
+    - `post_release_survival: 79613.88 -> 78795.06 -> 78205.01 -> 79634.28`
+    - `post_release_slip: -240.08 -> -239.57 -> -242.18 -> -245.64`
+    - `primary_finger_force: 4536.45 -> 4552.13 -> 4505.01 -> 4501.10`
+  - 修改原因:
+    - `C85` 说明当前主线已经进入 `29s` 平台但有明显中段回摆，因此先试最直接的后段保持强化。
+  - 预期效果:
+    - 如果平台主要来自 unsupported 后段姿态保持不足，这轮应减浅中段回摆并把末评抬过 `C84`。
+  - 实际效果:
+    - 接触始终干净，但中段回摆反而更深，末评掉到 `28.3624s`；
+    - 明显低于 `C84/C85`。
+  - 失败模式分析:
+    - 单独增强 `post_release_pose_hold` 会把策略往“更像姿态”的方向拉，但没有稳住真正的承载动力学；
+    - 当前更像 PPO continuation 的更新幅度在中段会先把好骨架学坏，因此值得优先试更保守的优化步长，而不是继续堆静态 hold 奖励。
+  - 下一轮建议:
+    - 回退 `post_release_pose_hold=64.0`，恢复 `60.0`
+    - 保留 `C84` 主线 timing 设置
+    - 下一轮只改训练超参中的 `learning_rate`，例如 `3e-4 -> 2e-4`，验证更保守的 continuation 是否能保住 `29s` 骨架
+
+- C87: lower-learning-rate continuation from the `C84` best checkpoint
+  - 改动:
+    - 回退 `post_release_pose_hold=64.0`，恢复 `60.0`
+    - 保留 `C84` 主线 timing 设置：
+      - `middle_target=0.66`
+      - `three_finger_proximity=18.0`
+      - `primary_finger_force=72.0`
+      - `post_release_grasp=135.0`
+      - `pre_release_grasp=35.0`
+      - `min_release_active_fingers=2`
+      - `random_release_min_sec=1.5`
+      - `random_release_max_sec=2.45`
+      - `release_ramp_sec=0.5`
+      - `force_release_after_sec=3.0`
+    - 仅把训练超参 `learning_rate: 3e-4 -> 2e-4`
+  - smoke:
+    - CPU smoke 通过：`smoke_ok_cube_capsule_bottlepalm_c87_cpu`
+  - 训练:
+    - env: `AeroCubeGraspV2ForceCapsuleBottlePalmQbr`
+    - restore: `C84 000002949120`
+    - run: `logs/AeroCubeGraspV2ForceCapsuleBottlePalmQbr-20260427-051319-C87_long_lr2e4_from_C84best_relmax2p45_postgrasp135_triad18_force72_capsule_bottlepalm_2048`
+    - `2097152 timesteps`, `4 evals`, `2048 envs`
+    - `learning_rate=2e-4`
+  - metrics.csv:
+    - `first = 28.3038s`
+    - `last = 29.6912s`
+    - `max = 29.6912s`
+    - `best_step = 2949120`
+  - 中间趋势:
+    - `28.3038 -> 28.0198 -> 28.1190 -> 29.6912s`
+  - 接触形态:
+    - 四次 eval 全部 `palm=0`, `nonprimary=0`, `drop=0`
+    - `three_finger_contact: 566.08 -> 560.40 -> 562.38 -> 593.83`
+    - `primary_active_count: 2166.08 -> 2160.39 -> 2162.35 -> 2193.80`
+  - 组件统计:
+    - `post_release_grasp: 20714.59 -> 20870.97 -> 20939.34 -> 21362.04`
+    - `post_release_pose_hold: 37853.84 -> 37690.99 -> 37796.27 -> 38779.86`
+    - `post_release_survival: 79493.24 -> 79082.56 -> 79422.11 -> 81518.03`
+    - `post_release_slip: -239.13 -> -238.23 -> -243.11 -> -247.77`
+    - `primary_finger_force: 4535.78 -> 4564.83 -> 4533.57 -> 4574.74`
+  - 修改原因:
+    - `C84/C85` 说明主线已经抬到 `29s` 附近，但 continuation 中段会明显学坏，因此优先改 optimizer 步长，而不是继续动 reward/timing。
+  - 预期效果:
+    - 更保守的 PPO 更新应当减轻中段回摆，并让末评更稳定地继续上移。
+  - 实际效果:
+    - 这轮中段三次 eval 明显高于 `C84/C85`，说明低学习率确实压住了回摆；
+    - 末评推到 `29.6912s`，再次刷新最佳结果，离 `30s` 只差一小段。
+  - 失败模式分析:
+    - 还没过 `30s`，说明仅靠把学习率从 `3e-4` 降到 `2e-4` 还不够终结剩余缺口；
+    - 但它已经抓住了当前最主要的训练病灶，所以优先继续沿这条 optimizer 线验证，而不是马上换回几何或 reward 方向。
+  - 下一轮建议:
+    - 直接从 `C87` 最佳 checkpoint 继续，以同样低学习率再做一轮 long continuation，冲击 `30s+`
+    - 若仍停在 `29.xs`，再考虑更小的学习率或相关稳定化超参，而不是先回去改几何
+
+- C88: second low-learning-rate continuation from the `C87` best checkpoint
+  - 改动:
+    - 不改代码，保持 `C87/C84/C78` 主线：
+      - `middle_target=0.66`
+      - `three_finger_proximity=18.0`
+      - `primary_finger_force=72.0`
+      - `post_release_grasp=135.0`
+      - `post_release_pose_hold=60.0`
+      - `pre_release_grasp=35.0`
+      - `min_release_active_fingers=2`
+      - `random_release_min_sec=1.5`
+      - `random_release_max_sec=2.45`
+      - `release_ramp_sec=0.5`
+      - `force_release_after_sec=3.0`
+    - 训练超参继续保持 `learning_rate=2e-4`
+  - 训练:
+    - env: `AeroCubeGraspV2ForceCapsuleBottlePalmQbr`
+    - restore: `C87 000002949120`
+    - run: `logs/AeroCubeGraspV2ForceCapsuleBottlePalmQbr-20260427-052257-C88_long_lr2e4_from_C87best_relmax2p45_postgrasp135_triad18_force72_capsule_bottlepalm_2048`
+    - `2097152 timesteps`, `4 evals`, `2048 envs`
+    - `learning_rate=2e-4`
+  - metrics.csv:
+    - `first = 28.6217s`
+    - `last = 29.9928s`
+    - `max = 29.9928s`
+    - `best_step = 2949120`
+  - 中间趋势:
+    - `28.6217 -> 28.2213 -> 28.3280 -> 29.9928s`
+  - 接触形态:
+    - 四次 eval 全部 `palm=0`, `nonprimary=0`, `drop=0`
+    - `three_finger_contact: 572.44 -> 564.43 -> 566.56 -> 599.86`
+    - `primary_active_count: 2172.44 -> 2164.41 -> 2166.52 -> 2199.86`
+  - 组件统计:
+    - `post_release_grasp: 21053.25 -> 21081.01 -> 21068.87 -> 21374.21`
+    - `post_release_pose_hold: 38133.19 -> 37901.79 -> 37987.93 -> 39002.88`
+    - `post_release_survival: 80310.09 -> 79793.86 -> 79993.16 -> 82113.67`
+    - `post_release_slip: -244.02 -> -243.09 -> -245.76 -> -250.19`
+    - `primary_finger_force: 4559.41 -> 4559.77 -> 4525.38 -> 4513.22`
+  - 修改原因:
+    - `C87` 已经证明低学习率能明显压住中段回摆，因此先验证同一 optimizer 线是否还能继续把末评往 `30s` 推。
+  - 预期效果:
+    - 如果 `2e-4` 就是当前最关键的稳定化改动，这轮应在保持 clean contact 的同时继续抬高末评。
+  - 实际效果:
+    - 这轮四个 eval 比 `C87` 更稳更高，末评直接推到 `29.9928s`；
+    - 已经几乎贴到 `30s`，成为当前最佳 cube 主线。
+  - 失败模式分析:
+    - 还差 `0.0072s` 才正式越过 `30s`，所以还不能算达标；
+    - 但从曲线看，当前最强信号已经非常清晰：低学习率 continuation 正在把这条主线一点点推上去。
+  - 下一轮建议:
+    - 直接从 `C88` 最佳 checkpoint 再做一次同配置 low-lr continuation，优先冲过 `30s`
+    - 一旦稳定超过 `30s`，再自动进入 DR 阶段，而不是提前切换任务
+
+- C89: third low-learning-rate continuation from the `C88` best checkpoint
+  - 改动:
+    - 不改代码，继续保持 `C88/C87/C84/C78` 主线：
+      - `middle_target=0.66`
+      - `three_finger_proximity=18.0`
+      - `primary_finger_force=72.0`
+      - `post_release_grasp=135.0`
+      - `post_release_pose_hold=60.0`
+      - `pre_release_grasp=35.0`
+      - `min_release_active_fingers=2`
+      - `random_release_min_sec=1.5`
+      - `random_release_max_sec=2.45`
+      - `release_ramp_sec=0.5`
+      - `force_release_after_sec=3.0`
+    - 训练超参继续保持 `learning_rate=2e-4`
+  - 训练:
+    - env: `AeroCubeGraspV2ForceCapsuleBottlePalmQbr`
+    - restore: `C88 000002949120`
+    - run: `logs/AeroCubeGraspV2ForceCapsuleBottlePalmQbr-20260427-053243-C89_long_lr2e4_from_C88best_relmax2p45_postgrasp135_triad18_force72_capsule_bottlepalm_2048`
+    - `2097152 timesteps`, `4 evals`, `2048 envs`
+    - `learning_rate=2e-4`
+  - metrics.csv:
+    - `first = 28.4975s`
+    - `last = 30.1330s`
+    - `max = 30.1330s`
+    - `best_step = 2949120`
+  - 中间趋势:
+    - `28.4975 -> 28.5217 -> 28.4827 -> 30.1330s`
+  - 接触形态:
+    - 四次 eval 全部 `palm=0`, `nonprimary=0`, `drop=0`
+    - `three_finger_contact: 569.95 -> 570.44 -> 569.66 -> 602.66`
+    - `primary_active_count: 2169.95 -> 2170.42 -> 2169.62 -> 2202.66`
+  - 组件统计:
+    - `post_release_grasp: 21051.19 -> 21097.05 -> 21081.58 -> 21359.57`
+    - `post_release_pose_hold: 38110.05 -> 38118.95 -> 38107.78 -> 39125.22`
+    - `post_release_survival: 80382.84 -> 80324.33 -> 80290.62 -> 82421.30`
+    - `post_release_slip: -243.29 -> -245.31 -> -246.72 -> -252.67`
+  - 修改原因:
+    - `C88` 已经把 cube 主线推到 `29.9928s`，只差一步越过用户要求的 `30s` 门槛，因此先验证同一低学习率 continuation 是否能自然完成穿越。
+  - 预期效果:
+    - 如果当前主瓶颈主要是 continuation 更新过猛而不是环境定义不足，这轮应当在保持 clean contact 的同时把末评正式推过 `30s`。
+  - 实际效果:
+    - 这轮前 3 次 eval 基本横住，没有再出现明显中段回摆；
+    - 末评直接到 `30.1330s`，当前 fixed-physics cube 主线首次稳定越过 `30s`。
+  - 失败模式分析:
+    - fixed-physics 指标已经过线，但这还不是最终部署状态；
+    - 下一步风险从“抓不住”转成“加 DR 后是否还能保住 clean contact 与 30s 级别 retention”。
+  - 下一轮建议:
+    - 以 `C89` 最佳 checkpoint `000002949120` 为起点，自动进入 cube 的 DR continuation
+    - 首轮 DR 仍保持 `learning_rate=2e-4`，优先观察是否出现 dirty contact 或 unsupported duration 大幅回撤
+
+- C90: first DR continuation from the `C89` best checkpoint
+  - 改动:
+    - 不改环境代码，保持 `C89/C88/C87/C84/C78` fixed-physics 主线不变：
+      - `middle_target=0.66`
+      - `three_finger_proximity=18.0`
+      - `primary_finger_force=72.0`
+      - `post_release_grasp=135.0`
+      - `post_release_pose_hold=60.0`
+      - `pre_release_grasp=35.0`
+      - `min_release_active_fingers=2`
+      - `random_release_min_sec=1.5`
+      - `random_release_max_sec=2.45`
+      - `release_ramp_sec=0.5`
+      - `force_release_after_sec=3.0`
+    - 仅开启 `domain_randomization=True`
+    - 训练超参保持 `learning_rate=2e-4`
+  - 训练:
+    - env: `AeroCubeGraspV2ForceCapsuleBottlePalmQbr`
+    - restore: `C89 000002949120`
+    - run: `logs/AeroCubeGraspV2ForceCapsuleBottlePalmQbr-20260427-054605-C90_long_dr_lr2e4_from_C89best_relmax2p45_postgrasp135_triad18_force72_capsule_bottlepalm_2048`
+    - `2097152 timesteps`, `4 evals`, `2048 envs`
+    - `learning_rate=2e-4`, `domain_randomization=True`
+  - metrics.csv:
+    - `first = 24.1878s`
+    - `last = 25.4495s`
+    - `max = 25.4495s`
+    - `best_step = 2211840`
+  - 中间趋势:
+    - `24.1878 -> 24.1085 -> 24.1753 -> 25.4495s`
+  - 接触形态:
+    - 四次 eval 全部 `palm=0`, `nonprimary=0`, `drop=0`
+    - `three_finger_contact: 483.76 -> 482.17 -> 483.51 -> 508.99`
+    - `primary_active_count: 2083.74 -> 2082.16 -> 2083.50 -> 2108.90`
+  - 组件统计:
+    - `post_release_grasp: 20905.55 -> 20665.00 -> 20542.33 -> 21014.70`
+    - `post_release_pose_hold: 35423.12 -> 35284.45 -> 35233.46 -> 36064.20`
+    - `post_release_survival: 73934.48 -> 72957.44 -> 72422.19 -> 73999.05`
+    - `post_release_slip: -247.41 -> -264.04 -> -282.81 -> -297.72`
+    - `primary_finger_force: 4738.24 -> 4608.32 -> 4477.59 -> 4673.61`
+    - `hold_success: 61.24 -> 63.81 -> 63.86 -> 71.99`
+    - `lift_success: 24.15 -> 27.39 -> 34.31 -> 39.05`
+  - 修改原因:
+    - `C89` 已经在 fixed-physics 下越过 `30s`，按流程必须进入 DR 阶段；
+    - 首轮 DR 先不动环境，只测 “当前主线 + DR” 的直接掉幅和可训练性。
+  - 预期效果:
+    - 如果 DR 只是吃掉一部分 retention 余量，但抓握骨架仍在，这轮应该表现为 unsupported 时长回撤、但接触依然干净，并在 continuation 中逐步回升。
+  - 实际效果:
+    - 结果完全符合这个形态：unsupported duration 从 `30.13s` 回撤到 `24~25s` 区间；
+    - 但接触没有变脏，且末评比首评高 `+1.26s`，说明 DR 下不是几何接触崩了，而是后段 retention 余量被扰动吃掉了。
+  - 失败模式分析:
+    - 当前 DR 主瓶颈是 `post_release_survival / pose_hold` 整体台阶下降，同时 `post_release_slip` 负项随训练变得更重；
+    - 由于 `palm/nonprimary/drop` 始终为零，这不是“错误接触面介入”的问题，更像扰动下 unsupported 后段微滑移增多，导致 retention 还没被重新学回来。
+  - 下一轮建议:
+    - 先不改环境，直接从 `C90` 最佳 checkpoint `000002211840` 做同配置 DR continuation
+    - 这不是机械重复，而是验证当前最直接假设：DR 线已经显示出 clean adaptation 和末段回升，优先让它沿同一方向继续恢复 unsupported retention；若下一轮不再上升，再改单变量稳定化项
+
+- C91: same-config DR continuation from the `C90` best checkpoint
+  - 改动:
+    - 不改环境代码，保持 `C90/C89` DR 线设置不变
+    - 继续使用 `domain_randomization=True`
+    - 训练超参仍保持 `learning_rate=2e-4`
+  - 训练:
+    - env: `AeroCubeGraspV2ForceCapsuleBottlePalmQbr`
+    - restore: `C90 000002211840`
+    - run: `logs/AeroCubeGraspV2ForceCapsuleBottlePalmQbr-20260427-055500-C91_long_dr_lr2e4_from_C90best_relmax2p45_postgrasp135_triad18_force72_capsule_bottlepalm_2048`
+    - `2097152 timesteps`, `4 evals`, `2048 envs`
+    - `learning_rate=2e-4`, `domain_randomization=True`
+  - metrics.csv:
+    - `first = 25.2151s`
+    - `last = 23.8991s`
+    - `max = 25.2151s`
+    - `best_step = 0`
+  - 中间趋势:
+    - `25.2151 -> 23.6780 -> 23.7351 -> 23.8991s`
+  - 接触形态:
+    - 四次 eval 全部 `palm=0`, `nonprimary=0`, `drop=0`
+    - `three_finger_contact: 504.30 -> 473.56 -> 474.70 -> 477.98`
+    - `primary_active_count: 2104.23 -> 2073.55 -> 2074.66 -> 2077.98`
+  - 组件统计:
+    - `post_release_grasp: 20608.80 -> 19805.21 -> 19787.18 -> 19695.93`
+    - `post_release_pose_hold: 35900.41 -> 34994.30 -> 35052.48 -> 35188.08`
+    - `post_release_survival: 74085.19 -> 72029.82 -> 72204.73 -> 72791.34`
+    - `post_release_slip: -290.13 -> -290.78 -> -282.84 -> -281.46`
+    - `primary_finger_force: 4602.08 -> 4290.79 -> 4290.73 -> 4411.72`
+    - `hold_success: 66.19 -> 61.09 -> 60.90 -> 62.81`
+    - `lift_success: 34.62 -> 28.43 -> 22.36 -> 26.20`
+  - 修改原因:
+    - `C90` 末评升到 `25.45s`，所以先验证 DR 线是否还能靠纯 continuation 继续往上长。
+  - 预期效果:
+    - 如果 `C90` 的末段回升已经说明这条 DR 主线开始适应，`C91` 应该至少保住 `25s` 左右的平台，再尝试上移。
+  - 实际效果:
+    - 首评确实比 `C90` 更高，但后面三个 eval 都掉到 `23.7~23.9s`；
+    - 说明 DR 下当前 `2e-4` continuation 会把不错的起始骨架学坏，而不是继续稳定抬升。
+  - 失败模式分析:
+    - 这轮不是接触变脏，也不是 drop 增多；
+    - 真正退化的是 `post_release_grasp / pose_hold / survival` 整体平台，配合 primary contact 和 lift success 下滑，说明 PPO 更新步长对 DR 线仍偏大。
+  - 下一轮建议:
+    - 回到 `C90` 最佳 checkpoint `000002211840`
+    - 只把 `learning_rate` 从 `2e-4` 降到 `1e-4`，测试更保守的 DR continuation 是否能保住 `25s+` retention，而不是继续把好骨架洗掉
+
+- C92: lower-learning-rate DR continuation from the `C90` best checkpoint
+  - 改动:
+    - 不改环境代码，保持 `C90` 的 DR 环境设置不变
+    - 继续使用 `domain_randomization=True`
+    - 仅把训练超参 `learning_rate: 2e-4 -> 1e-4`
+  - 训练:
+    - env: `AeroCubeGraspV2ForceCapsuleBottlePalmQbr`
+    - restore: `C90 000002211840`
+    - run: `logs/AeroCubeGraspV2ForceCapsuleBottlePalmQbr-20260427-060350-C92_long_dr_lr1e4_from_C90best_relmax2p45_postgrasp135_triad18_force72_capsule_bottlepalm_2048`
+    - `2097152 timesteps`, `4 evals`, `2048 envs`
+    - `learning_rate=1e-4`, `domain_randomization=True`
+  - metrics.csv:
+    - `first = 25.4241s`
+    - `last = 24.2577s`
+    - `max = 25.4241s`
+    - `best_step = 0`
+  - 中间趋势:
+    - `25.4241 -> 24.0300 -> 24.1847 -> 24.2577s`
+  - 接触形态:
+    - `palm_contact: 0.0000 -> 0.0000 -> 0.0078 -> 0.0000`
+    - `nonprimary_contact: 0.0000 -> 0.0000 -> 0.0000 -> 0.0000`
+    - `non_tip_primary_contact: 0.0000 -> 0.0000 -> 1.9766 -> 0.0000`
+    - `drop: 0.0000 -> 0.0156 -> 0.0156 -> 0.0000`
+    - `three_finger_contact: 508.48 -> 480.60 -> 483.70 -> 485.16`
+    - `primary_active_count: 2108.41 -> 2079.91 -> 2074.77 -> 2085.12`
+  - 组件统计:
+    - `post_release_grasp: 20647.63 -> 19988.54 -> 19424.93 -> 19748.42`
+    - `post_release_pose_hold: 36029.07 -> 35156.94 -> 35107.12 -> 35369.78`
+    - `post_release_survival: 74187.89 -> 72094.53 -> 72029.70 -> 73086.56`
+    - `post_release_slip: -290.69 -> -303.32 -> -302.40 -> -294.98`
+    - `primary_finger_force: 4624.29 -> 4313.06 -> 4084.65 -> 4271.21`
+    - `hold_success: 65.91 -> 63.59 -> 65.96 -> 67.25`
+    - `lift_success: 35.47 -> 31.04 -> 28.38 -> 30.85`
+  - 修改原因:
+    - `C91` 证明 DR 下 `2e-4` 会把 `25s+` 的起始骨架学坏，因此先测试更保守的更新能否减少中段回摆。
+  - 预期效果:
+    - 如果主病灶真的是 DR 线 optimizer 过猛，这轮应比 `C91` 更能保住 unsupported retention，并减少中段下坠。
+  - 实际效果:
+    - 这轮确实比 `C91` 更稳：同步点从 `23.68/23.74/23.90s` 抬到了 `24.03/24.18/24.26s`；
+    - 但仍然没守住 `25.42s` 的首评平台，而且中段出现了极轻微的 `drop`、`palm_contact` 与 `non_tip_primary_contact`。
+  - 失败模式分析:
+    - `1e-4` 说明“降学习率”方向是对的，但幅度还不够，仍会在 DR 扰动下慢慢损失 `post_release_grasp / survival`；
+    - 当前不是大面积脏接触崩盘，而是保留住主骨架的同时，更新仍会把后段承载余量磨掉。
+  - 下一轮建议:
+    - 继续保持 `C90` 的 DR 环境定义
+    - 回到 `C90` 最佳 checkpoint `000002211840`
+    - 只把 `learning_rate` 再降一档到 `5e-5`，验证是否能真正把 `25s+` retention 平台锁住；如果仍然下滑，再考虑改 DR 幅度或 gate，而不是继续单纯续训
+
+- C93: ultra-low-learning-rate DR continuation from the `C90` best checkpoint
+  - 改动:
+    - 不改环境代码，保持 `C90` 的 DR 环境定义不变
+    - 继续使用 `domain_randomization=True`
+    - 仅把训练超参 `learning_rate: 1e-4 -> 5e-5`
+  - 训练:
+    - env: `AeroCubeGraspV2ForceCapsuleBottlePalmQbr`
+    - restore: `C90 000002211840`
+    - run: `logs/AeroCubeGraspV2ForceCapsuleBottlePalmQbr-20260427-061242-C93_long_dr_lr5e5_from_C90best_relmax2p45_postgrasp135_triad18_force72_capsule_bottlepalm_2048`
+    - `2097152 timesteps`, `4 evals`, `2048 envs`
+    - `learning_rate=5e-5`, `domain_randomization=True`
+  - metrics.csv:
+    - `first = 25.3573s`
+    - `last = 23.7882s`
+    - `max = 25.3573s`
+    - `best_step = 0`
+  - 中间趋势:
+    - `25.3573 -> 23.9812 -> 24.3233 -> 23.7882s`
+  - 接触形态:
+    - `palm_contact: 0.0000 -> 0.0000 -> 0.0000 -> 0.0078`
+    - `nonprimary_contact: 0.0000 -> 0.0000 -> 0.0000 -> 0.0000`
+    - `non_tip_primary_contact: 0.0000 -> 0.0000 -> 0.0000 -> 0.4531`
+    - `drop: 0.0000 -> 0.0156 -> 0.0000 -> 0.0156`
+    - `slip_event: 0.0000 -> 0.0000 -> 0.0078 -> 0.0000`
+    - `three_finger_contact: 507.15 -> 479.62 -> 486.47 -> 475.77`
+    - `primary_active_count: 2107.07 -> 2077.38 -> 2086.33 -> 2053.23`
+  - 组件统计:
+    - `post_release_grasp: 20386.23 -> 19963.95 -> 20151.17 -> 18944.64`
+    - `post_release_pose_hold: 35990.61 -> 35121.77 -> 35334.55 -> 34718.50`
+    - `post_release_survival: 74102.29 -> 72088.17 -> 72191.75 -> 71228.38`
+    - `post_release_slip: -290.81 -> -313.13 -> -323.97 -> -322.42`
+    - `primary_finger_force: 4483.65 -> 4305.21 -> 4290.69 -> 3914.13`
+    - `hold_success: 66.30 -> 62.84 -> 70.45 -> 68.24`
+    - `lift_success: 34.81 -> 33.19 -> 30.59 -> 31.98`
+  - 修改原因:
+    - `C92` 比 `C91` 更稳，说明 DR 线确实需要更保守更新，因此继续验证更低学习率能否进一步锁住 retention。
+  - 预期效果:
+    - 如果 `1e-4` 还略偏大，`5e-5` 应进一步减轻中段回摆，并尽量保住 `25s+` 起点。
+  - 实际效果:
+    - 这轮没有守住平台，末评掉到 `23.7882s`，比 `C92` 的 `24.2577s` 更差；
+    - 说明学习率降得太低后，DR 线没有获得更强稳定性，反而在后段更难恢复 retention。
+  - 失败模式分析:
+    - `2e-4` 会把好骨架洗坏，`5e-5` 又太保守，适应不够且末段更容易掉出 clean 高 retention 区间；
+    - 当前证据更像学习率存在一个窄甜点，`1e-4` 附近优于两端。
+  - 下一轮建议:
+    - 保持 `C90` 的 DR 环境定义，回到 `C90` 最佳 checkpoint `000002211840`
+    - 不再继续往更低学习率走，而是围绕 `1e-4` 往上半步，例如 `1.25e-4`
+    - 目标是找“既不把 DR 骨架洗坏、又比 `1e-4` 多一点适应速度”的甜点
+
+- C94: mid-point DR learning-rate probe from the `C90` best checkpoint
+  - 改动:
+    - 不改环境代码，保持 `C90` 的 DR 环境定义不变
+    - 继续使用 `domain_randomization=True`
+    - 仅把训练超参 `learning_rate: 1e-4 -> 1.25e-4`
+  - 训练:
+    - env: `AeroCubeGraspV2ForceCapsuleBottlePalmQbr`
+    - restore: `C90 000002211840`
+    - run: `logs/AeroCubeGraspV2ForceCapsuleBottlePalmQbr-20260427-062159-C94_long_dr_lr1p25e4_from_C90best_relmax2p45_postgrasp135_triad18_force72_capsule_bottlepalm_2048`
+    - `2097152 timesteps`, `4 evals`, `2048 envs`
+    - `learning_rate=1.25e-4`, `domain_randomization=True`
+  - metrics.csv:
+    - `first = 25.5483s`
+    - `last = 23.8312s`
+    - `max = 25.5483s`
+    - `best_step = 0`
+  - 中间趋势:
+    - `25.5483 -> 24.2862 -> 24.2433 -> 23.8312s`
+  - 接触形态:
+    - `palm_contact: 0.0000 -> 0.0000 -> 0.0000 -> 0.0000`
+    - `nonprimary_contact: 0.0000 -> 0.0000 -> 0.0000 -> 0.0000`
+    - `non_tip_primary_contact: 0.0000 -> 0.0000 -> 0.0000 -> 0.1172`
+    - `drop: 0.0000 -> 0.0000 -> 0.0000 -> 0.0078`
+    - `slip_event: 0.0000 -> 0.0000 -> 0.0000 -> 0.0000`
+    - `three_finger_contact: 510.97 -> 485.73 -> 484.87 -> 476.62`
+    - `primary_active_count: 2110.79 -> 2085.70 -> 2084.83 -> 2066.08`
+  - 组件统计:
+    - `post_release_grasp: 20813.69 -> 20030.94 -> 19664.20 -> 19427.72`
+    - `post_release_pose_hold: 36105.70 -> 35359.50 -> 35360.27 -> 34985.65`
+    - `post_release_survival: 74282.30 -> 72717.80 -> 72718.16 -> 72215.45`
+    - `post_release_slip: -294.53 -> -293.23 -> -289.51 -> -288.02`
+    - `primary_finger_force: 4655.49 -> 4360.55 -> 4257.77 -> 4240.99`
+    - `hold_success: 69.02 -> 65.73 -> 66.56 -> 64.20`
+    - `lift_success: 35.44 -> 28.02 -> 22.98 -> 26.56`
+  - 修改原因:
+    - `C93` 说明 `5e-5` 太保守，`C92` 说明 `1e-4` 更稳，因此继续在 `1e-4` 附近找一个更快但不过冲的甜点。
+  - 预期效果:
+    - 如果甜点在 `1e-4` 与 `2e-4` 之间，这轮应在保住 clean contact 的同时，比 `C92` 有更好的中段和更高的尾评。
+  - 实际效果:
+    - 首评和前中段确实是当前 DR 线最好的一档；
+    - 但末评仍掉回 `23.8312s`，没能把中段优势转成更好的后段 retention。
+  - 失败模式分析:
+    - 这说明当前 DR 线的问题已经不只是学习率大小，而是“后段继续训练时，unsupported retention 会被持续磨掉”；
+    - 学习率扫描已经给出比较清楚的结论：`2e-4` 太激进，`5e-5` 太慢，`1e-4~1.25e-4` 最像可用区间，但单靠学习率还不足以跨过这个后段平台。
+  - 下一轮建议:
+    - 维持当前最佳 DR optimizer 区间，不再继续扫 learning rate
+    - 从 `C90` 最佳 checkpoint 出发，只改一个训练侧稳定化变量，例如把 `num_updates_per_batch` 从默认值下调，减少每轮 PPO 对同一批数据的过拟合强度
+    - 优先保住后段 retention，而不是再追更高首评
+
+- C95: fewer PPO updates per batch from the `C90` best checkpoint
+  - 改动:
+    - 不改环境代码，保持 `C90` 的 DR 环境定义不变
+    - 继续使用 `domain_randomization=True`
+    - 保持 `learning_rate=1e-4`
+    - 仅把训练超参 `num_updates_per_batch: 8 -> 4`
+  - 训练:
+    - env: `AeroCubeGraspV2ForceCapsuleBottlePalmQbr`
+    - restore: `C90 000002211840`
+    - run: `logs/AeroCubeGraspV2ForceCapsuleBottlePalmQbr-20260427-063133-C95_long_dr_lr1e4_upd4_from_C90best_relmax2p45_postgrasp135_triad18_force72_capsule_bottlepalm_2048`
+    - `2097152 timesteps`, `4 evals`, `2048 envs`
+    - `learning_rate=1e-4`, `num_updates_per_batch=4`, `domain_randomization=True`
+  - metrics.csv:
+    - `first = 25.2300s`
+    - `last = 24.4093s`
+    - `max = 25.2300s`
+    - `best_step = 0`
+  - 中间趋势:
+    - `25.2300 -> 23.9741 -> 24.9792 -> 24.4093s`
+  - 接触形态:
+    - `palm_contact: 0.0000 -> 0.0000 -> 0.0000 -> 0.0000`
+    - `nonprimary_contact: 0.0000 -> 0.0000 -> 0.0000 -> 0.0000`
+    - `non_tip_primary_contact: 0.0000 -> 0.0000 -> 0.0000 -> 0.0000`
+    - `drop: 0.0000 -> 0.0078 -> 0.0000 -> 0.0000`
+    - `slip_event: 0.0000 -> 0.0000 -> 0.0000 -> 0.0000`
+    - `three_finger_contact: 504.60 -> 479.48 -> 499.59 -> 488.19`
+    - `primary_active_count: 2104.52 -> 2078.20 -> 2099.57 -> 2088.16`
+  - 组件统计:
+    - `post_release_grasp: 20202.62 -> 19711.71 -> 19834.52 -> 19320.17`
+    - `post_release_pose_hold: 35901.63 -> 35143.17 -> 35743.92 -> 35450.08`
+    - `post_release_survival: 73934.00 -> 72228.53 -> 73243.39 -> 73035.09`
+    - `post_release_slip: -289.36 -> -299.04 -> -302.83 -> -295.71`
+    - `primary_finger_force: 4439.37 -> 4231.85 -> 4240.81 -> 4090.44`
+    - `hold_success: 65.48 -> 63.73 -> 72.84 -> 67.82`
+    - `lift_success: 34.38 -> 31.26 -> 28.20 -> 29.79`
+  - 修改原因:
+    - `C94` 说明学习率甜点已经摸清，但后段 retention 仍会被继续训练磨掉，因此转向减少同一批数据上的 PPO 更新次数。
+  - 预期效果:
+    - 如果问题主要是每轮更新过多导致对 DR batch 过拟合，这轮应在不显著抬高首评的情况下，更好地保住中后段 unsupported retention。
+  - 实际效果:
+    - 这轮就是目前最清晰的正样本：虽然首评不如 `C94` 高，但第三评冲到 `24.9792s`，末评保持 `24.4093s`；
+    - 尾评已经超过 `C92` 的 `24.2577s`，也明显优于 `C93/C94`，而且接触几乎全程干净。
+  - 失败模式分析:
+    - 还没越过 `25s` 平台，更别说到更高 DR 目标；
+    - 但当前瓶颈已经更集中到“如何把第三评的恢复延续到末评”，而不是学习率或 dirty contact 本身。
+  - 下一轮建议:
+    - 把 `C95` 当作新的 DR 主线
+    - 直接从 `C95` 最佳 checkpoint `000001474560` 做同配置 continuation，验证 `upd4` 是否真的能把恢复段继续推高
+    - 若 continuation 继续抬升，再保留 `upd4` 主线；若仍掉尾，再改 entropy 或 DR 扰动强度这类下一层变量
+
+- C96: same-config continuation from the `C95` best checkpoint
+  - 改动:
+    - 不改环境代码，保持 `C95` 的 DR 训练配置不变
+    - 继续使用 `domain_randomization=True`
+    - 保持 `learning_rate=1e-4`
+    - 保持 `num_updates_per_batch=4`
+  - 训练:
+    - env: `AeroCubeGraspV2ForceCapsuleBottlePalmQbr`
+    - restore: `C95 000001474560`
+    - run: `logs/AeroCubeGraspV2ForceCapsuleBottlePalmQbr-20260427-064033-C96_long_dr_lr1e4_upd4_from_C95best_relmax2p45_postgrasp135_triad18_force72_capsule_bottlepalm_2048`
+    - `2097152 timesteps`, `4 evals`, `2048 envs`
+    - `learning_rate=1e-4`, `num_updates_per_batch=4`, `domain_randomization=True`
+  - metrics.csv:
+    - `first = 24.8616s`
+    - `last = 23.4675s`
+    - `max = 24.8616s`
+    - `best_step = 0`
+  - 中间趋势:
+    - `24.8616 -> 23.6323 -> 23.9964 -> 23.4675s`
+  - 接触形态:
+    - `palm_contact: 5.4531 -> 0.0000 -> 0.0000 -> 0.0000`
+    - `nonprimary_contact: 1.2734 -> 0.0000 -> 0.0000 -> 0.0000`
+    - `non_tip_primary_contact: 0.0000 -> 0.0000 -> 0.0000 -> 0.0000`
+    - `drop: 0.0000 -> 0.0078 -> 0.0000 -> 0.0000`
+    - `slip_event: 0.0078 -> 0.0000 -> 0.0000 -> 0.0000`
+  - 组件统计:
+    - `post_release_grasp: 19321.78 -> 19370.63 -> 19071.65 -> 19374.33`
+    - `post_release_pose_hold: 35521.23 -> 34993.12 -> 35245.00 -> 34943.53`
+    - `post_release_survival: 73054.23 -> 72018.50 -> 72608.94 -> 72274.20`
+    - `post_release_slip: -302.15 -> -305.21 -> -293.39 -> -291.25`
+  - 修改原因:
+    - `C95` 已经把 DR 尾评推到当前最高，因此先验证它是否是可继续爬升的主线，还是只是单轮恢复峰值。
+  - 预期效果:
+    - 如果 `C95` 已经进入可持续恢复阶段，这轮 continuation 应至少保住 clean contact，并把尾评继续压在 `24.4s` 附近或更高。
+  - 实际效果:
+    - 这轮一开始就出现明显脏接触，后续虽然表面上清干净了，但 unsupported duration 全程低于 `C95`；
+    - `last = 23.4675s`，确认这是负样本 continuation。
+  - 失败模式分析:
+    - `C95` 更像是一个好的 DR checkpoint，但不是一个适合直接纯 continuation 的稳定盆地；
+    - 当前不能把“从 C95 best 继续训”当成默认主线，否则会把好骨架学坏。
+  - 下一轮建议:
+    - 回到 `C90` 这个更干净、泛化边界更清楚的 DR 起点
+    - 保留 `learning_rate=1e-4` 与 `num_updates_per_batch=4`
+    - 只改一个更保守的训练变量，例如降低 `entropy_cost`，减少后续探索噪声对已形成 grasp 骨架的扰动
+
+- C97: lower-entropy DR continuation from the `C90` best checkpoint
+  - 改动:
+    - 不改环境代码，保持 `C90` 的 DR 环境定义不变
+    - 继续使用 `domain_randomization=True`
+    - 保持 `learning_rate=1e-4`
+    - 保持 `num_updates_per_batch=4`
+    - 仅把训练超参 `entropy_cost: 0.01 -> 0.005`
+  - 训练:
+    - env: `AeroCubeGraspV2ForceCapsuleBottlePalmQbr`
+    - restore: `C90 000002211840`
+    - run: `logs/AeroCubeGraspV2ForceCapsuleBottlePalmQbr-20260427-132523-C97_long_dr_lr1e4_upd4_ent5e3_from_C90best_relmax2p45_postgrasp135_triad18_force72_capsule_bottlepalm_2048`
+    - `2097152 timesteps`, `4 evals`, `2048 envs`
+    - `learning_rate=1e-4`, `num_updates_per_batch=4`, `entropy_cost=0.005`, `domain_randomization=True`
+  - metrics.csv:
+    - `first = 25.5577s`
+    - `last = 25.2655s`
+    - `max = 25.5577s`
+    - `best_step = 0`
+  - 中间趋势:
+    - `25.5577 -> 24.1401 -> 24.9108 -> 25.2655s`
+  - 接触形态:
+    - `palm_contact: 0.0000 -> 0.0000 -> 0.0000 -> 0.0000`
+    - `nonprimary_contact: 0.0000 -> 0.0000 -> 0.0000 -> 0.0000`
+    - `non_tip_primary_contact: 0.0000 -> 0.0000 -> 0.0000 -> 0.0000`
+    - `drop: 0.0000 -> 0.0000 -> 0.0000 -> 0.0000`
+    - `slip_event: 0.0000 -> 0.0000 -> 0.0000 -> 0.0000`
+  - 组件统计:
+    - `post_release_grasp: 20789.05 -> 19766.46 -> 19855.19 -> 20261.31`
+    - `post_release_pose_hold: 36105.61 -> 35250.11 -> 35721.40 -> 35966.77`
+    - `post_release_survival: 74629.49 -> 72505.02 -> 73339.41 -> 74454.42`
+    - `post_release_slip: -292.80 -> -283.83 -> -284.93 -> -277.26`
+  - 修改原因:
+    - `C95` 说明减少 PPO 更新次数有效，但从 `C95` best 继续训会污染接触骨架，因此回到干净起点，只减少后续探索噪声。
+  - 预期效果:
+    - 如果问题的一部分来自 DR 下多余探索破坏已学成的 grasp 骨架，这轮应在保持 clean contact 的同时，把 `C95` 的后段 retention 再往上抬。
+  - 实际效果:
+    - 这是目前最强、也最干净的 DR 结果：
+    - `last = 25.2655s` 明显超过 `C95` 的 `24.4093s`，且四次 eval 全程 clean。
+  - 失败模式分析:
+    - 还没有逼近更高 DR 目标，说明主瓶颈还在 unsupported 后段 retention；
+    - 但当前主线已经明确优于先前所有 DR 轮次，因此下一步不该换方向，而应继续沿 `upd4 + low-entropy` 主线验证能否继续抬升。
+  - 下一轮建议:
+    - 直接从 `C97` 最佳 checkpoint `000002211840` 做同配置 continuation
+    - 若尾评继续抬升，就保留这条 DR 主线并继续冲更高平台；若再次出现“好首评、坏尾评”，再改下一层变量
+
+- C98: same-config continuation from the `C97` best checkpoint
+  - 改动:
+    - 不改环境代码，保持 `C97` 的 DR 环境定义不变
+    - 继续使用 `domain_randomization=True`
+    - 保持 `learning_rate=1e-4`
+    - 保持 `num_updates_per_batch=4`
+    - 保持 `entropy_cost=0.005`
+  - 训练:
+    - env: `AeroCubeGraspV2ForceCapsuleBottlePalmQbr`
+    - restore: `C97 000002211840`
+    - run: `logs/AeroCubeGraspV2ForceCapsuleBottlePalmQbr-20260427-133413-C98_long_dr_lr1e4_upd4_ent5e3_from_C97best_relmax2p45_postgrasp135_triad18_force72_capsule_bottlepalm_2048`
+    - `2097152 timesteps`, `4 evals`, `2048 envs`
+    - `learning_rate=1e-4`, `num_updates_per_batch=4`, `entropy_cost=0.005`, `domain_randomization=True`
+  - smoke test:
+    - 未改代码，本轮无额外 smoke test
+  - metrics.csv:
+    - `first = 24.5659s`
+    - `last = 23.5519s`
+    - `max = 24.5659s`
+    - `best_step = 0`
+  - 中间趋势:
+    - `24.5659 -> 23.2691 -> 23.6991 -> 23.5519s`
+  - 接触形态:
+    - `palm_contact: 0.0000 -> 0.0000 -> 0.0000 -> 0.0000`
+    - `nonprimary_contact: 0.0000 -> 0.0000 -> 0.0000 -> 0.0000`
+    - `non_tip_primary_contact: 0.0000 -> 0.0000 -> 0.0000 -> 0.0000`
+    - `drop: 0.0000 -> 0.0000 -> 0.0000 -> 0.0000`
+    - `slip_event: 0.0000 -> 0.0000 -> 0.0000 -> 0.0000`
+  - 组件统计:
+    - `post_release_grasp: 19521.10 -> 19218.90 -> 19330.96 -> 19518.59`
+    - `post_release_pose_hold: 35528.16 -> 34783.41 -> 35030.32 -> 34960.80`
+    - `post_release_survival: 73409.02 -> 72003.75 -> 72403.30 -> 72481.84`
+    - `post_release_slip: -273.30 -> -264.58 -> -264.52 -> -255.80`
+  - 与前序对比:
+    - 相比 `C97`，`first 25.5577 -> 24.5659s`，`last 25.2655 -> 23.5519s`
+    - 退化并不是脏接触导致，而是 post-release 系列组件整体一起下滑
+  - 修改原因:
+    - `C97` 是当前最好的 DR 主线，因此先验证“从它的最佳 checkpoint 直接纯 continuation”是否还能自然抬升尾评
+  - 预期效果:
+    - 如果 `C97` 已经处在可持续爬升的盆地，这轮应至少保住 `25s` 左右的平台，并延续 clean-contact 形态
+  - 实际效果:
+    - 这轮虽然四次 eval 都很干净，但 unsupported duration 全程低于 `C97`
+    - 说明当前问题不是接触污染，而是 continuation 本身让已学成的 post-release retention 骨架变弱
+  - 失败模式分析:
+    - `C97` 更像是一个高质量 DR checkpoint，而不是适合原样长续训的稳定盆地
+    - 既然退化发生在 clean-contact 前提下，下一轮应继续做训练侧减法，减少对现有骨架的扰动，而不是回头改环境或奖励
+  - 下一轮建议:
+    - 保留 `C97` 为当前最佳 DR checkpoint
+    - 从 `C97` 最佳 checkpoint 重新出发，只改一个更保守的训练变量
+    - 优先把 `entropy_cost` 再小幅下调到 `0.003`，验证能否减小 continuation 漂移并保住后段 retention
+
+- C99: lower-entropy retry from the `C97` best checkpoint
+  - 改动:
+    - 不改环境代码，保持 `C97` 的 DR 环境定义不变
+    - 继续使用 `domain_randomization=True`
+    - 保持 `learning_rate=1e-4`
+    - 保持 `num_updates_per_batch=4`
+    - 仅把训练超参 `entropy_cost: 0.005 -> 0.003`
+  - 训练:
+    - env: `AeroCubeGraspV2ForceCapsuleBottlePalmQbr`
+    - restore: `C97 000002211840`
+    - run: `logs/AeroCubeGraspV2ForceCapsuleBottlePalmQbr-20260427-134415-C99_long_dr_lr1e4_upd4_ent3e3_from_C97best_relmax2p45_postgrasp135_triad18_force72_capsule_bottlepalm_2048`
+    - `2097152 timesteps`, `4 evals`, `2048 envs`
+    - `learning_rate=1e-4`, `num_updates_per_batch=4`, `entropy_cost=0.003`, `domain_randomization=True`
+  - smoke test:
+    - 未改代码，本轮无额外 smoke test
+  - metrics.csv:
+    - `first = 24.6405s`
+    - `last = 24.6854s`
+    - `max = 24.6854s`
+    - `best_step = 2211840`
+  - 中间趋势:
+    - `24.6405 -> 23.6511 -> 24.0175 -> 24.6854s`
+  - 接触形态:
+    - `palm_contact: 0.0000 -> 0.0000 -> 0.0000 -> 0.0000`
+    - `nonprimary_contact: 0.0000 -> 0.0000 -> 0.0000 -> 0.0000`
+    - `non_tip_primary_contact: 0.0000 -> 0.0000 -> 0.0000 -> 0.0000`
+    - `drop: 0.0000 -> 0.0000 -> 0.0000 -> 0.0000`
+    - `slip_event: 0.0078 -> 0.0000 -> 0.0000 -> 0.0000`
+  - 组件统计:
+    - `post_release_grasp: 19465.93 -> 19287.72 -> 19357.39 -> 19554.20`
+    - `post_release_pose_hold: 35578.24 -> 35011.84 -> 35231.84 -> 35672.05`
+    - `post_release_survival: 73512.12 -> 72461.19 -> 72891.61 -> 73988.69`
+    - `post_release_slip: -274.68 -> -263.36 -> -257.16 -> -253.13`
+  - 与前序对比:
+    - 相比 `C98`，`last 23.5519 -> 24.6854s`，`max 24.5659 -> 24.6854s`
+    - 相比 `C97`，仍然低于 `last 25.2655s`，但这次最佳点落在末评而不是首评
+  - 修改原因:
+    - `C98` 证明 `ent=0.005` 的纯 continuation 会把 clean-contact 骨架越训越弱，因此回到 `C97` 并进一步减小探索噪声
+  - 预期效果:
+    - 如果 continuation 退化主要来自多余探索，那么更低熵应让后段 retention 恢复，并把最佳点从首评往后移
+  - 实际效果:
+    - 这轮没有追回 `C97` 的峰值，但明显优于 `C98`
+    - 更关键的是 `best_step = 2211840`，说明这次训练过程本身在后段仍有净改进，而不是一开始最好后面一路滑坡
+  - 失败模式分析:
+    - `ent=0.003` 缓和了 continuation 漂移，但还没有把 DR retention 拉回 `25.2s+`
+    - 当前最值得验证的是：它是否已经把系统推回一个“可继续爬升”的盆地；如果下一轮 continuation 还能保持末评改善，这条线就比 `C97` 的一次性峰值更有价值
+  - 下一轮建议:
+    - 直接从 `C99` 的最佳 checkpoint `2211840` 做同配置 continuation
+    - 如果尾评继续抬升，保留 `ent=0.003` 主线继续冲更高平台；如果又退回“首评最好”，再回到 `C97` 并改下一个更窄变量
+
+- C100: same-config continuation from the `C99` best checkpoint
+  - 改动:
+    - 不改环境代码，保持 `C99` 的 DR 环境定义不变
+    - 继续使用 `domain_randomization=True`
+    - 保持 `learning_rate=1e-4`
+    - 保持 `num_updates_per_batch=4`
+    - 保持 `entropy_cost=0.003`
+  - 训练:
+    - env: `AeroCubeGraspV2ForceCapsuleBottlePalmQbr`
+    - restore: `C99 000002211840`
+    - run: `logs/AeroCubeGraspV2ForceCapsuleBottlePalmQbr-20260427-135248-C100_long_dr_lr1e4_upd4_ent3e3_from_C99best_relmax2p45_postgrasp135_triad18_force72_capsule_bottlepalm_2048`
+    - `2097152 timesteps`, `4 evals`, `2048 envs`
+    - `learning_rate=1e-4`, `num_updates_per_batch=4`, `entropy_cost=0.003`, `domain_randomization=True`
+  - smoke test:
+    - 未改代码，本轮无额外 smoke test
+  - metrics.csv:
+    - `first = 24.4144s`
+    - `last = 24.7018s`
+    - `max = 24.7018s`
+    - `best_step = 2211840`
+  - 中间趋势:
+    - `24.4144 -> 23.5042 -> 23.7315 -> 24.7018s`
+  - 接触形态:
+    - `palm_contact: 0.0000 -> 0.0000 -> 0.0000 -> 0.0000`
+    - `nonprimary_contact: 0.0000 -> 0.0000 -> 0.0000 -> 0.0000`
+    - `non_tip_primary_contact: 0.0000 -> 0.0000 -> 0.0000 -> 0.0000`
+    - `drop: 0.0000 -> 0.0000 -> 0.0000 -> 0.0000`
+    - `slip_event: 0.0000 -> 0.0000 -> 0.0000 -> 0.0000`
+  - 组件统计:
+    - `post_release_grasp: 19380.93 -> 19326.34 -> 19398.39 -> 20090.16`
+    - `post_release_pose_hold: 35471.80 -> 34961.90 -> 35112.50 -> 35706.95`
+    - `post_release_survival: 73733.48 -> 72631.73 -> 72737.45 -> 74163.34`
+    - `post_release_slip: -250.20 -> -247.02 -> -244.33 -> -241.74`
+  - 与前序对比:
+    - 相比 `C99`，`last 24.6854 -> 24.7018s`，只有极小幅上升
+    - 相比 `C97`，仍明显低于 `last 25.2655s`
+  - 修改原因:
+    - `C99` 首次把最佳点稳定推到末评，因此需要验证这不是偶然，而是 continuation 真的重新变成可增长过程
+  - 预期效果:
+    - 如果 `ent=0.003` 已经把系统带回可增长盆地，这轮应至少再小幅抬升 `last`，同时继续保持 clean-contact
+  - 实际效果:
+    - 这轮确实再次把最佳点留在末评，且 `last` 继续微升
+    - 但抬升幅度只有 `+0.0164s`，说明这条线没有崩坏，却也没有出现明显加速恢复
+  - 失败模式分析:
+    - 当前更像是“非常平缓的 clean continuation”，而不是能快速追回 `C97` 平台的主突破口
+    - 继续原样长训的边际收益已经很低，但因为仍是正增长，值得再验证一次是否只是评估噪声
+  - 下一轮建议:
+    - 再从 `C100` 的最佳 checkpoint `2211840` 做一次同配置 continuation 复核
+    - 如果 `last` 不能再明显抬升，就停止机械 continuation，改下一个单变量而不是继续耗算力
+
+- C101: continuation refutation on the `C100` best checkpoint
+  - 改动:
+    - 不改环境代码，保持 `C100` 的 DR 环境定义不变
+    - 继续使用 `domain_randomization=True`
+    - 保持 `learning_rate=1e-4`
+    - 保持 `num_updates_per_batch=4`
+    - 保持 `entropy_cost=0.003`
+  - 训练:
+    - env: `AeroCubeGraspV2ForceCapsuleBottlePalmQbr`
+    - restore: `C100 000002211840`
+    - run: `logs/AeroCubeGraspV2ForceCapsuleBottlePalmQbr-20260427-140226-C101_long_dr_lr1e4_upd4_ent3e3_from_C100best_relmax2p45_postgrasp135_triad18_force72_capsule_bottlepalm_2048`
+    - `2097152 timesteps`, `4 evals`, `2048 envs`
+    - `learning_rate=1e-4`, `num_updates_per_batch=4`, `entropy_cost=0.003`, `domain_randomization=True`
+  - smoke test:
+    - 未改代码，本轮无额外 smoke test
+  - metrics.csv:
+    - `first = 23.2948s`
+    - `last = 23.7132s`
+    - `max = 23.7132s`
+    - `best_step = 2211840`
+  - 中间趋势:
+    - `23.2948 -> 23.0769 -> 22.7136 -> 23.7132s`
+  - 接触形态:
+    - `palm_contact: 0.0000 -> 0.0000 -> 0.0000 -> 0.0000`
+    - `nonprimary_contact: 0.0000 -> 0.0000 -> 0.0000 -> 0.0000`
+    - `non_tip_primary_contact: 0.0000 -> 0.0000 -> 0.0000 -> 0.0000`
+    - `drop: 0.0000 -> 0.0000 -> 0.0000 -> 0.0000`
+    - `slip_event: 0.0000 -> 0.0000 -> 0.0000 -> 0.0000`
+  - 组件统计:
+    - `post_release_grasp: 19616.09 -> 19448.77 -> 19537.56 -> 20039.28`
+    - `post_release_pose_hold: 34862.09 -> 34725.60 -> 34510.36 -> 35133.08`
+    - `post_release_survival: 72504.03 -> 72174.68 -> 71603.18 -> 72953.46`
+    - `post_release_slip: -236.82 -> -230.99 -> -224.32 -> -221.27`
+  - 与前序对比:
+    - 相比 `C100`，`first 24.4144 -> 23.2948s`，`last 24.7018 -> 23.7132s`
+    - 相比 `C99`，也明显更差
+  - 修改原因:
+    - `C100` 只有极小幅末评提升，因此需要再复核一次，确认 `upd4 + ent3e3` 是否真的处在可持续爬升盆地
+  - 预期效果:
+    - 如果上一轮的小幅提升不是噪声，这轮至少应继续保持 `24.7s` 附近的平台
+  - 实际效果:
+    - 这轮全程 clean，但 unsupported duration 显著回落
+    - 末评虽仍是本轮最好点，但整个平台已经下移到 `23s` 档
+  - 失败模式分析:
+    - `upd4 + ent3e3` 的 continuation 线已经被证伪: 它可以偶发性末评回升，但不能稳定维持 `24.7s+`
+    - 退化仍然不是脏接触，而是 clean-contact 前提下的 post-release retention 整体走弱
+  - 下一轮建议:
+    - 终止这条纯 continuation 线，不再机械续训
+    - 回到当前最强且最干净的 `C97` checkpoint
+    - 只改一个新的训练变量: `num_updates_per_batch: 4 -> 3`，测试更少的同批次更新能否进一步抑制后段漂移
+
+- C102: fewer PPO updates from the `C97` best checkpoint
+  - 改动:
+    - 不改环境代码，保持 `C97` 的 DR 环境定义不变
+    - 继续使用 `domain_randomization=True`
+    - 保持 `learning_rate=1e-4`
+    - 保持 `entropy_cost=0.005`
+    - 仅把训练超参 `num_updates_per_batch: 4 -> 3`
+  - 训练:
+    - env: `AeroCubeGraspV2ForceCapsuleBottlePalmQbr`
+    - restore: `C97 000002211840`
+    - run: `logs/AeroCubeGraspV2ForceCapsuleBottlePalmQbr-20260427-141128-C102_long_dr_lr1e4_upd3_ent5e3_from_C97best_relmax2p45_postgrasp135_triad18_force72_capsule_bottlepalm_2048`
+    - `2097152 timesteps`, `4 evals`, `2048 envs`
+    - `learning_rate=1e-4`, `num_updates_per_batch=3`, `entropy_cost=0.005`, `domain_randomization=True`
+  - smoke test:
+    - 未改代码，本轮无额外 smoke test
+  - metrics.csv:
+    - `first = 24.6526s`
+    - `last = 24.6792s`
+    - `max = 24.6792s`
+    - `best_step = 2211840`
+  - 中间趋势:
+    - `24.6526 -> 23.0944 -> 24.4206 -> 24.6792s`
+  - 接触形态:
+    - `palm_contact: 0.0000 -> 0.0000 -> 0.0000 -> 0.0000`
+    - `nonprimary_contact: 0.0000 -> 0.0000 -> 0.0000 -> 0.0000`
+    - `non_tip_primary_contact: 0.0000 -> 0.0000 -> 0.0000 -> 0.0000`
+    - `drop: 0.0000 -> 0.0000 -> 0.0000 -> 0.0000`
+    - `slip_event: 0.0000 -> 0.0000 -> 0.0000 -> 0.0000`
+  - 组件统计:
+    - `post_release_grasp: 19511.33 -> 19181.22 -> 19244.16 -> 19306.94`
+    - `post_release_pose_hold: 35580.58 -> 34664.51 -> 35473.36 -> 35666.74`
+    - `post_release_survival: 73538.34 -> 71764.73 -> 73402.34 -> 73977.95`
+    - `post_release_slip: -274.64 -> -264.58 -> -264.98 -> -256.72`
+  - 与前序对比:
+    - 相比 `C101`，`last 23.7132 -> 24.6792s`，明显回升
+    - 相比 `C97`，仍低于 `last 25.2655s`
+    - 但相比 `C98` / `C99` / `C100`，这轮在 `ent=0.005` 下表现出了和 `ent=0.003` 类似的“末评回补”特征
+  - 修改原因:
+    - `upd4 + ent3e3` continuation 已被证伪，因此回到 `C97` 的干净高点，只测试更少的同批次更新是否能减少后段漂移
+  - 预期效果:
+    - 如果 DR 下的退化部分来自单批次过拟合，`upd3` 应在保持 clean-contact 的前提下，让后段 retention 比 `upd4` 更容易回到末评
+  - 实际效果:
+    - 这轮二评仍明显回落，但三四评重新爬回 `24.4s` 和 `24.68s`
+    - 说明 `upd3` 至少没有把后段学坏，且存在可继续验证的恢复轨迹
+  - 失败模式分析:
+    - 当前还没有超过 `C97`，说明只减少到 `upd3` 还不足以完全解决 DR 下的 retention 平台
+    - 但它比 `C101` 那种整段下移干净得多，也比很多纯 continuation 负样本更像可继续探索的稳定线
+  - 下一轮建议:
+    - 直接从 `C102` 的最佳 checkpoint `2211840` 做同配置 continuation
+    - 如果尾评继续抬升，就保留 `upd3` 主线继续验证；如果再次显著回落，再考虑在 `upd3` 基础上做下一层单变量
+
+- C103: same-config continuation from the `C102` best checkpoint
+  - 改动:
+    - 不改环境代码，保持 `C102` 的 DR 环境定义不变
+    - 继续使用 `domain_randomization=True`
+    - 保持 `learning_rate=1e-4`
+    - 保持 `num_updates_per_batch=3`
+    - 保持 `entropy_cost=0.005`
+  - 训练:
+    - env: `AeroCubeGraspV2ForceCapsuleBottlePalmQbr`
+    - restore: `C102 000002211840`
+    - run: `logs/AeroCubeGraspV2ForceCapsuleBottlePalmQbr-20260427-141958-C103_long_dr_lr1e4_upd3_ent5e3_from_C102best_relmax2p45_postgrasp135_triad18_force72_capsule_bottlepalm_2048`
+    - `2097152 timesteps`, `4 evals`, `2048 envs`
+    - `learning_rate=1e-4`, `num_updates_per_batch=3`, `entropy_cost=0.005`, `domain_randomization=True`
+  - smoke test:
+    - 未改代码，本轮无额外 smoke test
+  - metrics.csv:
+    - `first = 24.8554s`
+    - `last = 24.9155s`
+    - `max = 24.9155s`
+    - `best_step = 2211840`
+  - 中间趋势:
+    - `24.8554 -> 23.5081 -> 23.9335 -> 24.9155s`
+  - 接触形态:
+    - `palm_contact: 0.0000 -> 0.0000 -> 0.0000 -> 0.0000`
+    - `nonprimary_contact: 0.0000 -> 0.0000 -> 0.0000 -> 0.0000`
+    - `non_tip_primary_contact: 0.0000 -> 0.2109 -> 0.0000 -> 0.0000`
+    - `drop: 0.0000 -> 0.0000 -> 0.0000 -> 0.0000`
+    - `slip_event: 0.0000 -> 0.0000 -> 0.0000 -> 0.0000`
+  - 组件统计:
+    - `post_release_grasp: 19156.66 -> 19229.54 -> 19179.29 -> 19439.20`
+    - `post_release_pose_hold: 35759.33 -> 34926.56 -> 35241.91 -> 35858.29`
+    - `post_release_survival: 74349.90 -> 72521.95 -> 73126.62 -> 74600.66`
+    - `post_release_slip: -256.18 -> -257.35 -> -247.68 -> -240.19`
+  - 与前序对比:
+    - 相比 `C102`，`last 24.6792 -> 24.9155s`
+    - 仍低于 `C97` 的 `25.2655s`，但差距继续缩小
+  - 修改原因:
+    - `C102` 已经表现出 clean 且末评回补的恢复轨迹，因此继续验证 `upd3` 是否真的比 `upd4` 更适合作为 DR continuation 主线
+  - 预期效果:
+    - 如果 `upd3` 主线成立，这轮应继续把最佳点保在末评，并进一步缩小与 `C97` 的差距
+  - 实际效果:
+    - 这轮满足了两个条件: `best_step` 仍在末评，`last` 继续上升
+    - 中间第二评出现轻微 `non_tip_primary_contact` 脏点，但后三评已恢复干净，且没有转化成更差的尾评
+  - 失败模式分析:
+    - 当前的主要问题仍是二评附近的 retention 下坠，而不是持续性脏接触
+    - `upd3` 主线比 `upd4` continuation 更有希望，但恢复速度仍偏慢
+  - 下一轮建议:
+    - 继续从 `C103` 的最佳 checkpoint `2211840` 做同配置 continuation
+    - 如果尾评还能继续抬升，就保留这条线再冲几轮；如果再次出现明显平台或脏接触，再切下一个单变量
+
+- C104: mild plateau on the `upd3` continuation line
+  - 改动:
+    - 不改环境代码，保持 `C103` 的 DR 环境定义不变
+    - 继续使用 `domain_randomization=True`
+    - 保持 `learning_rate=1e-4`
+    - 保持 `num_updates_per_batch=3`
+    - 保持 `entropy_cost=0.005`
+  - 训练:
+    - env: `AeroCubeGraspV2ForceCapsuleBottlePalmQbr`
+    - restore: `C103 000002211840`
+    - run: `logs/AeroCubeGraspV2ForceCapsuleBottlePalmQbr-20260427-142855-C104_long_dr_lr1e4_upd3_ent5e3_from_C103best_relmax2p45_postgrasp135_triad18_force72_capsule_bottlepalm_2048`
+    - `2097152 timesteps`, `4 evals`, `2048 envs`
+    - `learning_rate=1e-4`, `num_updates_per_batch=3`, `entropy_cost=0.005`, `domain_randomization=True`
+  - smoke test:
+    - 未改代码，本轮无额外 smoke test
+  - metrics.csv:
+    - `first = 24.5015s`
+    - `last = 24.4573s`
+    - `max = 24.5015s`
+    - `best_step = 0`
+  - 中间趋势:
+    - `24.5015 -> 23.8718 -> 23.7628 -> 24.4573s`
+  - 接触形态:
+    - `palm_contact: 0.0000 -> 0.0000 -> 0.0000 -> 0.0000`
+    - `nonprimary_contact: 0.0000 -> 0.0000 -> 0.0000 -> 0.0000`
+    - `non_tip_primary_contact: 0.0000 -> 0.0000 -> 0.0000 -> 0.0000`
+    - `drop: 0.0000 -> 0.0000 -> 0.0000 -> 0.0000`
+    - `slip_event: 0.0000 -> 0.0000 -> 0.0000 -> 0.0000`
+  - 组件统计:
+    - `post_release_grasp: 19286.67 -> 19149.58 -> 19186.04 -> 19519.13`
+    - `post_release_pose_hold: 35596.00 -> 35240.21 -> 35199.25 -> 35623.85`
+    - `post_release_survival: 74203.50 -> 73378.51 -> 73050.66 -> 74277.34`
+    - `post_release_slip: -241.22 -> -236.54 -> -226.29 -> -221.38`
+  - 与前序对比:
+    - 相比 `C103`，`last 24.9155 -> 24.4573s`
+    - 相比 `C102`，也没有形成进一步抬升
+  - 修改原因:
+    - `C103` 让 `upd3` 线继续变好，因此需要确认这条线能否持续抬升，而不是单次好运
+  - 预期效果:
+    - 如果 `upd3` 真是新的稳定主线，这轮应至少保住 `24.9s` 左右的平台
+  - 实际效果:
+    - 这轮全程 clean，但尾评没有继续抬升，反而小幅回落
+    - 说明 `upd3 + ent5e3` 已经出现平台信号
+  - 失败模式分析:
+    - 当前不是接触污染问题，而是 clean retention 平台又一次卡住
+    - 继续原样续训的边际收益已经不足，因此下一轮不该机械 continuation
+  - 下一轮建议:
+    - 保留 `upd3` 为当前较优 continuation 骨架
+    - 只改一个新的训练变量: 在 `upd3` 基础上把 `entropy_cost: 0.005 -> 0.003`
+    - 目标是看看更低探索噪声能否把 `upd3` 这条线从 `24.4~24.9s` 平台再往上推
+
+- C105: lower-entropy test on top of `upd3`
+  - 改动:
+    - 不改环境代码，保持 `C103` 的 DR 环境定义不变
+    - 继续使用 `domain_randomization=True`
+    - 保持 `learning_rate=1e-4`
+    - 保持 `num_updates_per_batch=3`
+    - 仅把训练超参 `entropy_cost: 0.005 -> 0.003`
+  - 训练:
+    - env: `AeroCubeGraspV2ForceCapsuleBottlePalmQbr`
+    - restore: `C103 000002211840`
+    - run: `logs/AeroCubeGraspV2ForceCapsuleBottlePalmQbr-20260427-164048-C105_long_dr_lr1e4_upd3_ent3e3_from_C103best_relmax2p45_postgrasp135_triad18_force72_capsule_bottlepalm_2048`
+    - `2097152 timesteps`, `4 evals`, `2048 envs`
+    - `learning_rate=1e-4`, `num_updates_per_batch=3`, `entropy_cost=0.003`, `domain_randomization=True`
+  - smoke test:
+    - 未改代码，本轮无额外 smoke test
+  - metrics.csv:
+    - `first = 24.4714s`
+    - `last = 23.4718s`
+    - `max = 24.4714s`
+    - `best_step = 0`
+  - 中间趋势:
+    - `24.4714 -> 24.0464 -> 23.5659 -> 23.4718s`
+  - 接触形态:
+    - `palm_contact: 0.0000 -> 0.0000 -> 0.0000 -> 0.0000`
+    - `nonprimary_contact: 0.0000 -> 0.0000 -> 0.0000 -> 0.0000`
+    - `non_tip_primary_contact: 0.0000 -> 0.0000 -> 0.0000 -> 0.0000`
+    - `drop: 0.0000 -> 0.0000 -> 0.0000 -> 0.0000`
+    - `slip_event: 0.0000 -> 0.0000 -> 0.0000 -> 0.0000`
+  - 组件统计:
+    - `post_release_grasp: 19215.24 -> 19313.09 -> 19291.95 -> 19803.09`
+    - `post_release_pose_hold: 35584.99 -> 35341.27 -> 35061.48 -> 35015.45`
+    - `post_release_survival: 74152.42 -> 73647.50 -> 72806.91 -> 73029.73`
+    - `post_release_slip: -241.26 -> -231.61 -> -221.55 -> -215.01`
+  - 与前序对比:
+    - 相比 `C104`，`last 24.4573 -> 23.4718s`
+    - 相比 `C103`，`last 24.9155 -> 23.4718s`
+  - 修改原因:
+    - `C104` 出现 `upd3 + ent5e3` 平台后，需要测试更低探索噪声是否能进一步稳定后段 retention
+  - 预期效果:
+    - 如果平台主要由探索噪声驱动，这轮应至少保住 `24.4s` 左右的平台，并减少二三评下滑
+  - 实际效果:
+    - 这轮从首评开始一路下滑，末评跌到 `23.4718s`
+    - 虽然接触仍然干净，但 retention 被明显削弱
+  - 失败模式分析:
+    - 在 `upd3` 主线上继续降熵是负样本；问题不是脏接触，而是策略在更低探索下失去足够的 post-release 维持能力
+    - 当前应保留 `upd3 + ent5e3`，不要把 `ent3e3` 留作主线
+  - 下一轮建议:
+    - 回到 `C103` 这个当前更强的 `upd3 + ent5e3` checkpoint
+    - 只改一个新的训练变量: 轻降学习率，例如 `1e-4 -> 7.5e-5`
+    - 目标是减少 clean 骨架在 continuation 中被后续更新磨损的幅度
+
+- C106: lower-learning-rate continuation on the `upd3` line
+  - 改动:
+    - 不改环境代码，保持 `C103` 的 DR 环境定义不变
+    - 继续使用 `domain_randomization=True`
+    - 保持 `num_updates_per_batch=3`
+    - 保持 `entropy_cost=0.005`
+    - 仅把训练超参 `learning_rate: 1e-4 -> 7.5e-5`
+  - 训练:
+    - env: `AeroCubeGraspV2ForceCapsuleBottlePalmQbr`
+    - restore: `C103 000002211840`
+    - run: `logs/AeroCubeGraspV2ForceCapsuleBottlePalmQbr-20260427-164913-C106_long_dr_lr7p5e5_upd3_ent5e3_from_C103best_relmax2p45_postgrasp135_triad18_force72_capsule_bottlepalm_2048`
+    - `2097152 timesteps`, `4 evals`, `2048 envs`
+    - `learning_rate=7.5e-5`, `num_updates_per_batch=3`, `entropy_cost=0.005`, `domain_randomization=True`
+  - smoke test:
+    - 未改代码，本轮无额外 smoke test
+  - metrics.csv:
+    - `first = 24.8476s`
+    - `last = 25.0604s`
+    - `max = 25.0604s`
+    - `best_step = 2211840`
+  - 中间趋势:
+    - `24.8476 -> 23.7464 -> 23.6116 -> 25.0604s`
+  - 接触形态:
+    - `palm_contact: 0.0000 -> 0.0000 -> 0.0000 -> 0.0000`
+    - `nonprimary_contact: 0.0000 -> 0.0000 -> 0.0000 -> 0.0000`
+    - `non_tip_primary_contact: 0.0000 -> 0.0000 -> 0.0000 -> 0.0000`
+    - `drop: 0.0000 -> 0.0000 -> 0.0000 -> 0.0000`
+    - `slip_event: 0.0000 -> 0.0000 -> 0.0000 -> 0.0000`
+  - 组件统计:
+    - `post_release_grasp: 19290.94 -> 19185.75 -> 19165.79 -> 19619.08`
+    - `post_release_pose_hold: 35807.62 -> 35156.92 -> 35107.67 -> 35987.88`
+    - `post_release_survival: 74680.44 -> 73181.19 -> 72910.77 -> 75009.77`
+    - `post_release_slip: -240.75 -> -238.27 -> -236.40 -> -235.54`
+  - 与前序对比:
+    - 相比 `C105`，`last 23.4718 -> 25.0604s`
+    - 相比 `C104`，`last 24.4573 -> 25.0604s`
+    - 相比 `C103`，`last 24.9155 -> 25.0604s`
+    - 与当前最强 `C97 last = 25.2655s` 的差距缩小到约 `0.2051s`
+  - 修改原因:
+    - `upd3 + ent5e3` 已经是更好的 continuation 骨架，但平台在 `24.4~24.9s` 一带；轻降学习率用于减少后续更新对 clean post-release 骨架的磨损
+  - 预期效果:
+    - 如果问题主要来自 continuation 更新过猛，这轮应在保持 clean-contact 的同时把尾评重新推高
+  - 实际效果:
+    - 这是目前 `upd3` 线上最强的一轮，且末评明显抬升到 `25.0604s`
+    - 中段仍有下坠，但末评恢复强于 `C103`，说明更低学习率确实减轻了后段骨架磨损
+  - 失败模式分析:
+    - 当前主问题已经收缩到“如何把二三评的中段下坠再抬高”，而不是整体接触形态或尾评完全崩掉
+    - 这条 `lr7.5e-5 + upd3 + ent5e3` 线值得继续作为新的 DR continuation 主线
+  - 下一轮建议:
+    - 直接从 `C106` 的最佳 checkpoint `2211840` 做同配置 continuation
+    - 如果尾评继续抬升并越过 `25.2655s`，就把这条线升级为当前 DR 最强主线；若再次回落，再改下一层单变量
+
+- C107: continuation check on the `lr7.5e-5 + upd3` mainline
+  - 改动:
+    - 不改环境代码，保持 `C106` 的 DR 环境定义不变
+    - 继续使用 `domain_randomization=True`
+    - 保持 `learning_rate=7.5e-5`
+    - 保持 `num_updates_per_batch=3`
+    - 保持 `entropy_cost=0.005`
+  - 训练:
+    - env: `AeroCubeGraspV2ForceCapsuleBottlePalmQbr`
+    - restore: `C106 000002211840`
+    - run: `logs/AeroCubeGraspV2ForceCapsuleBottlePalmQbr-20260427-165741-C107_long_dr_lr7p5e5_upd3_ent5e3_from_C106best_relmax2p45_postgrasp135_triad18_force72_capsule_bottlepalm_2048`
+    - `2097152 timesteps`, `4 evals`, `2048 envs`
+    - `learning_rate=7.5e-5`, `num_updates_per_batch=3`, `entropy_cost=0.005`, `domain_randomization=True`
+  - smoke test:
+    - 未改代码，本轮无额外 smoke test
+  - metrics.csv:
+    - `first = 24.4476s`
+    - `last = 24.8374s`
+    - `max = 24.8374s`
+    - `best_step = 2211840`
+  - 中间趋势:
+    - `24.4476 -> 23.4542 -> 22.9956 -> 24.8374s`
+  - 接触形态:
+    - `palm_contact: 0.0000 -> 0.0000 -> 0.0000 -> 0.0000`
+    - `nonprimary_contact: 0.0000 -> 0.0000 -> 0.0000 -> 0.0000`
+    - `non_tip_primary_contact: 0.0000 -> 0.0000 -> 0.0000 -> 0.0000`
+    - `drop: 0.0000 -> 0.0000 -> 0.0000 -> 0.0000`
+    - `slip_event: 0.0000 -> 0.0000 -> 0.0000 -> 0.0000`
+  - 组件统计:
+    - `post_release_grasp: 19430.83 -> 19261.54 -> 19430.09 -> 19752.18`
+    - `post_release_pose_hold: 35610.92 -> 35019.51 -> 34760.01 -> 35865.13`
+    - `post_release_survival: 74424.33 -> 73036.06 -> 72152.48 -> 74727.80`
+    - `post_release_slip: -227.04 -> -221.96 -> -213.12 -> -215.25`
+  - 与前序对比:
+    - 相比 `C106`，`last 25.0604 -> 24.8374s`
+    - 仍然明显高于 `C105` 和 `C104`，但没有继续逼近 `C97`
+  - 修改原因:
+    - `C106` 已经成为新的 `upd3` 主线，需要确认它是不是可持续上升的盆地，而不是一次性尾评恢复
+  - 预期效果:
+    - 如果 `C106` 真处于稳定上升区，这轮应继续把尾评推到 `25.06s` 以上
+  - 实际效果:
+    - 这轮仍然保持 clean-contact，并且末评是本轮最好点
+    - 但整体比 `C106` 略差，说明同配置 continuation 还不够稳定
+  - 失败模式分析:
+    - `lr7.5e-5 + upd3 + ent5e3` 是当前最好 continuation 骨架之一，但仍有“二三评下坠过深”的问题
+    - 下一轮不该机械重复同配置，而应继续做一个更小的训练侧稳定化改动
+  - 下一轮建议:
+    - 保留 `C106` 为当前更强参考点
+    - 只改一个变量：`num_updates_per_batch: 3 -> 2`
+    - 目标是进一步减少同批次过拟合，看看能否把二三评的下坠再压浅，同时保住高尾评
+
+- C108: fewer PPO updates from the `C106` best checkpoint
+  - 改动:
+    - 不改环境代码，保持 `C106` 的 DR 环境定义不变
+    - 继续使用 `domain_randomization=True`
+    - 保持 `learning_rate=7.5e-5`
+    - 保持 `entropy_cost=0.005`
+    - 仅把训练超参 `num_updates_per_batch: 3 -> 2`
+  - 训练:
+    - env: `AeroCubeGraspV2ForceCapsuleBottlePalmQbr`
+    - restore: `C106 000002211840`
+    - run: `logs/AeroCubeGraspV2ForceCapsuleBottlePalmQbr-20260427-170633-C108_long_dr_lr7p5e5_upd2_ent5e3_from_C106best_relmax2p45_postgrasp135_triad18_force72_capsule_bottlepalm_2048`
+    - `2097152 timesteps`, `4 evals`, `2048 envs`
+    - `learning_rate=7.5e-5`, `num_updates_per_batch=2`, `entropy_cost=0.005`, `domain_randomization=True`
+  - smoke test:
+    - 未改代码，本轮无额外 smoke test
+  - metrics.csv:
+    - `first = 24.1722s`
+    - `last = 24.1390s`
+    - `max = 24.1722s`
+    - `best_step = 0`
+  - 中间趋势:
+    - `24.1722 -> 23.4261 -> 22.9859 -> 24.1390s`
+  - 接触形态:
+    - `palm_contact: 0.0000 -> 0.0000 -> 0.0000 -> 0.2109`
+    - `nonprimary_contact: 0.0000 -> 0.0000 -> 0.0000 -> 0.0781`
+    - `non_tip_primary_contact: 0.0000 -> 0.0000 -> 0.0000 -> 0.0000`
+    - `drop: 0.0000 -> 0.0000 -> 0.0000 -> 0.0000`
+    - `slip_event: 0.0000 -> 0.0000 -> 0.0000 -> 0.0000`
+  - 组件统计:
+    - `post_release_grasp: 19408.28 -> 19310.63 -> 19335.10 -> 19679.82`
+    - `post_release_pose_hold: 35446.04 -> 35003.16 -> 34751.24 -> 35445.06`
+    - `post_release_survival: 74057.02 -> 72927.39 -> 72086.06 -> 73852.75`
+    - `post_release_slip: -225.51 -> -225.68 -> -218.75 -> -222.72`
+  - 与前序对比:
+    - 相比 `C106`，`last 25.0604 -> 24.1390s`
+    - 相比 `C107`，`last 24.8374 -> 24.1390s`
+    - 且末评首次出现轻度 dirty contact
+  - 修改原因:
+    - `C106/C107` 的主要问题是二三评下坠偏深，因此测试更少的同批次更新是否能减轻过拟合并保住 clean-contact 骨架
+  - 预期效果:
+    - 如果 `upd3` 的问题主要来自每批更新过多，这轮应抬高中段 retention，至少不低于 `C107`
+  - 实际效果:
+    - unsupported duration 全程低于 `C106` 和 `C107`
+    - 末评没有追回首评，而且在 final eval 出现了 `palm_contact` 与 `nonprimary_contact`
+  - 失败模式分析:
+    - `upd2` 不是当前 DR 主线需要的稳定化方向；它既没抬高 retention，也让接触形态开始变脏
+    - 当前更像是更新强度被削弱后，策略没能维持原先的 clean 三指骨架
+  - 下一轮建议:
+    - 回到 `C106` 最佳 checkpoint 继续，而不是从 `C108` 续训
+    - 只改一个新的训练变量，优先轻降 `learning_rate`
+    - 目标是保留 `upd3 + ent5e3` 的 clean 骨架，同时减少 continuation 对尾评的磨损
+
+- C109: lower-learning-rate interpolation from the `C106` best checkpoint
+  - 改动:
+    - 不改环境代码，保持 `C106` 的 DR 环境定义不变
+    - 继续使用 `domain_randomization=True`
+    - 保持 `num_updates_per_batch=3`
+    - 保持 `entropy_cost=0.005`
+    - 仅把训练超参 `learning_rate: 7.5e-5 -> 6e-5`
+  - 训练:
+    - env: `AeroCubeGraspV2ForceCapsuleBottlePalmQbr`
+    - restore: `C106 000002211840`
+    - run: `logs/AeroCubeGraspV2ForceCapsuleBottlePalmQbr-20260427-172232-C109_long_dr_lr6e5_upd3_ent5e3_from_C106best_relmax2p45_postgrasp135_triad18_force72_capsule_bottlepalm_2048`
+    - `2097152 timesteps`, `4 evals`, `2048 envs`
+    - `learning_rate=6e-5`, `num_updates_per_batch=3`, `entropy_cost=0.005`, `domain_randomization=True`
+  - smoke test:
+    - 未改代码，本轮无额外 smoke test
+  - metrics.csv:
+    - `first = 24.0151s`
+    - `last = 24.6698s`
+    - `max = 24.6698s`
+    - `best_step = 2949120`
+  - 中间趋势:
+    - `24.0151 -> 23.2659 -> 23.3636 -> 24.6698s`
+  - 接触形态:
+    - `palm_contact: 0.0000 -> 0.0000 -> 0.0000 -> 0.0000`
+    - `nonprimary_contact: 0.0000 -> 0.0000 -> 0.0000 -> 0.0000`
+    - `non_tip_primary_contact: 0.0000 -> 0.0000 -> 0.0000 -> 0.0000`
+    - `drop: 0.0000 -> 0.0000 -> 0.0000 -> 0.0000`
+    - `slip_event: 0.0000 -> 0.0000 -> 0.0000 -> 0.0000`
+  - 组件统计:
+    - `post_release_grasp: 19434.43 -> 19311.35 -> 19417.22 -> 19686.62`
+    - `post_release_pose_hold: 35354.40 -> 34928.50 -> 34975.55 -> 35756.33`
+    - `post_release_survival: 73879.02 -> 72882.59 -> 72683.02 -> 74528.43`
+    - `post_release_slip: -224.46 -> -224.32 -> -220.88 -> -224.56`
+  - 与前序对比:
+    - 相比 `C108`，`last 24.1390 -> 24.6698s`
+    - 相比 `C107`，`last 24.8374 -> 24.6698s`
+    - 相比 `C106`，`last 25.0604 -> 24.6698s`
+  - 修改原因:
+    - `C108` 说明把 `upd3` 再降到 `upd2` 会同时伤害 retention 和接触形态，因此回到 `C106`，仅进一步降低学习率，测试更温和的 continuation 是否能少磨损 clean 骨架
+  - 预期效果:
+    - 如果 `C107` 的回落主要是更新幅度略大，这轮应在保持 clean-contact 的同时把尾评重新拉回 `24.8~25.0s`
+  - 实际效果:
+    - 这轮全程 clean，且尾评明显高于首评，说明更低学习率确实让后段恢复能力还在
+    - 但二三评下坠仍然存在，最终仍低于 `C107` 和 `C106`
+  - 失败模式分析:
+    - `lr=6e-5` 没有把主线带回 `C106` 平台，说明当前问题不是单纯“把学习率越降越好”
+    - 更像是 `7.5e-5` 附近存在更合适的更新强度窗口，而 `6e-5` 已经开始偏保守
+  - 下一轮建议:
+    - 继续从 `C106` 最佳 checkpoint 出发，不从 `C109` 续训
+    - 只改一个变量：在 `7.5e-5` 与 `6e-5` 之间做更窄的学习率插值，例如 `7e-5`
+    - 目标是保住 `C106` 的高平台，同时减轻 `C107` 式的中段回落
+
+- C110: narrower learning-rate interpolation from the `C106` best checkpoint
+  - 改动:
+    - 不改环境代码，保持 `C106` 的 DR 环境定义不变
+    - 继续使用 `domain_randomization=True`
+    - 保持 `num_updates_per_batch=3`
+    - 保持 `entropy_cost=0.005`
+    - 仅把训练超参 `learning_rate: 7.5e-5 -> 7e-5`
+  - 训练:
+    - env: `AeroCubeGraspV2ForceCapsuleBottlePalmQbr`
+    - restore: `C106 000002211840`
+    - run: `logs/AeroCubeGraspV2ForceCapsuleBottlePalmQbr-20260427-173359-C110_long_dr_lr7e5_upd3_ent5e3_from_C106best_relmax2p45_postgrasp135_triad18_force72_capsule_bottlepalm_2048`
+    - `2097152 timesteps`, `4 evals`, `2048 envs`
+    - `learning_rate=7e-5`, `num_updates_per_batch=3`, `entropy_cost=0.005`, `domain_randomization=True`
+  - smoke test:
+    - 未改代码，本轮无额外 smoke test
+  - metrics.csv:
+    - `first = 24.2534s`
+    - `last = 24.8628s`
+    - `max = 24.8628s`
+    - `best_step = 2949120`
+  - 中间趋势:
+    - `24.2534 -> 23.6374 -> 23.7616 -> 24.8628s`
+  - 接触形态:
+    - `palm_contact: 0.0000 -> 0.0000 -> 0.0000 -> 0.0000`
+    - `nonprimary_contact: 0.0000 -> 0.0000 -> 0.0000 -> 0.0000`
+    - `non_tip_primary_contact: 0.0000 -> 0.0000 -> 0.0000 -> 0.0000`
+    - `drop: 0.0000 -> 0.0000 -> 0.0000 -> 0.0000`
+    - `slip_event: 0.0000 -> 0.0000 -> 0.0000 -> 0.0000`
+  - 组件统计:
+    - `post_release_grasp: 19363.38 -> 19349.14 -> 19452.98 -> 19749.46`
+    - `post_release_pose_hold: 35493.26 -> 35142.95 -> 35209.19 -> 35864.37`
+    - `post_release_survival: 74233.93 -> 73316.12 -> 73182.56 -> 74761.77`
+    - `post_release_slip: -225.28 -> -222.70 -> -219.53 -> -219.48`
+  - 与前序对比:
+    - 相比 `C109`，`last 24.6698 -> 24.8628s`
+    - 相比 `C107`，`last 24.8374 -> 24.8628s`
+    - 相比 `C106`，`last 25.0604 -> 24.8628s`
+  - 修改原因:
+    - `C109` 说明 `6e-5` 偏保守但方向还对，因此把学习率抬回 `7e-5`，测试是否能靠近 `C106` 的最佳更新强度窗口
+  - 预期效果:
+    - 如果最优窗口确实在 `6e-5` 与 `7.5e-5` 之间，这轮应优于 `C109`，并尽量追平 `C107/C106`
+  - 实际效果:
+    - 这轮比 `C109` 更好，也略高于 `C107`，且全程保持 clean-contact
+    - 但中段下坠仍未消失，最终仍差 `C106` 约 `0.1976s`
+  - 失败模式分析:
+    - 当前主线的关键问题已经收缩成“如何在保持 clean 三指骨架的同时，再把中段 retention 抬高一小截”
+    - 学习率插值是有效的，但还没有把系统推回 `C106` 的最好点
+  - 下一轮建议:
+    - 继续从 `C106` 最佳 checkpoint 出发，不从 `C110` 续训
+    - 只改一个变量：继续向 `7.5e-5` 靠半步，例如 `7.25e-5`
+    - 目标是验证 `C106` 是否就是局部最优，还是还有一个更平滑的近邻窗口
+
+- C111: fine learning-rate interpolation from the `C106` best checkpoint
+  - 改动:
+    - 不改环境代码，保持 `C106` 的 DR 环境定义不变
+    - 继续使用 `domain_randomization=True`
+    - 保持 `num_updates_per_batch=3`
+    - 保持 `entropy_cost=0.005`
+    - 仅把训练超参 `learning_rate: 7e-5 -> 7.25e-5`
+  - 训练:
+    - env: `AeroCubeGraspV2ForceCapsuleBottlePalmQbr`
+    - restore: `C106 000002211840`
+    - run: `logs/AeroCubeGraspV2ForceCapsuleBottlePalmQbr-20260427-174457-C111_long_dr_lr7p25e5_upd3_ent5e3_from_C106best_relmax2p45_postgrasp135_triad18_force72_capsule_bottlepalm_2048`
+    - `2097152 timesteps`, `4 evals`, `2048 envs`
+    - `learning_rate=7.25e-5`, `num_updates_per_batch=3`, `entropy_cost=0.005`, `domain_randomization=True`
+  - smoke test:
+    - 未改代码，本轮无额外 smoke test
+  - metrics.csv:
+    - `first = 23.9425s`
+    - `last = 25.0253s`
+    - `max = 25.0253s`
+    - `best_step = 2949120`
+  - 中间趋势:
+    - `23.9425 -> 23.7589 -> 23.3292 -> 25.0253s`
+  - 接触形态:
+    - `palm_contact: 0.0000 -> 0.0000 -> 0.0000 -> 0.0000`
+    - `nonprimary_contact: 0.0000 -> 0.0000 -> 0.0000 -> 0.0000`
+    - `non_tip_primary_contact: 0.0000 -> 0.0000 -> 0.0000 -> 0.0000`
+    - `drop: 0.0000 -> 0.0000 -> 0.0000 -> 0.0000`
+    - `slip_event: 0.0000 -> 0.0000 -> 0.0000 -> 0.0000`
+  - 组件统计:
+    - `post_release_grasp: 19396.52 -> 19339.71 -> 19408.36 -> 19675.64`
+    - `post_release_pose_hold: 35310.25 -> 35219.47 -> 34951.09 -> 35965.53`
+    - `post_release_survival: 73785.91 -> 73511.27 -> 72578.59 -> 74980.12`
+    - `post_release_slip: -227.90 -> -223.99 -> -218.31 -> -220.52`
+  - 与前序对比:
+    - 相比 `C110`，`last 24.8628 -> 25.0253s`
+    - 相比 `C109`，`last 24.6698 -> 25.0253s`
+    - 相比 `C106`，`last 25.0604 -> 25.0253s`
+  - 修改原因:
+    - `C110` 已经证明把学习率拉回 `7e-5` 附近是正方向，因此继续做更窄的插值，验证 `C106` 左侧是否存在几乎等价但更平滑的窗口
+  - 预期效果:
+    - 如果 `C106` 不是孤立好运点，这轮应进一步逼近甚至追平 `25.06s`
+  - 实际效果:
+    - 这轮已经把尾评拉到 `25.0253s`，几乎追平 `C106`
+    - 全程依旧 clean，说明 `7.25e-5` 是当前最接近 `C106` 的可复现近邻窗口之一
+  - 失败模式分析:
+    - 尽管尾评几乎追回来，但第二、三评仍有回落，说明平台问题还没真正解决
+    - 当前最可能的局部最优区间已经收缩到 `7.25e-5 ~ 7.5e-5`
+  - 下一轮建议:
+    - 继续从 `C106` 最佳 checkpoint 出发，不从 `C111` 续训
+    - 只改一个变量：再做最后一档更细插值，例如 `7.375e-5`
+    - 如果仍然不超过 `C106`，就停止继续扫 learning_rate，改测另一个训练侧稳定化变量
+
+- C112: reward-subtraction probe on `post_release_survival`
+  - 改动:
+    - 修改 [grasp_cube_v2_force.py](/home/ll/SRTP/Aero-Hand/sim_rl/mujoco_playground/mujoco_playground/_src/manipulation/aero_hand/grasp_cube_v2_force.py)
+    - 不改几何、不改 DR、不改 PPO 结构
+    - 保持 `learning_rate=7.25e-5`
+    - 保持 `num_updates_per_batch=3`
+    - 保持 `entropy_cost=0.005`
+    - 仅把 reward 项 `post_release_survival: 155.0 -> 125.0`
+    - 为确保改动真正生效，本轮训练使用 `--ignore_checkpoint_env_config=True`
+  - 训练:
+    - env: `AeroCubeGraspV2ForceCapsuleBottlePalmQbr`
+    - restore: `C106 000002211840`
+    - run: `logs/AeroCubeGraspV2ForceCapsuleBottlePalmQbr-20260427-221315-C112_long_dr_lr7p25e5_upd3_ent5e3_surv125_from_C106best_relmax2p45_postgrasp135_triad18_force72_capsule_bottlepalm_2048`
+    - `2097152 timesteps`, `4 evals`, `2048 envs`
+    - `learning_rate=7.25e-5`, `num_updates_per_batch=3`, `entropy_cost=0.005`, `domain_randomization=True`
+  - smoke test:
+    - CPU smoke 通过：`smoke_ok_cube_capsule_bottlepalm_c112_cpu`
+    - `post_release_survival_scale = 125.0`
+    - `post_release_pose_hold_scale = 60.0`
+  - metrics.csv:
+    - `first = 24.4960s`
+    - `last = 24.8491s`
+    - `max = 24.8491s`
+    - `best_step = 2949120`
+  - 中间趋势:
+    - `24.4960 -> 23.8347 -> 23.3882 -> 24.8491s`
+  - 接触形态:
+    - `palm_contact: 0.0000 -> 0.0000 -> 0.0000 -> 0.0000`
+    - `nonprimary_contact: 0.0000 -> 0.0000 -> 0.0000 -> 0.0000`
+    - `non_tip_primary_contact: 0.0000 -> 0.0000 -> 0.0000 -> 0.0000`
+    - `drop: 0.0000 -> 0.0000 -> 0.0000 -> 0.0000`
+    - `slip_event: 0.0000 -> 0.0000 -> 0.0000 -> 0.0000`
+  - 组件统计:
+    - `post_release_grasp: 19423.89 -> 19304.55 -> 19422.42 -> 19647.03`
+    - `post_release_pose_hold: 35641.97 -> 35254.67 -> 34985.60 -> 35855.14`
+    - `post_release_survival: 60092.45 -> 59271.86 -> 58553.57 -> 60223.73`
+    - `post_release_slip: -228.07 -> -224.05 -> -218.47 -> -217.84`
+  - 与前序对比:
+    - 相比 `C111`，`last 25.0253 -> 24.8491s`
+    - 相比 `C110`，`last 24.8628 -> 24.8491s`
+    - 相比 `C106`，`last 25.0604 -> 24.8491s`
+  - 修改原因:
+    - 按新的 skill 约束，learning-rate 细扫已接近见顶，必须切换改动类型
+    - 组件统计显示 `post_release_survival` 长期是最大的后释放分量之一，因此先做 reward 减法，测试它是否掩盖了更关键的 retention 学习
+  - 预期效果:
+    - 如果 broad survival shaping 过强，这轮应让策略更多依赖 `post_release_grasp / pose_hold`，从而抬高尾评或减轻中段回落
+  - 实际效果:
+    - 减法确实生效，`post_release_survival` 分量明显下降
+    - 但 `contact_duration_sec` 没有超过 `C111/C106`，而是略低
+    - 接触形态全程保持 clean，说明这是一条“干净但负向”的 reward 样本
+  - 失败模式分析:
+    - 当前主线问题不是 `post_release_survival` 单项过强掩盖一切；至少直接从 `155 -> 125` 的减法不会带来更高 retention
+    - 这轮更像是削弱了后释放稳定支撑，却没有补出更强的主动 grasp-retention
+  - 下一轮建议:
+    - 回到 `C111` 前的主线 reward，不保留这次减法为默认主线
+    - 继续从 `C106` 最佳 checkpoint 出发，但切换到另一类单变量稳定化改动
+    - 优先考虑 PPO 侧除学习率外的单变量，例如温和的 entropy warmup / schedule，而不是继续直接减 reward
+
+- C113: PPO entropy-warmup probe on the `C111` learning-rate window
+  - 改动:
+    - 不改环境代码，不改 reward 主线
+    - 保持 `learning_rate=7.25e-5`
+    - 保持 `num_updates_per_batch=3`
+    - 保持主阶段 `entropy_cost=0.005`
+    - 新增 PPO warmup：`entropy_warmup_cost=0.006`, `entropy_warmup_ratio=0.2`
+    - 保持 `--ignore_checkpoint_env_config=True`
+  - 训练:
+    - env: `AeroCubeGraspV2ForceCapsuleBottlePalmQbr`
+    - restore: `C106 000002211840`
+    - run: `logs/AeroCubeGraspV2ForceCapsuleBottlePalmQbr-20260427-222433-C113_long_dr_lr7p25e5_upd3_entwarm6e3r02_from_C106best_relmax2p45_postgrasp135_triad18_force72_capsule_bottlepalm_2048`
+    - `2097152 timesteps`, `4 evals`, `2048 envs`
+    - `learning_rate=7.25e-5`, `num_updates_per_batch=3`, `entropy_cost=0.005`
+    - warmup stage: `419430 steps @ entropy=0.006`
+    - stage-2 restore: `.../entropy_warmup/000000983040`
+  - smoke test:
+    - CPU smoke 通过：`smoke_ok_cube_capsule_bottlepalm_c113_cpu`
+    - `post_release_survival_scale = 155.0`
+  - metrics.csv:
+    - `first = 23.3448s`
+    - `last = 24.2780s`
+    - `max = 24.2780s`
+    - `best_step = 1966080`
+  - 中间趋势:
+    - `23.3448 -> 23.4409 -> 22.8585 -> 24.2780s`
+  - 接触形态:
+    - `palm_contact: 0.0000 -> 0.0000 -> 0.0000 -> 0.0000`
+    - `nonprimary_contact: 0.0000 -> 0.0000 -> 0.0000 -> 0.0000`
+    - `non_tip_primary_contact: 0.0000 -> 0.0000 -> 0.0000 -> 0.0000`
+    - `drop: 0.0000 -> 0.0000 -> 0.0000 -> 0.0000`
+    - `slip_event: 0.0000 -> 0.0000 -> 0.0000 -> 0.0000`
+  - 组件统计:
+    - `post_release_grasp: 19426.71 -> 19429.30 -> 19473.44 -> 19748.05`
+    - `post_release_pose_hold: 34951.98 -> 35016.27 -> 34666.39 -> 35514.34`
+    - `post_release_survival: 73012.88 -> 73013.44 -> 72014.39 -> 73877.05`
+    - `post_release_slip: -221.81 -> -223.61 -> -215.72 -> -219.79`
+  - 与前序对比:
+    - 相比 `C111`，`last 25.0253 -> 24.2780s`
+    - 相比 `C112`，`last 24.8491 -> 24.2780s`
+    - 相比 `C106`，`last 25.0604 -> 24.2780s`
+  - 修改原因:
+    - learning-rate 细扫已接近平台，reward 减法又给出 clean 负样本，因此切换到 PPO 的另一类单变量
+    - 用更高的早期熵测试：是否能减轻 DR continuation 的中段陷落，再在后期切回常规熵
+  - 预期效果:
+    - 如果问题在于 continuation 初期探索不足，这轮应至少抬高中段 `contact_duration_sec`
+  - 实际效果:
+    - 全程仍然 clean，但 unsupported duration 明显弱于 `C111`
+    - warmup 没有改善中段，尾评也没有追回主线
+  - 失败模式分析:
+    - 对当前 DR 主线来说，更高的早期熵不是所缺的稳定化因素
+    - 这轮说明问题不在“探索太少”，而更像是更新动力学或 release 分布本身仍在磨损 retention
+  - 下一轮建议:
+    - 不保留 entropy warmup 作为主线
+    - 从 `C106` 最佳 checkpoint 继续，切换到新的单变量类型
+    - 优先改 release 时序分布的窄变量，而不是继续扫 PPO 熵
+
+- C114: release-window shift toward slightly later support removal
+  - 改动:
+    - 修改 [grasp_cube_v2_force.py](/home/ll/SRTP/Aero-Hand/sim_rl/mujoco_playground/mujoco_playground/_src/manipulation/aero_hand/grasp_cube_v2_force.py)
+    - 不改 reward，不改 PPO 超参数
+    - 保持 `learning_rate=7.25e-5`
+    - 保持 `num_updates_per_batch=3`
+    - 保持 `entropy_cost=0.005`
+    - 仅把 `AeroCubeGraspV2ForceCapsuleBottlePalmQbr` 的 release 分布改为：
+      - `random_release_min_sec: 1.5 -> 1.7`
+      - `random_release_max_sec: 2.45 -> 2.7`
+  - smoke test:
+    - CPU smoke 通过：`smoke_ok_cube_capsule_bottlepalm_c114b_cpu`
+    - `random_release_min_sec = 1.7`
+    - `random_release_max_sec = 2.7`
+  - 训练:
+    - env: `AeroCubeGraspV2ForceCapsuleBottlePalmQbr`
+    - restore: `C106 000002211840`
+    - run: `logs/AeroCubeGraspV2ForceCapsuleBottlePalmQbr-20260427-224358-C114_long_dr_lr7p25e5_upd3_rel17_27_from_C106best_relmax2p45_postgrasp135_triad18_force72_capsule_bottlepalm_2048`
+    - `2097152 timesteps`, `4 evals`, `2048 envs`
+    - `learning_rate=7.25e-5`, `num_updates_per_batch=3`, `entropy_cost=0.005`, `domain_randomization=True`
+  - metrics.csv:
+    - `first = 23.7718s`
+    - `last = 23.8620s`
+    - `max = 23.9972s`
+    - `best_step = 983040`
+  - 中间趋势:
+    - `23.7718 -> 23.9972 -> 23.3812 -> 23.8620s`
+  - 接触形态:
+    - `palm_contact: 0.0000 -> 0.0000 -> 0.0000 -> 0.0000`
+    - `nonprimary_contact: 0.0000 -> 0.0000 -> 0.0000 -> 0.0000`
+    - `non_tip_primary_contact: 0.0000 -> 0.0000 -> 0.0000 -> 0.0000`
+    - `drop: 0.0000 -> 0.0000 -> 0.0000 -> 0.0000`
+    - `slip_event: 0.0000 -> 0.0000 -> 0.0000 -> 0.0000`
+  - 组件统计:
+    - `post_release_grasp: 19356.01 -> 19257.71 -> 19338.96 -> 19462.68`
+    - `post_release_pose_hold: 35131.08 -> 35275.53 -> 34932.94 -> 35195.15`
+    - `post_release_survival: 73340.34 -> 73619.69 -> 72511.02 -> 73411.23`
+    - `post_release_slip: -223.51 -> -223.21 -> -219.76 -> -214.22`
+  - 与前序对比:
+    - 相比 `C113`，`last 24.2780 -> 23.8620s`
+    - 相比 `C111`，`last 25.0253 -> 23.8620s`
+    - 相比 `C106`，`last 25.0604 -> 23.8620s`
+  - 修改原因:
+    - reward 减法和 entropy warmup 都给出 clean 负样本，因此切到 release 时序这一类单变量
+    - 测试“略晚释放支撑”是否能让 release 前准备更充分，从而减轻 DR continuation 的中段掉速
+  - 预期效果:
+    - 如果问题来自 release 过早，这轮应至少抬高 `last` 或减轻二三评下坠
+  - 实际效果:
+    - 这轮全程保持 clean，但 unsupported duration 明显没有改善
+    - 最佳点出现在第二评，之后仍回落，说明单纯把 release 窗口整体往后推并没有解决 retention
+  - 失败模式分析:
+    - 当前问题不是“支撑拿走得太早”，至少不是通过 `1.5~2.45 -> 1.7~2.7s` 这档平移能解决的
+    - 这条时序线是负样本，应回退，不保留为主线
+  - 下一轮建议:
+    - 回退 release 分布到主线值
+    - 从 `C106` 最佳 checkpoint 出发，切到新的单变量
+    - 优先改与 release 相关但更聚焦的量，例如 `release_ramp_sec`
+
+- C115: faster release ramp probe after reverting the failed release-window shift
+  - 改动:
+    - 修改 [grasp_cube_v2_force.py](/home/ll/SRTP/Aero-Hand/sim_rl/mujoco_playground/mujoco_playground/_src/manipulation/aero_hand/grasp_cube_v2_force.py)
+    - 回退 `random_release_min_sec/max_sec` 到主线值 `1.5 / 2.45`
+    - 保持 reward 与 PPO 主线不变
+    - 仅把 `AeroCubeGraspV2ForceCapsuleBottlePalmQbr` 的 `release_ramp_sec: 0.5 -> 0.35`
+  - smoke test:
+    - CPU smoke 通过：`smoke_ok_cube_capsule_bottlepalm_c115b_cpu`
+    - `release_ramp_sec = 0.35`
+    - `random_release_min_sec = 1.5`
+    - `random_release_max_sec = 2.45`
+  - 训练:
+    - env: `AeroCubeGraspV2ForceCapsuleBottlePalmQbr`
+    - restore: `C106 000002211840`
+    - run: `logs/AeroCubeGraspV2ForceCapsuleBottlePalmQbr-20260427-225621-C115_long_dr_lr7p25e5_upd3_ramp035_from_C106best_relmax2p45_postgrasp135_triad18_force72_capsule_bottlepalm_2048`
+    - `2097152 timesteps`, `4 evals`, `2048 envs`
+    - `learning_rate=7.25e-5`, `num_updates_per_batch=3`, `entropy_cost=0.005`, `domain_randomization=True`
+  - metrics.csv:
+    - `first = 24.3589s`
+    - `last = 24.8284s`
+    - `max = 24.8284s`
+    - `best_step = 2949120`
+  - 中间趋势:
+    - `24.3589 -> 23.9687 -> 23.8636 -> 24.8284s`
+  - 接触形态:
+    - `palm_contact: 0.0000 -> 0.0000 -> 0.0000 -> 0.0000`
+    - `nonprimary_contact: 0.0000 -> 0.0000 -> 0.0000 -> 0.0000`
+    - `non_tip_primary_contact: 0.0000 -> 0.0000 -> 0.0000 -> 0.0000`
+    - `drop: 0.0000 -> 0.0000 -> 0.0000 -> 0.0000`
+    - `slip_event: 0.0000 -> 0.0000 -> 0.0000 -> 0.0000`
+  - 组件统计:
+    - `post_release_grasp: 19524.73 -> 19463.04 -> 19472.73 -> 19581.48`
+    - `post_release_pose_hold: 35629.36 -> 35406.20 -> 35340.44 -> 35915.60`
+    - `post_release_survival: 74496.33 -> 73885.23 -> 73457.91 -> 74847.68`
+    - `post_release_slip: -227.37 -> -224.49 -> -219.91 -> -223.41`
+  - 与前序对比:
+    - 相比 `C114`，`last 23.8620 -> 24.8284s`
+    - 相比 `C113`，`last 24.2780 -> 24.8284s`
+    - 相比 `C111`，`last 25.0253 -> 24.8284s`
+    - 相比 `C106`，`last 25.0604 -> 24.8284s`
+  - 修改原因:
+    - `C114` 证伪了“整体后移 release 窗口”，因此回退该线
+    - 保持主线学习率窗口不变，只测试更快的支撑释放是否能减少 handover 过渡期的磨损
+  - 预期效果:
+    - 如果问题在于 ramp 过长让策略在 release 过渡期学坏，这轮应在保持 clean-contact 的同时抬高尾评
+  - 实际效果:
+    - 这轮明显优于 `C114/C113`
+    - 全程 clean，尾评恢复到 `24.8284s`
+    - 但仍没有追平 `C111/C106`
+  - 失败模式分析:
+    - 更快的 release ramp 是正方向，但 `0.35s` 还不够把主线抬回 `25.0s+`
+    - 问题可能还在更尖锐的 handover 过渡区间，因此可以继续做更窄的 ramp 扫描
+  - 下一轮建议:
+    - 保持 `C115` 的单变量方向，再把 `release_ramp_sec` 更快一档，例如 `0.25`
+    - 若仍不超过 `C111`，再考虑切回别的时序变量而不是继续纯扫 ramp
+
+- C116: more aggressive release-ramp reduction
+  - 改动:
+    - 修改 [grasp_cube_v2_force.py](/home/ll/SRTP/Aero-Hand/sim_rl/mujoco_playground/mujoco_playground/_src/manipulation/aero_hand/grasp_cube_v2_force.py)
+    - 保持 `random_release_min_sec/max_sec = 1.5 / 2.45`
+    - 保持 reward 与 PPO 主线不变
+    - 仅把 `release_ramp_sec: 0.35 -> 0.25`
+  - smoke test:
+    - CPU smoke 通过：`smoke_ok_cube_capsule_bottlepalm_c116_cpu`
+    - `release_ramp_sec = 0.25`
+  - 训练:
+    - env: `AeroCubeGraspV2ForceCapsuleBottlePalmQbr`
+    - restore: `C106 000002211840`
+    - run: `logs/AeroCubeGraspV2ForceCapsuleBottlePalmQbr-20260427-234413-C116_long_dr_lr7p25e5_upd3_ramp025_from_C106best_relmax2p45_postgrasp135_triad18_force72_capsule_bottlepalm_2048`
+    - `2097152 timesteps`, `4 evals`, `2048 envs`
+    - `learning_rate=7.25e-5`, `num_updates_per_batch=3`, `entropy_cost=0.005`, `domain_randomization=True`
+  - metrics.csv:
+    - `first = 24.3972s`
+    - `last = 24.5952s`
+    - `max = 24.5952s`
+    - `best_step = 2949120`
+  - 中间趋势:
+    - `24.3972 -> 23.8343 -> 23.7710 -> 24.5952s`
+  - 接触形态:
+    - `palm_contact: 0.0000 -> 0.0000 -> 0.0000 -> 0.0156`
+    - `nonprimary_contact: 0.0000 -> 0.0000 -> 0.0000 -> 0.0156`
+    - `non_tip_primary_contact: 0.0000 -> 0.0000 -> 0.0000 -> 0.0000`
+    - `drop: 0.0000 -> 0.0000 -> 0.0000 -> 0.0078`
+    - `slip_event: 0.0000 -> 0.0000 -> 0.0000 -> 0.0000`
+  - 组件统计:
+    - `post_release_grasp: 19588.07 -> 19491.96 -> 19521.06 -> 19694.03`
+    - `post_release_pose_hold: 35695.99 -> 35372.40 -> 35325.88 -> 35829.23`
+    - `post_release_survival: 74635.72 -> 73762.71 -> 73355.66 -> 74659.58`
+    - `post_release_slip: -229.07 -> -226.73 -> -220.59 -> -226.40`
+  - 与前序对比:
+    - 相比 `C115`，`last 24.8284 -> 24.5952s`
+    - 相比 `C111`，`last 25.0253 -> 24.5952s`
+    - 相比 `C106`，`last 25.0604 -> 24.5952s`
+  - 修改原因:
+    - `C115` 说明更快的 ramp 是正方向，因此再向前走一档，测试 handover 过渡是否还能继续改善
+  - 预期效果:
+    - 如果更干脆的 release 还能继续减少过渡磨损，这轮应至少接近或超过 `C115`
+  - 实际效果:
+    - unsupported duration 没有提升，反而略退
+    - final eval 首次出现轻微 `palm/nonprimary` 脏接触和极小 `drop`
+  - 失败模式分析:
+    - `release_ramp_sec=0.25` 已经过快，开始损伤 clean-contact 骨架
+    - 这说明 ramp 正方向存在最优区，但 `0.25` 越界了；`0.35` 比 `0.25` 更合理
+  - 下一轮建议:
+    - 回退 `release_ramp_sec=0.35` 为当前更优 ramp 候选
+    - 切回另一类更窄时序变量，例如 `force_release_after_sec` 或 `random_release_max_sec`，避免继续纯扫 ramp
+
+- C117: slightly lower entropy on the clean `C106/C111` continuation line
+  - 改动:
+    - 修改 [grasp_cube_v2_force.py](/home/ll/SRTP/Aero-Hand/sim_rl/mujoco_playground/mujoco_playground/_src/manipulation/aero_hand/grasp_cube_v2_force.py)
+    - 回退工作树里已证伪的 `release_ramp_sec=0.25`，恢复 `AeroCubeGraspV2ForceCapsuleBottlePalmQbr` 主线 `release_ramp_sec=0.5`
+    - 保持 `random_release_min_sec/max_sec = 1.5 / 2.45`
+    - 保持 reward 与其余 PPO 主线不变
+    - 仅把 `entropy_cost: 0.005 -> 0.004`
+  - smoke test:
+    - CPU smoke 通过：`smoke_ok_cube_capsule_bottlepalm_c117_cpu`
+    - `release_ramp_sec = 0.5`
+    - `random_release_min_sec = 1.5`
+    - `random_release_max_sec = 2.45`
+    - `force_release_after_sec = 3.0`
+  - 训练:
+    - env: `AeroCubeGraspV2ForceCapsuleBottlePalmQbr`
+    - restore: `C106 000002211840`
+    - run: `logs/AeroCubeGraspV2ForceCapsuleBottlePalmQbr-20260427-235740-C117_long_dr_lr7p25e5_upd3_ent4e3_from_C106best_relmax2p45_postgrasp135_triad18_force72_capsule_bottlepalm_2048`
+    - `2097152 timesteps`, `4 evals`, `2048 envs`
+    - `learning_rate=7.25e-5`, `num_updates_per_batch=3`, `entropy_cost=0.004`, `domain_randomization=True`
+    - 使用 `--ignore_checkpoint_env_config=True`
+  - metrics.csv:
+    - `first = 24.2042s`
+    - `last = 24.9534s`
+    - `max = 24.9534s`
+    - `best_step = 2949120`
+  - 中间趋势:
+    - `24.2042 -> 23.5855 -> 23.9769 -> 24.9534s`
+  - 接触形态:
+    - `palm_contact: 0.0000 -> 0.0000 -> 0.0000 -> 0.0000`
+    - `nonprimary_contact: 0.0000 -> 0.0000 -> 0.0000 -> 0.0000`
+    - `non_tip_primary_contact: 0.0000 -> 0.0000 -> 0.0000 -> 0.0000`
+    - `drop: 0.0000 -> 0.0000 -> 0.0000 -> 0.0000`
+    - `slip_event: 0.0000 -> 0.0000 -> 0.0000 -> 0.0000`
+  - 组件统计:
+    - `post_release_grasp: 19481.74 -> 19247.79 -> 19454.46 -> 19659.23`
+    - `post_release_pose_hold: 35460.44 -> 35111.55 -> 35343.05 -> 35942.37`
+    - `post_release_survival: 74123.60 -> 73191.88 -> 73453.73 -> 74942.81`
+    - `post_release_slip: -226.03 -> -223.38 -> -220.00 -> -220.25`
+  - 与前序对比:
+    - 相比 `C116`，`last 24.5952 -> 24.9534s`
+    - 相比 `C115`，`last 24.8284 -> 24.9534s`
+    - 相比 `C111`，`last 25.0253 -> 24.9534s`
+    - 相比 `C106`，`last 25.0604 -> 24.9534s`
+  - 修改原因:
+    - `C112/C113/C114/C116` 已分别证伪 reward 减法、entropy warmup、后移 release 窗口和过快 ramp；因此回到干净主线，只测试更低 entropy 是否能减少 continuation 中段磨损
+  - 预期效果:
+    - 如果当前缺口主要来自策略在 continuation 中被过度随机化，这轮应在保持 clean-contact 的同时把 `last` 拉回 `25.0s+`
+  - 实际效果:
+    - 全程保持 clean-contact，final eval 回到了 `24.9534s`
+    - 但仍略低于 `C111` 和 `C106`，没有形成新的 best
+  - 失败模式分析:
+    - 降低 entropy 没有破坏接触骨架，但也没有真正修复 retention 平台
+    - 这说明当前主缺口不太像“探索噪声太大”，更像 continuation 更新强度或时序分布仍在中段磨损 hold
+  - 下一轮建议:
+    - 保持干净环境主线不动
+    - 切到另一个单变量 PPO 稳定化方向，例如 `num_updates_per_batch: 3 -> 2`
+
+- C118: fewer PPO updates on the clean `C106` continuation line
+  - 改动:
+    - 不改环境代码，保持 `AeroCubeGraspV2ForceCapsuleBottlePalmQbr` 当前干净时序主线
+    - 保持 `release_ramp_sec=0.5`
+    - 保持 `random_release_min_sec/max_sec = 1.5 / 2.45`
+    - 保持 reward 主线与 `learning_rate=7.25e-5`、`entropy_cost=0.005`
+    - 仅把 `num_updates_per_batch: 3 -> 2`
+  - smoke test:
+    - 复用 `C117` 刚通过的环境 smoke；本轮仅改 PPO 超参数，未改 env
+  - 训练:
+    - env: `AeroCubeGraspV2ForceCapsuleBottlePalmQbr`
+    - restore: `C106 000002211840`
+    - run: `logs/AeroCubeGraspV2ForceCapsuleBottlePalmQbr-20260428-000835-C118_long_dr_lr7p25e5_upd2_ent5e3_from_C106best_relmax2p45_postgrasp135_triad18_force72_capsule_bottlepalm_2048`
+    - `2097152 timesteps`, `4 evals`, `2048 envs`
+    - `learning_rate=7.25e-5`, `num_updates_per_batch=2`, `entropy_cost=0.005`, `domain_randomization=True`
+    - 使用 `--ignore_checkpoint_env_config=True`
+  - metrics.csv:
+    - `first = 24.0558s`
+    - `last = 24.4866s`
+    - `max = 24.4866s`
+    - `best_step = 2949120`
+  - 中间趋势:
+    - `24.0558 -> 23.6921 -> 24.0714 -> 24.4866s`
+  - 接触形态:
+    - `palm_contact: 0.0000 -> 0.0000 -> 0.0000 -> 0.0000`
+    - `nonprimary_contact: 0.0000 -> 0.0000 -> 0.0000 -> 0.0000`
+    - `non_tip_primary_contact: 0.0000 -> 0.0000 -> 0.0000 -> 0.0000`
+    - `drop: 0.0000 -> 0.0000 -> 0.0000 -> 0.0000`
+    - `slip_event: 0.0000 -> 0.0000 -> 0.0000 -> 0.0000`
+  - 组件统计:
+    - `post_release_grasp: 19424.78 -> 19339.84 -> 19379.45 -> 19636.29`
+    - `post_release_pose_hold: 35374.45 -> 35175.38 -> 35396.67 -> 35665.87`
+    - `post_release_survival: 73949.70 -> 73372.28 -> 73611.16 -> 74386.70`
+    - `post_release_slip: -224.70 -> -225.49 -> -223.06 -> -224.07`
+  - 与前序对比:
+    - 相比 `C117`，`last 24.9534 -> 24.4866s`
+    - 相比 `C111`，`last 25.0253 -> 24.4866s`
+    - 相比 `C106`，`last 25.0604 -> 24.4866s`
+    - 相比更早的 `C108`，本轮仍然再次确认 `upd2` 不如 `upd3`
+  - 修改原因:
+    - `C117` 说明单独降低 entropy 不足以破平台，因此切到另一个单变量 PPO 稳定化方向，测试更少同批更新是否能减少 continuation 中段磨损
+  - 预期效果:
+    - 如果当前缺口主要来自每批更新过多，这轮应在保持 clean-contact 的同时把尾评重新拉近 `C111/C106`
+  - 实际效果:
+    - 全程 clean，但 unsupported duration 明显偏低，final eval 仅 `24.4866s`
+    - 没有出现比 `C117` 更好的 retention 恢复
+  - 失败模式分析:
+    - `upd2` 再次证伪：当前主线不是“更新太猛”，而更像 `upd3` 仍是更合适的训练强度
+    - 在 clean-contact 不变的情况下，`upd2` 会直接伤害 hold-retention，因此不应留在主线
+  - 下一轮建议:
+    - 回到 `upd3`
+    - 切换到新的单变量，例如 `learning_rate` 在 `7.25e-5` 与 `7.5e-5` 之间更窄插值，或改另一个更聚焦的时序变量
+
+- C119: slightly higher learning-rate interpolation on the clean `upd3` line
+  - 改动:
+    - 不改环境代码，保持 `AeroCubeGraspV2ForceCapsuleBottlePalmQbr` 当前干净时序主线
+    - 保持 `release_ramp_sec=0.5`
+    - 保持 `random_release_min_sec/max_sec = 1.5 / 2.45`
+    - 保持 `num_updates_per_batch=3` 与 `entropy_cost=0.005`
+    - 仅把 `learning_rate: 7.25e-5 -> 7.375e-5`
+  - smoke test:
+    - 复用 `C117` 刚通过的环境 smoke；本轮仅改 PPO 超参数，未改 env
+  - 训练:
+    - env: `AeroCubeGraspV2ForceCapsuleBottlePalmQbr`
+    - restore: `C106 000002211840`
+    - run: `logs/AeroCubeGraspV2ForceCapsuleBottlePalmQbr-20260428-001856-C119_long_dr_lr7p375e5_upd3_ent5e3_from_C106best_relmax2p45_postgrasp135_triad18_force72_capsule_bottlepalm_2048`
+    - `2097152 timesteps`, `4 evals`, `2048 envs`
+    - `learning_rate=7.375e-5`, `num_updates_per_batch=3`, `entropy_cost=0.005`, `domain_randomization=True`
+    - 使用 `--ignore_checkpoint_env_config=True`
+  - metrics.csv:
+    - `first = 24.2241s`
+    - `last = 24.8108s`
+    - `max = 24.8108s`
+    - `best_step = 2949120`
+  - 中间趋势:
+    - `24.2241 -> 23.8644 -> 23.2007 -> 24.8108s`
+  - 接触形态:
+    - `palm_contact: 0.0000 -> 0.0000 -> 0.0000 -> 0.0000`
+    - `nonprimary_contact: 0.0000 -> 0.0000 -> 0.0000 -> 0.0000`
+    - `non_tip_primary_contact: 0.0000 -> 0.0000 -> 0.0000 -> 0.0000`
+    - `drop: 0.0000 -> 0.0000 -> 0.0000 -> 0.0000`
+    - `slip_event: 0.0000 -> 0.0000 -> 0.0000 -> 0.0000`
+  - 组件统计:
+    - `post_release_grasp: 19399.13 -> 19351.23 -> 19484.62 -> 19630.55`
+    - `post_release_pose_hold: 35475.87 -> 35278.29 -> 34867.38 -> 35839.22`
+    - `post_release_survival: 74167.88 -> 73632.37 -> 72386.53 -> 74680.46`
+    - `post_release_slip: -226.20 -> -223.66 -> -218.39 -> -223.13`
+  - 与前序对比:
+    - 相比 `C117`，`last 24.9534 -> 24.8108s`
+    - 相比 `C111`，`last 25.0253 -> 24.8108s`
+    - 相比 `C106`，`last 25.0604 -> 24.8108s`
+  - 修改原因:
+    - `C118` 再次证伪 `upd2`，因此回到 `upd3` 主线，仅测试把学习率从 `7.25e-5` 向 `7.5e-5` 方向收窄插值，判断 `C106` 附近是否还有更好近邻
+  - 预期效果:
+    - 如果 `C106` 的更高学习率侧仍有可复现窗口，这轮应至少追平或略超 `C117`
+  - 实际效果:
+    - final eval 回拉到 `24.8108s`，但仍未追平 `C117/C111/C106`
+    - 中段掉到 `23.2007s`，说明更高 lr 会放大 continuation 中段磨损
+  - 失败模式分析:
+    - `7.375e-5` 比 `7.25e-5` 更差，说明当前最优窗口不在更高 lr 一侧
+    - 既然 `6e-5`、`7e-5`、`7.375e-5`、`7.5e-5` 都没超 `C106`，纯 lr 插值收益已非常有限
+  - 下一轮建议:
+    - 停止继续扫 learning_rate
+    - 保持 `upd3` 与干净环境主线不动，切回更聚焦的时序变量，例如 `force_release_after_sec`
+
+- C120: slightly later force-release fallback on the clean `upd3` line
+  - 改动:
+    - 修改 [grasp_cube_v2_force.py](/home/ll/SRTP/Aero-Hand/sim_rl/mujoco_playground/mujoco_playground/_src/manipulation/aero_hand/grasp_cube_v2_force.py)
+    - 保持 `release_ramp_sec=0.5`
+    - 保持 `random_release_min_sec/max_sec = 1.5 / 2.45`
+    - 保持 reward 主线与 `learning_rate=7.25e-5`、`num_updates_per_batch=3`、`entropy_cost=0.005`
+    - 仅把 `force_release_after_sec: 3.0 -> 3.2`
+  - smoke test:
+    - CPU smoke 通过：`smoke_ok_cube_capsule_bottlepalm_c120_cpu`
+    - `release_ramp_sec = 0.5`
+    - `random_release_min_sec = 1.5`
+    - `random_release_max_sec = 2.45`
+    - `force_release_after_sec = 3.2`
+  - 训练:
+    - env: `AeroCubeGraspV2ForceCapsuleBottlePalmQbr`
+    - restore: `C106 000002211840`
+    - run: `logs/AeroCubeGraspV2ForceCapsuleBottlePalmQbr-20260428-002931-C120_long_dr_lr7p25e5_upd3_forcerelease3p2_from_C106best_relmax2p45_postgrasp135_triad18_force72_capsule_bottlepalm_2048`
+    - `2097152 timesteps`, `4 evals`, `2048 envs`
+    - `learning_rate=7.25e-5`, `num_updates_per_batch=3`, `entropy_cost=0.005`, `domain_randomization=True`
+    - 使用 `--ignore_checkpoint_env_config=True`
+  - metrics.csv:
+    - `first = 24.2472s`
+    - `last = 24.8929s`
+    - `max = 24.8929s`
+    - `best_step = 2949120`
+  - 中间趋势:
+    - `24.2472 -> 24.0316 -> 23.5503 -> 24.8929s`
+  - 接触形态:
+    - `palm_contact: 0.0000 -> 0.0000 -> 0.0000 -> 0.0000`
+    - `nonprimary_contact: 0.0000 -> 0.0000 -> 0.0000 -> 0.0000`
+    - `non_tip_primary_contact: 0.0000 -> 0.0000 -> 0.0000 -> 0.0000`
+    - `drop: 0.0000 -> 0.0000 -> 0.0000 -> 0.0000`
+    - `slip_event: 0.0000 -> 0.0000 -> 0.0000 -> 0.0000`
+  - 组件统计:
+    - `post_release_grasp: 19440.90 -> 19420.97 -> 19414.14 -> 19583.91`
+    - `post_release_pose_hold: 35492.25 -> 35379.76 -> 35087.29 -> 35881.37`
+    - `post_release_survival: 74205.84 -> 73804.73 -> 72866.22 -> 74774.20`
+    - `post_release_slip: -226.95 -> -224.80 -> -217.58 -> -226.18`
+  - 与前序对比:
+    - 相比 `C119`，`last 24.8108 -> 24.8929s`
+    - 相比 `C118`，`last 24.4866 -> 24.8929s`
+    - 相比 `C115`，`last 24.8284 -> 24.8929s`
+    - 相比 `C117`，`last 24.9534 -> 24.8929s`
+    - 相比 `C111`，`last 25.0253 -> 24.8929s`
+    - 相比 `C106`，`last 25.0604 -> 24.8929s`
+  - 修改原因:
+    - `C118/C119` 说明继续扫 PPO 超参数收益有限，因此切回更聚焦的 release 时序变量，只测试是否让极晚 fallback 稍后一些能减少中后段 retention 磨损
+  - 预期效果:
+    - 如果当前缺口来自少量边缘样本在 fallback 边界被过早打断，这轮应在不弄脏接触形态的前提下稍微抬高尾评
+  - 实际效果:
+    - 这轮全程 clean，`last` 确实回升到 `24.8929s`
+    - 但仍没有超过 `C117/C111/C106`
+  - 失败模式分析:
+    - `force_release_after_sec=3.2` 是一个轻微正方向，但增益有限，说明 fallback 晚一点有帮助，但不是主瓶颈的决定性开关
+    - 既然 `2.8` 在更早主线曾是负向，而 `3.2` 在当前主线略正，最可能存在一个窄的较优晚端窗口
+  - 下一轮建议:
+    - 保持当前干净主线
+    - 继续沿这条窄时序线做单变量微调，例如 `force_release_after_sec: 3.2 -> 3.4`
+
+- C121: more aggressive later force-release fallback
+  - 改动:
+    - 修改 [grasp_cube_v2_force.py](/home/ll/SRTP/Aero-Hand/sim_rl/mujoco_playground/mujoco_playground/_src/manipulation/aero_hand/grasp_cube_v2_force.py)
+    - 保持 `release_ramp_sec=0.5`
+    - 保持 `random_release_min_sec/max_sec = 1.5 / 2.45`
+    - 保持 reward 主线与 `learning_rate=7.25e-5`、`num_updates_per_batch=3`、`entropy_cost=0.005`
+    - 仅把 `force_release_after_sec: 3.2 -> 3.4`
+  - smoke test:
+    - CPU smoke 通过：`smoke_ok_cube_capsule_bottlepalm_c121_cpu`
+    - `force_release_after_sec = 3.4`
+  - 训练:
+    - env: `AeroCubeGraspV2ForceCapsuleBottlePalmQbr`
+    - restore: `C106 000002211840`
+    - run: `logs/AeroCubeGraspV2ForceCapsuleBottlePalmQbr-20260428-004019-C121_long_dr_lr7p25e5_upd3_forcerelease3p4_from_C106best_relmax2p45_postgrasp135_triad18_force72_capsule_bottlepalm_2048`
+    - `2097152 timesteps`, `4 evals`, `2048 envs`
+    - `learning_rate=7.25e-5`, `num_updates_per_batch=3`, `entropy_cost=0.005`, `domain_randomization=True`
+    - 使用 `--ignore_checkpoint_env_config=True`
+  - metrics.csv:
+    - partial only，训练在 first eval 后中止
+    - `first = 24.5792s`
+    - `last = 24.5792s`
+    - `max = 24.5792s`
+    - `best_step = 0`
+  - 接触形态:
+    - `palm_contact = 0.1328`
+    - `nonprimary_contact = 0.1328`
+    - `non_tip_primary_contact = 0.0000`
+    - `drop = 0.0000`
+    - `slip_event = 0.0000`
+  - 修改原因:
+    - `C120` 显示更晚一点的 fallback 是轻微正方向，因此继续往同方向再走一档，测试是否存在更优晚端窗口
+  - 预期效果:
+    - 如果主瓶颈真来自兜底释放略早，这轮应在保持 clean-contact 的同时进一步抬高首末评
+  - 实际效果:
+    - `contact_duration_sec` 首评虽更高，但立即引入了明显 `palm/nonprimary_contact`
+    - 这已经破坏了当前主线最重要的 clean-contact 骨架
+  - 失败模式分析:
+    - `force_release_after_sec=3.4` 过头了，会让策略靠脏接触偷稳定性
+    - 因为用户真实目标不是脏接触下的高分，所以这轮应作为 early-stop 负样本处理，而不是继续浪费长训算力
+  - 下一轮建议:
+    - 回退到 cleaner 的窄窗口
+    - 直接试 `force_release_after_sec: 3.2 -> 3.1`，在 `3.0` 与 `3.2` 之间找更稳近邻
+
+- C122: narrower late-fallback interpolation
+  - 改动:
+    - 修改 [grasp_cube_v2_force.py](/home/ll/SRTP/Aero-Hand/sim_rl/mujoco_playground/mujoco_playground/_src/manipulation/aero_hand/grasp_cube_v2_force.py)
+    - 回退 `force_release_after_sec: 3.4 -> 3.1`
+    - 保持 `release_ramp_sec=0.5`
+    - 保持 `random_release_min_sec/max_sec = 1.5 / 2.45`
+    - 保持 reward 主线与 `learning_rate=7.25e-5`、`num_updates_per_batch=3`、`entropy_cost=0.005`
+  - smoke test:
+    - CPU smoke 通过：`smoke_ok_cube_capsule_bottlepalm_c122_cpu`
+    - `force_release_after_sec = 3.1`
+  - 训练:
+    - env: `AeroCubeGraspV2ForceCapsuleBottlePalmQbr`
+    - restore: `C106 000002211840`
+    - run: `logs/AeroCubeGraspV2ForceCapsuleBottlePalmQbr-20260428-004421-C122_long_dr_lr7p25e5_upd3_forcerelease3p1_from_C106best_relmax2p45_postgrasp135_triad18_force72_capsule_bottlepalm_2048`
+  - metrics.csv:
+    - `first = 24.3581s`
+    - `last = 24.5964s`
+    - `max = 24.5964s`
+    - `best_step = 2949120`
+  - 接触形态:
+    - `palm/nonprimary/non_tip/drop = 0`
+    - `slip_event = 0`
+  - 与前序对比:
+    - 相比 `C120`，`last 24.8929 -> 24.5964s`
+  - 修改原因:
+    - `C121=3.4` 已经过头，因此回到 `3.2` 左侧做 cleaner 邻域试探
+  - 预期效果:
+    - 若最优点在 `3.0~3.2` 之间，这轮应比 `C120` 更稳
+  - 实际效果:
+    - 全程 clean，但明显不如 `C120`
+  - 失败模式分析:
+    - `3.1` 已经把晚端增益吃掉，说明当前较优窄窗更靠近 `3.2`
+  - 下一轮建议:
+    - 回到 `3.2`
+    - 按用户最新要求切到 reward 结构/权重迭代
+
+- C123: earlier 30s milestone in sustained-hold reward
+  - 改动:
+    - 修改 [grasp_cube_v2_force.py](/home/ll/SRTP/Aero-Hand/sim_rl/mujoco_playground/mujoco_playground/_src/manipulation/aero_hand/grasp_cube_v2_force.py)
+    - 回退环境主线到 `force_release_after_sec = 3.2`
+    - 保持 `release_ramp_sec=0.5`
+    - 保持 `random_release_min_sec/max_sec = 1.5 / 2.45`
+    - 保持 PPO 主线不变
+    - 仅把 `_reward_sustained_hold_bonus` 的第三档阈值 `600 -> 560` 步，也就是把 30s milestone 提前到约 28s
+  - smoke test:
+    - CPU smoke 通过：`smoke_ok_cube_capsule_bottlepalm_c123_cpu`
+    - `force_release_after_sec = 3.2`
+    - `bonus_30s_uses_560 = True`
+  - 训练:
+    - env: `AeroCubeGraspV2ForceCapsuleBottlePalmQbr`
+    - restore: `C106 000002211840`
+    - run: `logs/AeroCubeGraspV2ForceCapsuleBottlePalmQbr-20260428-012809-C123_long_dr_lr7p25e5_upd3_force3p2_bonus28s_from_C106best_relmax2p45_postgrasp135_triad18_force72_capsule_bottlepalm_2048`
+  - metrics.csv:
+    - `first = 24.3003s`
+    - `last = 24.6948s`
+    - `max = 24.6948s`
+    - `best_step = 2949120`
+  - 中间趋势:
+    - `24.3003 -> 23.6933 -> 23.3460 -> 24.6948s`
+  - 接触形态:
+    - `palm_contact: 0.0000 -> 0.0000 -> 0.0000 -> 0.0000`
+    - `nonprimary_contact: 0.0000 -> 0.0000 -> 0.0000 -> 0.0000`
+    - `non_tip_primary_contact: 0.0000 -> 0.0000 -> 0.0000 -> 0.0000`
+    - `drop: 0.0000 -> 0.0000 -> 0.0000 -> 0.0000`
+    - `slip_event: 0.0078 -> 0.0000 -> 0.0000 -> 0.0000`
+  - 组件统计:
+    - `sustained_hold_bonus: 68683.66 -> 67512.91 -> 67524.86 -> 69802.93`
+    - `progressive_hold: 58709.09 -> 57832.45 -> 57707.58 -> 59516.50`
+    - `post_release_survival: 74209.92 -> 73391.05 -> 72548.42 -> 74471.32`
+  - 与前序对比:
+    - 相比 `C120`，`last 24.8929 -> 24.6948s`
+  - 修改原因:
+    - 用户要求开始 reward 迭代；当前平台卡在 `24~25s`，因此测试把最高 milestone 提前，让策略更早吃到“冲向 30s”的长时梯度
+  - 预期效果:
+    - 如果策略只是缺少 `25s+` 区间的奖励斜率，这轮应在保持 clean-contact 的同时把尾评向 `25s+` 推进
+  - 实际效果:
+    - 长时奖励组件显著抬高，但真实 `contact_duration_sec` 没有跟着提升
+    - final eval 仍低于 `C120`
+  - 失败模式分析:
+    - 这是一个典型“奖励变大但主指标不涨”的负样本：提前 milestone 让策略学会更早吃 bonus，而不是更稳地延长真实 unsupported
+    - 说明当前不该继续加长持握奖励，反而应做 reward 减法，削弱对主目标贡献小的边缘项
+  - 下一轮建议:
+    - 回退 `560 -> 600`
+    - 做 reward 减法，优先下调 `post_release_pose_hold` 这类已经很高但与主指标不同步的姿态保持项
+
+- C124: reward subtraction on post-release pose hold
+  - 改动:
+    - 修改 [grasp_cube_v2_force.py](/home/ll/SRTP/Aero-Hand/sim_rl/mujoco_playground/mujoco_playground/_src/manipulation/aero_hand/grasp_cube_v2_force.py)
+    - 回退 `C123` 的 milestone 改动：`bonus_30s 560 -> 600`
+    - 保持环境主线 `force_release_after_sec = 3.2`
+    - 保持 `release_ramp_sec=0.5`
+    - 保持 `random_release_min_sec/max_sec = 1.5 / 2.45`
+    - 保持 PPO 主线不变
+    - 仅把 `post_release_pose_hold` 权重 `60 -> 50`
+  - smoke test:
+    - CPU smoke 通过：`smoke_ok_cube_capsule_bottlepalm_c124_cpu`
+    - `force_release_after_sec = 3.2`
+    - `post_release_pose_hold_scale = 50.0`
+    - `bonus_30s_uses_600 = True`
+  - 训练:
+    - env: `AeroCubeGraspV2ForceCapsuleBottlePalmQbr`
+    - restore: `C106 000002211840`
+    - run: `logs/AeroCubeGraspV2ForceCapsuleBottlePalmQbr-20260428-013906-C124_long_dr_lr7p25e5_upd3_force3p2_pose50_from_C106best_relmax2p45_postgrasp135_triad18_force72_capsule_bottlepalm_2048`
+  - metrics.csv:
+    - `first = 24.1273s`
+    - `last = 25.1686s`
+    - `max = 25.1686s`
+    - `best_step = 2949120`
+  - 中间趋势:
+    - `24.1273 -> 23.8214 -> 23.5042 -> 25.1686s`
+  - 接触形态:
+    - `palm_contact: 0.0000 -> 0.0000 -> 0.0000 -> 0.0000`
+    - `nonprimary_contact: 0.0000 -> 0.0000 -> 0.0000 -> 0.0000`
+    - `non_tip_primary_contact: 0.0000 -> 0.0000 -> 0.0000 -> 0.0000`
+    - `drop: 0.0000 -> 0.0000 -> 0.0000 -> 0.0000`
+    - `slip_event: 0.0000 -> 0.0000 -> 0.0000 -> 0.0000`
+  - 组件统计:
+    - `post_release_pose_hold: 29510.01 -> 29374.99 -> 29208.74 -> 30044.94`
+    - `post_release_survival: 74023.47 -> 73490.84 -> 72786.92 -> 75197.52`
+    - `stable_hold: 52471.45 -> 52023.83 -> 52183.51 -> 53729.48`
+  - 与前序对比:
+    - 相比 `C120`，`last 24.8929 -> 25.1686s`
+    - 相比 `C117`，`last 24.9534 -> 25.1686s`
+    - 相比 `C111`，`last 25.0253 -> 25.1686s`
+    - 相比 `C106`，`last 25.0604 -> 25.1686s`
+  - 修改原因:
+    - `C123` 证实“加 long-hold bonus”会把奖励堆高但不推主指标，因此转做 reward 减法，优先削弱与真实 unsupported retention 不同步的姿态保持项
+  - 预期效果:
+    - 如果 `post_release_pose_hold` 过强会把策略锁在“维持预抓姿态”而不是主动稳住物体，这轮应在保持 clean-contact 的同时释放更多 retention 学习空间
+  - 实际效果:
+    - 这是一个清晰正样本：全程 clean，尾评首次超过 `C106/C111`
+    - 说明 reward 减法是对的，而且 `post_release_pose_hold` 确实过强
+  - 失败模式分析:
+    - 暂无明显失败；当前主要风险是继续减得太快会让姿态骨架散掉
+  - 下一轮建议:
+    - 沿同一条 reward 减法线继续做单变量微调，例如 `post_release_pose_hold: 50 -> 45`
+
+- C125: deeper subtraction on post-release pose hold
+  - 改动:
+    - 修改 [grasp_cube_v2_force.py](/home/ll/SRTP/Aero-Hand/sim_rl/mujoco_playground/mujoco_playground/_src/manipulation/aero_hand/grasp_cube_v2_force.py)
+    - 保持环境主线 `force_release_after_sec = 3.2`
+    - 保持 `release_ramp_sec=0.5`
+    - 保持 `random_release_min_sec/max_sec = 1.5 / 2.45`
+    - 保持 PPO 主线不变
+    - 仅把 `post_release_pose_hold` 权重 `50 -> 45`
+  - smoke test:
+    - CPU smoke 通过：`smoke_ok_cube_capsule_bottlepalm_c125_cpu`
+    - `post_release_pose_hold_scale = 45.0`
+  - 训练:
+    - env: `AeroCubeGraspV2ForceCapsuleBottlePalmQbr`
+    - restore: `C106 000002211840`
+    - run: `logs/AeroCubeGraspV2ForceCapsuleBottlePalmQbr-20260428-014956-C125_long_dr_lr7p25e5_upd3_force3p2_pose45_from_C106best_relmax2p45_postgrasp135_triad18_force72_capsule_bottlepalm_2048`
+  - metrics.csv:
+    - `first = 24.0898s`
+    - `last = 24.6890s`
+    - `max = 24.6890s`
+    - `best_step = 2949120`
+  - 中间趋势:
+    - `24.0898 -> 23.5534 -> 23.3390 -> 24.6890s`
+  - 接触形态:
+    - `palm_contact: 0.0000 -> 0.0000 -> 0.0000 -> 0.0000`
+    - `nonprimary_contact: 0.0000 -> 0.0000 -> 0.0000 -> 0.0000`
+    - `non_tip_primary_contact: 0.0000 -> 0.0000 -> 0.0000 -> 0.0000`
+    - `drop: 0.0000 -> 0.0000 -> 0.0000 -> 0.0000`
+    - `slip_event: 0.0000 -> 0.0000 -> 0.0000 -> 0.0000`
+  - 组件统计:
+    - `post_release_pose_hold: 26545.69 -> 26322.21 -> 26223.02 -> 26825.81`
+    - `post_release_survival: 73963.31 -> 73213.40 -> 72658.00 -> 74519.84`
+    - `stable_hold: 52439.44 -> 51892.74 -> 52020.22 -> 53433.77`
+  - 与前序对比:
+    - 相比 `C124`，`last 25.1686 -> 24.6890s`
+  - 修改原因:
+    - `C124` 是清晰正样本，因此沿同一条 reward 减法线继续多走半步，验证当前更优点是否还在更低 pose-hold 权重一侧
+  - 预期效果:
+    - 如果 `post_release_pose_hold` 仍偏强，这轮应继续推高尾评
+  - 实际效果:
+    - 全程 clean，但 unsupported duration 明显回退
+  - 失败模式分析:
+    - `45` 已经减过头，说明 `post_release_pose_hold` 虽然过强，但仍然需要保留一部分姿态骨架
+    - 当前较优点更接近 `50`，不应继续沿这条变量单向下切
+  - 下一轮建议:
+    - 回到 `post_release_pose_hold=50`
+    - 保持 reward 减法思路，但换到另一个更边缘的后释放约束，例如 `hold_position`
+
+- C126: reward subtraction on hold-position term
+  - 改动:
+    - 修改 [grasp_cube_v2_force.py](/home/ll/SRTP/Aero-Hand/sim_rl/mujoco_playground/mujoco_playground/_src/manipulation/aero_hand/grasp_cube_v2_force.py)
+    - 保持 `post_release_pose_hold=50`
+    - 保持环境主线 `force_release_after_sec = 3.2`
+    - 保持 `release_ramp_sec=0.5`
+    - 保持 `random_release_min_sec/max_sec = 1.5 / 2.45`
+    - 保持 PPO 主线不变
+    - 仅把 `hold_position` 权重 `45 -> 40`
+  - smoke test:
+    - CPU smoke 通过：`smoke_ok_cube_capsule_bottlepalm_c126_cpu`
+    - `post_release_pose_hold_scale = 50.0`
+    - `hold_position_scale = 40.0`
+  - 训练:
+    - env: `AeroCubeGraspV2ForceCapsuleBottlePalmQbr`
+    - restore: `C106 000002211840`
+    - run: `logs/AeroCubeGraspV2ForceCapsuleBottlePalmQbr-20260428-020048-C126_long_dr_lr7p25e5_upd3_force3p2_pose50_hold40_from_C106best_relmax2p45_postgrasp135_triad18_force72_capsule_bottlepalm_2048`
+  - metrics.csv:
+    - `first = 24.1140s`
+    - `last = 24.5366s`
+    - `max = 24.5366s`
+    - `best_step = 2949120`
+  - 中间趋势:
+    - `24.1140 -> 23.4948 -> 23.4687 -> 24.5366s`
+  - 接触形态:
+    - `palm_contact: 0.0000 -> 0.0000 -> 0.0000 -> 0.0000`
+    - `nonprimary_contact: 0.0000 -> 0.0000 -> 0.0000 -> 0.0000`
+    - `non_tip_primary_contact: 0.0000 -> 0.0000 -> 0.0000 -> 0.0000`
+    - `drop: 0.0000 -> 0.0000 -> 0.0000 -> 0.0000`
+    - `slip_event: 0.0000 -> 0.0000 -> 0.0000 -> 0.0000`
+  - 组件统计:
+    - `hold_position: 17853.72 -> 17646.70 -> 17541.38 -> 17912.01`
+    - `post_release_pose_hold: 29507.53 -> 29208.66 -> 29194.02 -> 29722.18`
+  - 与前序对比:
+    - 相比 `C124`，`last 25.1686 -> 24.5366s`
+  - 修改原因:
+    - `C124` 证明 reward 减法有效，因此继续削弱另一项高量级后释放约束，测试 `hold_position` 是否也在绑住主动稳物体
+  - 预期效果:
+    - 如果 `hold_position` 仍偏强，这轮应进一步提升真实 unsupported retention
+  - 实际效果:
+    - 全程 clean，但主指标明显退化
+  - 失败模式分析:
+    - `hold_position` 这项虽然大，但不能像 `pose_hold` 那样继续往下砍；它对当前 retain 骨架仍是必要支撑
+  - 下一轮建议:
+    - 回到 `hold_position=45`
+    - 继续 reward 减法，但改削更边缘的 pre-release shaping，例如 `pre_release_grasp`
+
+- C127: reward subtraction on pre-release grasp shaping
+  - 改动:
+    - 修改 [grasp_cube_v2_force.py](/home/ll/SRTP/Aero-Hand/sim_rl/mujoco_playground/mujoco_playground/_src/manipulation/aero_hand/grasp_cube_v2_force.py)
+    - 保持 `post_release_pose_hold=50`
+    - 保持 `hold_position=45`
+    - 保持环境主线 `force_release_after_sec = 3.2`
+    - 保持 `release_ramp_sec=0.5`
+    - 保持 `random_release_min_sec/max_sec = 1.5 / 2.45`
+    - 保持 PPO 主线不变
+    - 仅把 `pre_release_grasp` 权重 `35 -> 30`
+  - smoke test:
+    - CPU smoke 通过：`smoke_ok_cube_capsule_bottlepalm_c127_cpu`
+    - `hold_position_scale = 45.0`
+    - `pre_release_grasp_scale = 30.0`
+    - `post_release_pose_hold_scale = 50.0`
+  - 训练:
+    - env: `AeroCubeGraspV2ForceCapsuleBottlePalmQbr`
+    - restore: `C106 000002211840`
+    - run: `logs/AeroCubeGraspV2ForceCapsuleBottlePalmQbr-20260428-021059-C127_long_dr_lr7p25e5_upd3_force3p2_pose50_prerelease30_from_C106best_relmax2p45_postgrasp135_triad18_force72_capsule_bottlepalm_2048`
+  - metrics.csv:
+    - `first = 24.1980s`
+    - `last = 24.7780s`
+    - `max = 24.7780s`
+    - `best_step = 2949120`
+  - 中间趋势:
+    - `24.1980 -> 23.7265 -> 23.7640 -> 24.7780s`
+  - 接触形态:
+    - `palm_contact: 0.0000 -> 0.0000 -> 0.0000 -> 0.0000`
+    - `nonprimary_contact: 0.0000 -> 0.0000 -> 0.0000 -> 0.0000`
+    - `non_tip_primary_contact: 0.0000 -> 0.0000 -> 0.0000 -> 0.0000`
+    - `drop: 0.0000 -> 0.0000 -> 0.0000 -> 0.0000`
+    - `slip_event: 0.0000 -> 0.0000 -> 0.0000 -> 0.0000`
+  - 组件统计:
+    - `pre_release_grasp: 776.34 -> 773.53 -> 775.11 -> 774.61`
+    - `post_release_pose_hold: 29548.61 -> 29326.53 -> 29336.99 -> 29845.05`
+  - 与前序对比:
+    - 相比 `C124`，`last 25.1686 -> 24.7780s`
+  - 修改原因:
+    - `hold_position` 不能再砍，因此改测更边缘、只在支撑释放前起作用的 shaping，看看是否能减少“为了过 release 条件而学坏”的倾向
+  - 预期效果:
+    - 如果 release 前 shaping 过强，这轮应保持 clean-contact 同时提升尾评
+  - 实际效果:
+    - 全程 clean，但尾评仍明显低于 `C124`
+  - 失败模式分析:
+    - `pre_release_grasp` 并不是当前掩盖 30s 目标的主项；继续削它只会伤 release-ready 质量
+  - 下一轮建议:
+    - 回到 `pre_release_grasp=35`
+    - 继续 reward 减法，但改削 release 后边缘项，例如 `post_release_grasp` 或 `post_release_survival`
+
+- C128: reward subtraction on post-release grasp shaping
+  - 改动:
+    - 修改 [grasp_cube_v2_force.py](/home/ll/SRTP/Aero-Hand/sim_rl/mujoco_playground/mujoco_playground/_src/manipulation/aero_hand/grasp_cube_v2_force.py)
+    - 回到 `C124` 主线：`pre_release_grasp=35`, `hold_position=45`, `post_release_pose_hold=50`
+    - 保持环境主线 `force_release_after_sec = 3.2`
+    - 保持 `release_ramp_sec=0.5`
+    - 保持 `random_release_min_sec/max_sec = 1.5 / 2.45`
+    - 保持 PPO 主线不变
+    - 仅把 `post_release_grasp` 权重 `125 -> 115`
+  - smoke test:
+    - CPU smoke 通过：`smoke_ok_cube_capsule_bottlepalm_c128_cpu`
+    - `pre_release_grasp_scale = 35.0`
+    - `post_release_grasp_scale = 115.0`
+    - `post_release_pose_hold_scale = 50.0`
+    - `hold_position_scale = 45.0`
+  - 训练:
+    - env: `AeroCubeGraspV2ForceCapsuleBottlePalmQbr`
+    - restore: `C106 000002211840`
+    - run: `logs/AeroCubeGraspV2ForceCapsuleBottlePalmQbr-20260428-023805-C128_long_dr_lr7p25e5_upd3_force3p2_pose50_postgrasp115_from_C106best_relmax2p45_postgrasp135_triad18_force72_capsule_bottlepalm_2048`
+  - metrics.csv:
+    - `first = 24.4241s`
+    - `last = 24.8433s`
+    - `max = 24.8433s`
+    - `best_step = 2949120`
+  - 中间趋势:
+    - `24.4241 -> 23.4398 -> 23.5304 -> 24.8433s`
+  - 接触形态:
+    - `palm_contact: 0.0000 -> 0.0000 -> 0.0000 -> 0.0000`
+    - `nonprimary_contact: 0.0000 -> 0.0000 -> 0.0000 -> 0.0000`
+    - `non_tip_primary_contact: 0.0000 -> 0.0000 -> 0.0000 -> 0.0000`
+    - `drop: 0.0000 -> 0.0000 -> 0.0000 -> 0.0000`
+    - `slip_event: 0.0000 -> 0.0000 -> 0.0000 -> 0.0000`
+  - 组件统计:
+    - `post_release_grasp: 19419.75 -> 19321.16 -> 19408.87 -> 19721.39`
+    - `post_release_pose_hold: 29661.90 -> 29190.45 -> 29229.26 -> 29875.88`
+  - 与前序对比:
+    - 相比 `C124`，`last 25.1686 -> 24.8433s`
+  - 修改原因:
+    - `pre_release_grasp` 不是关键项，因此切到 release 后更边缘的 active-grasp shaping，测试它是否在压制更长时 retention
+  - 预期效果:
+    - 如果 `post_release_grasp` 过强会把策略锁在“保持用力夹住”而不是更稳地长期 retain，这轮应提升尾评
+  - 实际效果:
+    - 全程 clean，但尾评仍低于 `C124`
+  - 失败模式分析:
+    - `post_release_grasp` 并不是当前最该削的 release 后项；继续下调它只会伤 release 后主动抓稳
+  - 下一轮建议:
+    - 回到 `post_release_grasp=125`
+    - 继续 reward 减法，改削更像“总生存大项”的 `post_release_survival`
+
+- C129: reward subtraction on post-release survival
+  - 改动:
+    - 修改 [grasp_cube_v2_force.py](/home/ll/SRTP/Aero-Hand/sim_rl/mujoco_playground/mujoco_playground/_src/manipulation/aero_hand/grasp_cube_v2_force.py)
+    - 保持 `C124` 的其余 reward 主线不变
+    - 仅把 `post_release_survival` 权重 `155 -> 145`
+  - smoke test:
+    - CPU smoke 通过：`smoke_ok_cube_capsule_bottlepalm_c129_cpu`
+    - `post_release_survival_scale = 145.0`
+  - 训练:
+    - env: `AeroCubeGraspV2ForceCapsuleBottlePalmQbr`
+    - restore: `C106 000002211840`
+    - run: `logs/AeroCubeGraspV2ForceCapsuleBottlePalmQbr-20260428-024917-C129_long_dr_lr7p25e5_upd3_force3p2_pose50_surv145_from_C106best_relmax2p45_postgrasp135_triad18_force72_capsule_bottlepalm_2048`
+  - metrics.csv:
+    - `first = 24.2878s`
+    - `last = 24.5843s`
+    - `max = 24.5843s`
+    - `best_step = 2949120`
+  - 接触形态:
+    - clean；仅 first eval 有极小 `slip_event = 0.0078`
+  - 与前序对比:
+    - 相比 `C124`，`last 25.1686 -> 24.5843s`
+  - 修改原因:
+    - `post_release_survival` 是当前量级最大的单项之一，因此测试它是否在用“活着就给分”掩盖真正的长期 retention
+  - 预期效果:
+    - 如果这项太强，这轮应在 clean-contact 下提升真实 `contact_duration_sec`
+  - 实际效果:
+    - 主指标退化，说明 `post_release_survival` 仍是当前 retain 骨架的重要支柱
+  - 失败模式分析:
+    - 这不是当前该削的目标；继续削它只会伤稳定性
+  - 下一轮建议:
+    - 回到 `post_release_survival=155`
+    - 改削更边缘的 shape/coordination 项，而不是再动 release 后大骨架
+
+- C130: reward subtraction on effective post-release grasp
+  - 改动:
+    - 先修正为真正生效的修改位置：`CubeGraspV2ForceCapsuleBottlePalmQbr` 类内 override
+    - 保持 `post_release_survival=155`, `post_release_pose_hold=50`, `hold_position=45`
+    - 仅把**有效的** `post_release_grasp` 权重 `135 -> 125`
+  - smoke test:
+    - CPU smoke 通过：`smoke_ok_cube_capsule_bottlepalm_c130_cpu`
+    - `effective post_release_grasp = 125.0`
+  - 训练:
+    - env: `AeroCubeGraspV2ForceCapsuleBottlePalmQbr`
+    - restore: `C106 000002211840`
+    - run: `logs/AeroCubeGraspV2ForceCapsuleBottlePalmQbr-20260428-030032-C130_long_dr_lr7p25e5_upd3_force3p2_pose50_postgrasp125eff_from_C106best_relmax2p45_triad18_force72_capsule_bottlepalm_2048`
+  - metrics.csv:
+    - `first = 24.4167s`
+    - `last = 24.5323s`
+    - `max = 24.5323s`
+    - `best_step = 2949120`
+  - 接触形态:
+    - 全程 clean
+  - 与前序对比:
+    - 相比 `C124`，`last 25.1686 -> 24.5323s`
+  - 修改原因:
+    - 修正前一轮未命中有效 override 的问题后，重新真实测试 `post_release_grasp` 是否过强
+  - 预期效果:
+    - 如果它是掩盖主目标的边缘项，这轮应提升尾评
+  - 实际效果:
+    - 真实生效后仍然是负样本
+  - 失败模式分析:
+    - `post_release_grasp` 也不是当前该减的 release 后项；它仍然在支撑 release 后主动抓稳
+  - 下一轮建议:
+    - 回到 `post_release_grasp=135`
+    - 保持 `C124` 主线，继续 reward 减法，但转向更边缘的协调项，例如 `force_balance`
+
+- C131: reward subtraction on force-balance coordination
+  - 改动:
+    - 修改 [grasp_cube_v2_force.py](/home/ll/SRTP/Aero-Hand/sim_rl/mujoco_playground/mujoco_playground/_src/manipulation/aero_hand/grasp_cube_v2_force.py)
+    - 回到 `C124` 主线：`post_release_grasp=135`, `post_release_survival=155`, `post_release_pose_hold=50`, `hold_position=45`
+    - 仅把 `force_balance` 权重 `28 -> 22`
+  - smoke test:
+    - CPU smoke 通过：`smoke_ok_cube_capsule_bottlepalm_c131_cpu`
+    - `effective force_balance = 22.0`
+    - `effective post_release_grasp = 135.0`
+  - 训练:
+    - env: `AeroCubeGraspV2ForceCapsuleBottlePalmQbr`
+    - restore: `C106 000002211840`
+    - run: `logs/AeroCubeGraspV2ForceCapsuleBottlePalmQbr-20260428-031127-C131_long_dr_lr7p25e5_upd3_force3p2_pose50_forcebalance22_from_C106best_relmax2p45_triad18_force72_capsule_bottlepalm_2048`
+  - metrics.csv:
+    - `first = 24.3651s`
+    - `last = 24.9140s`
+    - `max = 24.9140s`
+    - `best_step = 2949120`
+  - 中间趋势:
+    - `24.3651 -> 23.5769 -> 23.7737 -> 24.9140s`
+  - 接触形态:
+    - `palm/nonprimary/non_tip/drop/slip = 0` 全程 clean
+  - 与前序对比:
+    - 相比 `C124`，`last 25.1686 -> 24.9140s`
+    - 相比 `C128/C129/C130`，这条线更接近 `C124`
+  - 修改原因:
+    - `post_release_survival`、`post_release_grasp` 均已证伪，因此转向更边缘的协调项，测试“过强的力均衡偏好”是否会压制真实长持握
+  - 预期效果:
+    - 如果 force-balance 正则太强，这轮应在保持 clean-contact 的同时提升尾评
+  - 实际效果:
+    - 这轮没有超过 `C124`，但比若干其他负样本更接近当前 best
+  - 失败模式分析:
+    - `force_balance` 可能确实偏强，但 `22` 并不是更优点；更可能需要保留更多原始约束，或者换到另一个更大的姿态/稳定性正则项
+  - 下一轮建议:
+    - 回到 `force_balance=28`
+    - 若采用更激进策略，可转向更大的 release 后稳定性正则，如 `stable_hold`
+
+- C62: continuation confirmation after C61
+  - 改动:
+    - 继续保持 `middle_target=0.66`，其余不动。
+    - 目标是确认 `C61` 后是否还能自然越过 `27s`，还是已经进入平台。
+  - 训练:
+    - env: `AeroCubeGraspV2ForceCapsuleBottlePalmQbr`
+    - restore: `C61 000002949120`
+    - run: `logs/AeroCubeGraspV2ForceCapsuleBottlePalmQbr-20260426-210602-C62_long_from_C61_middle066_capsule_bottlepalm_2048`
+    - `2097152 timesteps`, `4 evals`, `2048 envs`
+  - metrics.csv:
+    - `first = 27.2229s`
+    - `last = 27.3733s`
+    - `max = 27.3733s`
+  - 中间趋势:
+    - `27.22 -> 27.30 -> 26.80 -> 27.37s`
+    - palm 全程 `0`
+    - nonprimary 全程 `0`
+    - drop 维持在很低水平
+  - 结论:
+    - 当前主线已经基本平台在 `27s` 左右；
+    - 继续纯 continuation 收益太小，不适合机械重复。
+  - 下一轮建议:
+    - 改一个新的窄变量去突破平台，而不是继续原样长训。
+
+
+- C133: soft cheat-gate structural probe (partial negative)
+  - 改动:
+    - 修改 [grasp_cube_v2_force.py](/home/ll/SRTP/Aero-Hand/sim_rl/mujoco_playground/mujoco_playground/_src/manipulation/aero_hand/grasp_cube_v2_force.py)
+    - 保持 `C124` 主线的 reward / PPO / release timing 不变
+    - 仅把 clean gate 从 `1.0 - cheat_contact` 放松为 `1.0 - 0.5 * cheat_contact`
+  - smoke test:
+    - 代码可运行，但这是故意放松 palm / nonprimary 污染抑制的结构 probe
+  - 训练:
+    - env: `AeroCubeGraspV2ForceCapsuleBottlePalmQbr`
+    - restore: `C106 000002211840`
+    - run: `logs/AeroCubeGraspV2ForceCapsuleBottlePalmQbr-20260428-093144-C133_long_dr_lr7p25e5_upd3_force3p2_pose50_softcheatgate_from_C106best_relmax2p45_triad18_force72_capsule_bottlepalm_2048`
+  - metrics.csv:
+    - partial only
+    - `first = 23.9573s`
+    - `last = 23.8280s`
+    - `max = 23.9573s`
+    - `best_step = 737280`
+  - 接触形态:
+    - first eval 出现极小 `slip_event = 0.0078`
+    - 其余 dirty 指标未明显爆炸，但已经低于 `C124`
+  - 与前序对比:
+    - 相比 `C124`，partial `last 25.1686 -> 23.8280s`
+  - 修改原因:
+    - 测试 cheat-contact 抑制是否过硬，是否在压制恢复动作
+  - 预期效果:
+    - 若惩罚过硬，放松后应提升尾评
+  - 实际效果:
+    - partial 结果明显低于 `C124`，因此提前终止
+  - 失败模式分析:
+    - clean gate 放松会让错误支撑更容易混进“看起来成功”的轨迹，trainability 变差
+    - 这条线不应保留在主线
+  - 下一轮建议:
+    - 回退到 `clean_gate = 1.0 - cheat_contact`
+    - 从 `C124` 干净主线继续更窄的 release 结构 probe
+
+
+- C134: harder release gate requiring all three primary digits
+  - 改动:
+    - 修改 [grasp_cube_v2_force.py](/home/ll/SRTP/Aero-Hand/sim_rl/mujoco_playground/mujoco_playground/_src/manipulation/aero_hand/grasp_cube_v2_force.py)
+    - 仅把有效 override 的 `min_release_active_fingers: 2 -> 3`，强制支撑释放前必须食指/中指/拇指三指都真正参与，减少“拇指主导提前 release”
+  - smoke test:
+```
+min_release_active_fingers 3
+post_release_pose_hold 50.0
+force_balance 28.0
+post_release_grasp 135.0
+clean_gate_mode full_cheat_penalty
+```
+  - 训练:
+    - env: `AeroCubeGraspV2ForceCapsuleBottlePalmQbr`
+    - restore: `C106 000002211840`
+    - run: `logs/AeroCubeGraspV2ForceCapsuleBottlePalmQbr-20260428-094721-C134_long_dr_lr7p25e5_upd3_force3p2_pose50_minactive3_from_C106best_relmax2p45_triad18_force72_capsule_bottlepalm_2048`
+    - command: `/home/ll/miniconda3/envs/aero_rl/bin/python /home/ll/SRTP/Aero-Hand/sim_rl/mujoco_playground/learning/train_jax_ppo.py --env_name=AeroCubeGraspV2ForceCapsuleBottlePalmQbr --num_timesteps=2097152 --num_evals=4 --num_envs=2048 --num_eval_envs=128 --episode_length=800 --learning_rate=7.25e-5 --num_updates_per_batch=3 --entropy_cost=0.005 --domain_randomization --ignore_checkpoint_env_config=True --load_checkpoint_path=/home/ll/SRTP/Aero-Hand/logs/AeroCubeGraspV2ForceCapsuleBottlePalmQbr-20260427-164913-C106_long_dr_lr7p5e5_upd3_ent5e3_from_C103best_relmax2p45_postgrasp135_triad18_force72_capsule_bottlepalm_2048/checkpoints/000002211840 --suffix=C134_long_dr_lr7p25e5_upd3_force3p2_pose50_minactive3_from_C106best_relmax2p45_triad18_force72_capsule_bottlepalm_2048`
+  - metrics.csv:
+    - `first = 24.1706s`
+    - `last = 24.4577s`
+    - `max = 24.4577s`
+    - `best_step = 2949120`
+  - 接触形态:
+    - `palm_contact: 0.0000 -> 0.0000 -> 0.0000 -> 0.0000`
+    - `nonprimary_contact: 0.0000 -> 0.0000 -> 0.0000 -> 0.0000`
+    - `non_tip_primary_contact: 0.0000 -> 0.0000 -> 0.0000 -> 0.0000`
+    - `drop: 0.0000 -> 0.0000 -> 0.0000 -> 0.0000`
+    - `slip_event: 0.0000 -> 0.0000 -> 0.0000 -> 0.0000`
+  - 组件统计:
+    - `post_release_survival: 74099.09 -> 73465.89 -> 71931.47 -> 74142.67`
+    - `sustained_hold_bonus: 66088.83 -> 65218.91 -> 64273.61 -> 66667.23`
+    - `progressive_hold: 58611.81 -> 57912.98 -> 57037.31 -> 59041.73`
+    - `stable_hold: 52634.12 -> 52151.19 -> 51722.83 -> 53084.40`
+    - `post_release_pose_hold: 29534.76 -> 29360.76 -> 28902.93 -> 29673.86`
+    - `hold_position: 20128.72 -> 19949.06 -> 19494.71 -> 20113.47`
+    - `post_release_grasp: 19507.09 -> 19355.27 -> 19391.19 -> 19717.75`
+    - `force_balance: 7040.74 -> 7030.41 -> 7035.76 -> 7065.70`
+    - `primary_finger_force: 4339.39 -> 4320.02 -> 4358.63 -> 4350.47`
+    - `pre_release_grasp: 776.14 -> 773.61 -> 775.61 -> 777.07`
+  - 与前序对比:
+    - 相比 `C124`，`last 25.1686 -> 24.4577s`
+    - 差值: `-0.7109s`
+  - 修改原因:
+    - 仅把有效 override 的 `min_release_active_fingers: 2 -> 3`，强制支撑释放前必须食指/中指/拇指三指都真正参与，减少“拇指主导提前 release”
+  - 预期效果:
+    - 如果当前瓶颈是拇指提前接管、食指参与不足，这轮应让 release 后 unsupported 更稳，并保持 clean-contact。
+  - 实际效果:
+    - 未超过 C124，或接触形态变脏
+  - 失败模式分析:
+    - 当前单变量没有把 unsupported retention 推过 C124；需要保留干净主线，换下一个更窄 probe。
+  - 下一轮建议:
+    - 若提升明显，则继续围绕 release 条件做更窄半步；否则切到另一个 gate/threshold 单变量。
+
+
+- C135: slightly firmer release-force gate on the clean C124 mainline
+  - 改动:
+    - 修改 [grasp_cube_v2_force.py](/home/ll/SRTP/Aero-Hand/sim_rl/mujoco_playground/mujoco_playground/_src/manipulation/aero_hand/grasp_cube_v2_force.py)
+    - 回到干净主线后，仅把 `min_release_force: 0.10 -> 0.11`，不再强推三指都亮灯，而是更窄地要求 release 前主抓力更扎实
+  - smoke test:
+```
+min_release_active_fingers 2
+post_release_pose_hold 50.0
+force_balance 28.0
+post_release_grasp 135.0
+clean_gate_mode full_cheat_penalty
+```
+  - 训练:
+    - env: `AeroCubeGraspV2ForceCapsuleBottlePalmQbr`
+    - restore: `C106 000002211840`
+    - run: `logs/AeroCubeGraspV2ForceCapsuleBottlePalmQbr-20260428-100034-C135_long_dr_lr7p25e5_upd3_force3p2_pose50_minforce011_from_C106best_relmax2p45_triad18_force72_capsule_bottlepalm_2048`
+    - command: `/home/ll/miniconda3/envs/aero_rl/bin/python /home/ll/SRTP/Aero-Hand/sim_rl/mujoco_playground/learning/train_jax_ppo.py --env_name=AeroCubeGraspV2ForceCapsuleBottlePalmQbr --num_timesteps=2097152 --num_evals=4 --num_envs=2048 --num_eval_envs=128 --episode_length=800 --learning_rate=7.25e-5 --num_updates_per_batch=3 --entropy_cost=0.005 --domain_randomization --ignore_checkpoint_env_config=True --load_checkpoint_path=/home/ll/SRTP/Aero-Hand/logs/AeroCubeGraspV2ForceCapsuleBottlePalmQbr-20260427-164913-C106_long_dr_lr7p5e5_upd3_ent5e3_from_C103best_relmax2p45_postgrasp135_triad18_force72_capsule_bottlepalm_2048/checkpoints/000002211840 --suffix=C135_long_dr_lr7p25e5_upd3_force3p2_pose50_minforce011_from_C106best_relmax2p45_triad18_force72_capsule_bottlepalm_2048`
+  - metrics.csv:
+    - `first = 24.2597s`
+    - `last = 24.8409s`
+    - `max = 24.8409s`
+    - `best_step = 2949120`
+  - 接触形态:
+    - `palm_contact: 0.0000 -> 0.0000 -> 0.0000 -> 0.0000`
+    - `nonprimary_contact: 0.0000 -> 0.0000 -> 0.0000 -> 0.0000`
+    - `non_tip_primary_contact: 0.0000 -> 0.0000 -> 0.0000 -> 0.0000`
+    - `drop: 0.0000 -> 0.0000 -> 0.0000 -> 0.0000`
+    - `slip_event: 0.0000 -> 0.0000 -> 0.0000 -> 0.0000`
+  - 组件统计:
+    - `post_release_survival: 74135.05 -> 73047.25 -> 72482.57 -> 74779.02`
+    - `sustained_hold_bonus: 65947.72 -> 64612.29 -> 64873.59 -> 67337.59`
+    - `progressive_hold: 58536.60 -> 57415.29 -> 57519.58 -> 59559.28`
+    - `stable_hold: 52714.55 -> 51698.33 -> 52001.68 -> 53366.78`
+    - `post_release_pose_hold: 29577.46 -> 29166.19 -> 29116.20 -> 29880.28`
+    - `hold_position: 20131.47 -> 19842.59 -> 19650.71 -> 20297.57`
+    - `post_release_grasp: 19449.52 -> 19241.23 -> 19387.91 -> 19572.88`
+    - `force_balance: 7036.43 -> 7016.35 -> 7032.50 -> 7044.89`
+    - `primary_finger_force: 4347.98 -> 4312.09 -> 4352.25 -> 4310.28`
+    - `pre_release_grasp: 776.01 -> 771.56 -> 774.63 -> 773.51`
+  - 与前序对比:
+    - 相比 `C124`，`last 25.1686 -> 24.8409s`
+    - 差值: `-0.3277s`
+  - 修改原因:
+    - 回到干净主线后，仅把 `min_release_force: 0.10 -> 0.11`，不再强推三指都亮灯，而是更窄地要求 release 前主抓力更扎实
+  - 预期效果:
+    - 如果食指/中指参与不足主要表现为 release 前承托力还不够实，这轮应在保持 clean-contact 的同时抬高尾评；若再次退化，就说明问题不在 release force gate。
+  - 实际效果:
+    - 未超过 C124，或接触形态变脏
+  - 失败模式分析:
+    - 当前单变量没有把 unsupported retention 推过 C124；需要保留干净主线，换下一个更窄 probe。
+  - 下一轮建议:
+    - 若提升明显，则继续围绕 release 条件做更窄半步；否则切到另一个 gate/threshold 单变量。

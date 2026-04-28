@@ -10,7 +10,7 @@
   <default>
     <default class="can_shell">
       <geom
-          friction="1.20 0.025 0.005"
+          friction="1.55 0.030 0.006"
           conaffinity="7"
           condim="4"
           solref="0.030 1.0"

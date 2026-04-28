@@ -111,6 +111,7 @@ SENSOR_HW6_FORCE_NAMES = [
 GRASP_V2_XML = ROOT_PATH / "xmls" / "scene_mjx_grasp_v2.xml"
 GRASP_V2_COACD_XML = ROOT_PATH / "xmls" / "scene_mjx_grasp_v2_coacd.xml"
 GRASP_V2_COACD_QBR_XML = ROOT_PATH / "xmls" / "scene_mjx_grasp_v2_coacd_qbr.xml"
+GRASP_V2_CAPSULE_BOTTLEPALM_CUBE_XML = ROOT_PATH / "xmls" / "scene_mjx_grasp_v2_capsule_bottlepalm_cube.xml"
 GRASP_V2_BOTTLE_XML = ROOT_PATH / "xmls" / "scene_mjx_grasp_bottle_550ml.xml"
 GRASP_V2_CAN_XML = ROOT_PATH / "xmls" / "scene_mjx_grasp_can_330ml.xml"
 

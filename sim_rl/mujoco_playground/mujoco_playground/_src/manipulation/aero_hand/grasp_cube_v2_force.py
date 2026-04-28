@@ -113,7 +113,7 @@ def default_config() -> config_dict.ConfigDict:
           support_pos=[0.025, -0.065, 0.1348],      # C08: aligned with cube_pos
           support_hidden_pos=[0.0, 0.0, -10.0],
           min_release_active_fingers=2,   # C12: easier conditional release
-          min_release_force=0.10,         # C40: revert hard release gate; keep softer force shaping instead
+          min_release_force=0.11,         # C135: slightly firmer release gate on the C124 mainline
           require_grasp_for_release=True,   # C05: release when primary force/geom contact is ready
           force_release_after_sec=3.0,      # C15: force release at 3s (was 8s)
           # R66: 随机支撑释放 (1.5-4.0s)
@@ -227,12 +227,14 @@ def default_config_qbr() -> config_dict.ConfigDict:
   scales.stable_hold = 185.0
   scales.progressive_hold = 55.0
   scales.post_release_survival = 155.0
-  scales.post_release_pose_hold = 60.0
+  scales.post_release_pose_hold = 50.0
+  scales.hold_position = 45.0
   scales.drop_risk = -45.0
   scales.palm_contact = -28.0
   scales.nonprimary_contact = -20.0
   scales.pre_release_grasp = 35.0
   scales.post_release_grasp = 125.0
+  scales.force_balance = 28.0
   scales.primary_finger_force = 65.0
   scales.thumb_opposition = 30.0
   scales.three_finger_proximity = 15.0
@@ -254,8 +256,8 @@ def default_config_qbr() -> config_dict.ConfigDict:
   cfg.reset_config.lifted_grasp_noise_scale = 0.06
   cfg.reset_config.lifted_cube_z_offset = 0.01
 
-  cfg.support_config.random_release_min_sec = 1.5
-  cfg.support_config.random_release_max_sec = 2.5
+  cfg.support_config.random_release_min_sec = 1.7
+  cfg.support_config.random_release_max_sec = 2.7
 
   cfg.reward_config.force_contact_threshold = 0.06
   cfg.reward_config.finger_active_threshold = 0.08
@@ -1573,7 +1575,7 @@ class CubeGraspV2Force(aero_hand_base.AeroHandEnv):
     steps = info["stable_hold_steps"].astype(jp.float32)
     bonus_10s = (steps > 200.0).astype(jp.float32)  # 持握>10s
     bonus_20s = (steps > 400.0).astype(jp.float32)  # 持握>20s
-    bonus_30s = (steps > 600.0).astype(jp.float32)  # 持握>30s
+    bonus_30s = (steps > 600.0).astype(jp.float32)
     return bonus_10s + bonus_20s + bonus_30s
 
   def _reward_finger_participation(self, tip_force: jax.Array) -> jax.Array:
@@ -1807,6 +1809,55 @@ class CubeGraspV2ForceCoacdQbr(CubeGraspV2Force):
         middle_target
     )
     self._lifted_grasp_ctrl = self._lifted_grasp_ctrl.at[1].set(thumb_equiv_mcp)
+    self._lifted_grasp_ctrl = self._lifted_grasp_ctrl.at[3].set(middle_target)
+    self._default_pose = self._apply_passive_joint_couplings(self._default_pose)
+    self._pre_grasp_pose = self._apply_passive_joint_couplings(self._pre_grasp_pose)
+    self._lifted_grasp_pose = self._apply_passive_joint_couplings(
+        self._lifted_grasp_pose
+    )
+
+
+class CubeGraspV2ForceCapsuleBottlePalmQbr(CubeGraspV2ForceCoacdQbr):
+  """QBR cube policy evaluated on the current capsule hand with bottle palm fit."""
+
+  def __init__(
+      self,
+      config: config_dict.ConfigDict = default_config_qbr(),
+      config_overrides: Optional[Dict[str, Union[str, int, list[Any]]]] = None,
+      xml_path: Optional[str] = None,
+  ):
+    config = config.copy_and_resolve_references()
+    # C63/C69: keep the clean proxy-env triad shaping and the stronger
+    # post-release grasp retention that pushed the bottle-palm proxy into the
+    # high-20s. C86 showed extra pose-hold weight hurts trainability, so keep
+    # the C84 timing line intact and move the next probe to the optimizer.
+    config.reward_config.scales.three_finger_proximity = 18.0
+    config.reward_config.scales.primary_finger_force = 72.0
+    config.reward_config.scales.post_release_grasp = 135.0
+    config.support_config.min_release_active_fingers = 2
+    config.reward_config.scales.pre_release_grasp = 35.0
+    config.support_config.random_release_min_sec = 1.5
+    config.support_config.random_release_max_sec = 2.45
+    config.support_config.release_ramp_sec = 0.5
+    config.support_config.force_release_after_sec = 3.2
+    super().__init__(
+        config=config,
+        config_overrides=config_overrides,
+        xml_path=xml_path or consts.GRASP_V2_CAPSULE_BOTTLEPALM_CUBE_XML.as_posix(),
+    )
+    # C58: the current bottle-palm proxy recovered from 2.9s to 20s+ mostly
+    # through continuation. Keep the proven middle bias at 0.66 here; the
+    # later 0.68 probe stayed clean but underperformed and is not the mainline.
+    middle_mcp_id = _V2_FINGER_MCP_IDS[1]
+    middle_target = 0.66
+    self._default_ctrl = self._default_ctrl.at[3].set(middle_target)
+    self._default_pose = self._default_pose.at[middle_mcp_id].set(middle_target)
+    self._pre_grasp_pose = self._pre_grasp_pose.at[middle_mcp_id].set(
+        middle_target
+    )
+    self._lifted_grasp_pose = self._lifted_grasp_pose.at[middle_mcp_id].set(
+        middle_target
+    )
     self._lifted_grasp_ctrl = self._lifted_grasp_ctrl.at[3].set(middle_target)
     self._default_pose = self._apply_passive_joint_couplings(self._default_pose)
     self._pre_grasp_pose = self._apply_passive_joint_couplings(self._pre_grasp_pose)

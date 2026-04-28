@@ -16,6 +16,14 @@
     --mode overlay \
     --show-sites
 
+  # 一键进入 can 手部碰撞检查视图
+  /home/ll/miniconda3/envs/aero_rl/bin/python edit_grasp_initial_state.py \
+    --inspect-hand-collision
+
+  # 一键进入 can 碰撞叠加检查视图
+  /home/ll/miniconda3/envs/aero_rl/bin/python edit_grasp_initial_state.py \
+    --inspect-hand-overlay
+
 交互说明:
   - 手指: 用 viewer 右侧的 ctrl 滑条调节。
   - 物体: 用 `cube_freejoint` 相关 qpos，或直接用快捷键微调。
@@ -23,6 +31,8 @@
   - F9: 在终端打印当前状态摘要。
   - F10: 重置回 XML 的 `home` keyframe。
   - F11: 重新打印帮助。
+  - F6: 切换 STL 显示。
+  - F7: 切换碰撞体显示。
   - Insert/Delete: 物体 x 负/正方向平移。
   - Home/End: 物体 y 正/负方向平移。
   - PageUp/PageDown: 物体 z 正/负方向平移。
@@ -70,6 +80,8 @@ MJKEY_F8 = 297
 MJKEY_F9 = 298
 MJKEY_F10 = 299
 MJKEY_F11 = 300
+MJKEY_F6 = 295
+MJKEY_F7 = 296
 
 
 def parse_args() -> argparse.Namespace:
@@ -107,7 +119,50 @@ def parse_args() -> argparse.Namespace:
         type=Path,
         help="JSON output path. Defaults to temp_initial_state/<scene>_initial_state.json",
     )
+    parser.add_argument(
+        "--inspect-hand-collision",
+        action="store_true",
+        help=(
+            "Quick preset for inspecting the current can-hand collision model: "
+            "scene=can_330ml, mode=collision, camera=side, show-sites."
+        ),
+    )
+    parser.add_argument(
+        "--inspect-hand-overlay",
+        action="store_true",
+        help=(
+            "Quick preset for inspecting the current can-hand STL and collision "
+            "overlay together: scene=can_330ml, mode=overlay, camera=side, show-sites."
+        ),
+    )
+    parser.add_argument(
+        "--inspect-thumb-tip",
+        action="store_true",
+        help=(
+            "Quick preset for inspecting thumb-tip collision fit on the can hand: "
+            "scene=can_330ml, mode=overlay, camera=palm, show-sites."
+        ),
+    )
     return parser.parse_args()
+
+
+def _apply_cli_presets(args: argparse.Namespace) -> argparse.Namespace:
+    if args.inspect_hand_collision:
+        args.scene = "can_330ml"
+        args.mode = "collision"
+        args.camera = "side"
+        args.show_sites = True
+    if args.inspect_hand_overlay:
+        args.scene = "can_330ml"
+        args.mode = "overlay"
+        args.camera = "side"
+        args.show_sites = True
+    if args.inspect_thumb_tip:
+        args.scene = "can_330ml"
+        args.mode = "overlay"
+        args.camera = "palm"
+        args.show_sites = True
+    return args
 
 
 def _joint_qpos_width(joint_type: int) -> int:
@@ -525,6 +580,8 @@ def _print_help(output_path: Path) -> None:
     print("  F9: print current state summary")
     print("  F10: reset to XML home keyframe")
     print("  F11: print this help again")
+    print("  F6: toggle STL visual geoms")
+    print("  F7: toggle collision geoms")
     print(
         f"  Insert/Delete: object x -/+   Home/End: object y + / -   "
         f"PageUp/PageDown: object z + / -   "
@@ -589,7 +646,7 @@ def _print_object_pose(
 
 
 def main() -> None:
-    args = parse_args()
+    args = _apply_cli_presets(parse_args())
     xml_path = view_utils._select_xml_path(args.scene)
     output_path = (args.output or _default_output_path(args.scene)).expanduser().resolve()
 
@@ -639,6 +696,8 @@ def main() -> None:
         "print": False,
         "reset": False,
         "help": False,
+        "toggle_visual": False,
+        "toggle_collision": False,
         "object_ops": [],
     }
 
@@ -651,6 +710,10 @@ def main() -> None:
             pending["reset"] = True
         elif keycode == MJKEY_F11:
             pending["help"] = True
+        elif keycode == MJKEY_F6:
+            pending["toggle_visual"] = True
+        elif keycode == MJKEY_F7:
+            pending["toggle_collision"] = True
         elif keycode == MJKEY_INSERT:
             pending["object_ops"].append(("translate", np.array([-OBJECT_TRANSLATION_STEP, 0.0, 0.0])))
         elif keycode == MJKEY_DELETE:
@@ -701,6 +764,18 @@ def main() -> None:
                 viewer.cam.fixedcamid = view_utils._camera_id(model, args.camera)
 
         while viewer.is_running():
+            if pending["toggle_visual"]:
+                viewer.opt.geomgroup[view_utils.VISUAL_GROUP] = 1 - int(
+                    viewer.opt.geomgroup[view_utils.VISUAL_GROUP]
+                )
+                print(f"[display] STL visible = {bool(viewer.opt.geomgroup[view_utils.VISUAL_GROUP])}")
+                pending["toggle_visual"] = False
+            if pending["toggle_collision"]:
+                viewer.opt.geomgroup[view_utils.COLLISION_GROUP] = 1 - int(
+                    viewer.opt.geomgroup[view_utils.COLLISION_GROUP]
+                )
+                print(f"[display] collision visible = {bool(viewer.opt.geomgroup[view_utils.COLLISION_GROUP])}")
+                pending["toggle_collision"] = False
             if pending["help"]:
                 _print_help(output_path)
                 pending["help"] = False

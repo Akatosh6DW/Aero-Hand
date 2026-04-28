@@ -1,0 +1,203 @@
+Environment Config:
+action_repeat: 1
+action_scale:
+- 0.12
+- 0.35
+- 0.3
+- 0.3
+- 0.02
+- 0.02
+ctrl_dt: 0.05
+early_termination: true
+episode_length: 800
+force_history_len: 1
+history_len: 1
+impl: jax
+noise_config:
+  force_ema_alpha: 0.85
+  level: 0.3
+  scales:
+    hw_force: 0.05
+    hw_pos: 0.005
+perturbation_config:
+  external_force_enabled: true
+  external_force_interval: 35
+  external_force_magnitude: 0.1
+  external_force_min_hold_steps: 90
+  gravity_perturbation_enabled: true
+  gravity_tilt_change_interval: 70
+  gravity_tilt_max_rad: 0.4
+  gravity_tilt_min_hold_steps: 170
+  joint_obs_noise_enabled: true
+  joint_obs_noise_std: 0.015
+  orientation_flip_change_interval: 120
+  orientation_flip_enabled: true
+  orientation_flip_force_scale: 1.0
+  orientation_flip_min_hold_steps: 400
+  total_force_clip_n: 0.35
+reset_config:
+  hand_qpos_noise_scale: 0.01
+  lifted_cube_z_offset: 0.01
+  lifted_grasp_fraction: 0.0
+  lifted_grasp_noise_scale: 0.06
+  pre_grasp_fraction: 0.0
+  pre_grasp_noise_scale: 0.15
+  termination_grace_sec: 5.0
+reward_config:
+  finger_active_threshold: 0.08
+  force_contact_saturation: 3.0
+  force_contact_threshold: 0.06
+  force_overload_soft_width: 1.5
+  force_overload_threshold: 2.8
+  hold_success_sec: 30.0
+  lift_success_threshold_m: 0.01
+  scales:
+    action_accel: -0.005
+    action_rate: -0.02
+    approach: 12.0
+    closure: 6.0
+    contact: 4.0
+    drop_risk: -45.0
+    finger_participation: 5.0
+    force_balance: 28.0
+    force_contact: 15.0
+    force_overload: 0.0
+    grip_force: 15.0
+    height: 18.0
+    hold_position: 45.0
+    human_pose: 2.0
+    idle_follow: 0.0
+    nonprimary_contact: -20.0
+    palm_contact: -28.0
+    pip_closure: 3.0
+    post_release_cheat_contact: -70.0
+    post_release_grasp: 125.0
+    post_release_pose_hold: 50.0
+    post_release_slip: -55.0
+    post_release_survival: 155.0
+    pre_release_grasp: 35.0
+    primary_finger_force: 65.0
+    primary_geom_contact: 25.0
+    progressive_hold: 55.0
+    soft_contact: 5.0
+    stable_hold: 185.0
+    survival: 1.0
+    sustained_hold_bonus: 85.0
+    termination: -380.0
+    three_finger_proximity: 15.0
+    thumb_engage: 20.0
+    thumb_opposition: 30.0
+    torques: -3.0e-05
+  soft_contact_fmax: 2.5
+  soft_contact_fmin: 0.1
+  target_lift_m: 0.012
+sim_dt: 0.01
+spawn_config:
+  cube_jitter:
+  - 0.0
+  - 0.0
+  - 0.0
+  cube_pos:
+  - 0.025
+  - -0.065
+  - 0.1503
+  support_enabled: true
+stability_config:
+  max_abs_action: 1.0
+  motor_delta_clip:
+  - 0.03
+  - 0.03
+  - 0.03
+  - 0.03
+  - 0.03
+  - 0.03
+  nonfinite_penalty_mult: 2.0
+  terminate_on_nonfinite: true
+support_config:
+  force_release_after_sec: 3.0
+  min_release_active_fingers: 2
+  min_release_force: 0.11
+  random_release: true
+  random_release_max_sec: 2.7
+  random_release_min_sec: 1.7
+  release_after_sec: 2.0
+  release_ramp_sec: 0.5
+  require_grasp_for_release: true
+  support_hidden_pos:
+  - 0.0
+  - 0.0
+  - -10.0
+  support_pos:
+  - 0.025
+  - -0.065
+  - 0.1348
+tactile_config:
+  force_saturation_n: 3.0
+  obs_force_ema_alpha: 0.7
+  taxel_weights:
+  - 0.7
+  - 1.0
+  - 1.0
+  - 0.7
+  - 1.0
+  - 1.4
+  - 1.4
+  - 1.0
+  - 1.0
+  - 1.4
+  - 1.4
+  - 1.0
+  - 0.7
+  - 1.0
+  - 1.0
+  - 0.7
+  use_pooled_obs: true
+  use_real_tactile: true
+
+PPO Training Parameters:
+action_repeat: 1
+batch_size: 256
+discounting: 0.97
+entropy_cost: 0.005
+episode_length: 800
+learning_rate: 7.25e-05
+network_factory:
+  distribution_type: tanh_normal
+  init_noise_std: 1.0
+  mean_clip_scale: null
+  noise_std_type: scalar
+  policy_hidden_layer_sizes: !!python/tuple
+  - 128
+  - 128
+  policy_obs_key: state
+  state_dependent_std: false
+  value_hidden_layer_sizes: !!python/tuple
+  - 128
+  - 128
+  value_obs_key: privileged_state
+normalize_observations: true
+num_envs: 2048
+num_eval_envs: 128
+num_evals: 4
+num_minibatches: 32
+num_resets_per_eval: 1
+num_timesteps: 2097152
+num_updates_per_batch: 3
+reward_scaling: 1.0
+unroll_length: 40
+
+Experiment name: AeroCubeGraspV2ForceCapsuleBottlePalmQbr-20260428-100034-C135_long_dr_lr7p25e5_upd3_force3p2_pose50_minforce011_from_C106best_relmax2p45_triad18_force72_capsule_bottlepalm_2048
+Logs are being stored in: /home/ll/SRTP/Aero-Hand/logs/AeroCubeGraspV2ForceCapsuleBottlePalmQbr-20260428-100034-C135_long_dr_lr7p25e5_upd3_force3p2_pose50_minforce011_from_C106best_relmax2p45_triad18_force72_capsule_bottlepalm_2048
+Restoring from checkpoint: /home/ll/SRTP/Aero-Hand/logs/AeroCubeGraspV2ForceCapsuleBottlePalmQbr-20260427-164913-C106_long_dr_lr7p5e5_upd3_ent5e3_from_C103best_relmax2p45_postgrasp135_triad18_force72_capsule_bottlepalm_2048/checkpoints/000002211840
+Checkpoint path: /home/ll/SRTP/Aero-Hand/logs/AeroCubeGraspV2ForceCapsuleBottlePalmQbr-20260428-100034-C135_long_dr_lr7p25e5_upd3_force3p2_pose50_minforce011_from_C106best_relmax2p45_triad18_force72_capsule_bottlepalm_2048/checkpoints
+0: reward=18659.340
+983040: reward=18360.680
+1966080: reward=18364.465
+2949120: reward=18884.273
+Done training.
+Time to JIT compile: 61.5294157340104
+Time to train: 435.8341901359963
+Starting inference...
+FPS for rendering: 10.0
+  0%|          | 0/400 [00:00<?, ?it/s] 16%|█▋        | 65/400 [00:00<00:00, 648.34it/s] 33%|███▎      | 131/400 [00:00<00:00, 653.03it/s] 49%|████▉     | 197/400 [00:00<00:00, 644.51it/s] 66%|██████▌   | 262/400 [00:00<00:00, 633.06it/s] 82%|████████▏ | 326/400 [00:00<00:00, 620.45it/s] 97%|█████████▋| 389/400 [00:00<00:00, 611.55it/s]100%|██████████| 400/400 [00:00<00:00, 622.06it/s]
+Rollout video saved as '/home/ll/SRTP/Aero-Hand/logs/AeroCubeGraspV2ForceCapsuleBottlePalmQbr-20260428-100034-C135_long_dr_lr7p25e5_upd3_force3p2_pose50_minforce011_from_C106best_relmax2p45_triad18_force72_capsule_bottlepalm_2048/rollout0.mp4'.

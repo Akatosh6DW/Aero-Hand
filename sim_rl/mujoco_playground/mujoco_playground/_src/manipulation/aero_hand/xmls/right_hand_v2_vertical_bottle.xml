@@ -92,24 +92,34 @@
     <body name="v2_mount" pos="0 0 0" euler="1.5708 0 0" childclass="v2_hand">
       <body name="palm" pos="0 0 0">
         <geom type="mesh" mesh="v2_palm" class="visual" />
-        <!-- Bottle palm collision now reuses the existing CoACD->fitted OBB
-             decomposition pipeline (see urdf_collison_decompose.py --v2-mjcf
-             --fitted), but keeps the legacy palm_capsule_* naming so the
-             bottle task still resolves palm contact groups in capsule mode. -->
-        <geom name="palm_capsule_000" type="box" size="0.019545 0.032818 0.027657" pos="-0.001294 0.013306 -0.002059" quat="-0.021394 -0.694705 0.718833 -0.014360" group="3" friction="1.25" solref="0.008 1.1" solimp="0.95 0.995 0.0005" />
-        <geom name="palm_capsule_001" type="box" size="0.055995 0.012246 0.020313" pos="-0.037477 0.088524 0.002150" quat="-0.021394 -0.694705 0.718833 -0.014360" group="3" friction="1.25" solref="0.008 1.1" solimp="0.95 0.995 0.0005" />
-        <geom name="palm_capsule_002" type="box" size="0.015020 0.023038 0.009075" pos="0.014322 0.045467 0.014280" quat="-0.021394 -0.694705 0.718833 -0.014360" group="3" friction="1.25" solref="0.008 1.1" solimp="0.95 0.995 0.0005" />
-        <geom name="palm_capsule_003" type="box" size="0.058447 0.011058 0.023732" pos="-0.017454 0.089066 -0.000677" quat="-0.021394 -0.694705 0.718833 -0.014360" group="3" friction="1.25" solref="0.008 1.1" solimp="0.95 0.995 0.0005" />
-        <geom name="palm_capsule_004" type="box" size="0.015590 0.024517 0.016455" pos="0.015471 0.045279 -0.007175" quat="-0.021394 -0.694705 0.718833 -0.014360" group="3" friction="1.25" solref="0.008 1.1" solimp="0.95 0.995 0.0005" />
-        <geom name="palm_capsule_005" type="box" size="0.001643 0.008443 0.008259" pos="0.017799 0.006857 -0.019307" quat="-0.021394 -0.694705 0.718833 -0.014360" group="3" friction="1.25" solref="0.008 1.1" solimp="0.95 0.995 0.0005" />
-        <geom name="palm_capsule_006" type="box" size="0.037733 0.026708 0.023460" pos="0.016879 0.095803 -0.000931" quat="-0.021394 -0.694705 0.718833 -0.014360" group="3" friction="1.25" solref="0.008 1.1" solimp="0.95 0.995 0.0005" />
-        <geom name="palm_capsule_007" type="box" size="0.013627 0.026278 0.013850" pos="0.017772 0.136552 -0.001137" quat="-0.021394 -0.694705 0.718833 -0.014360" group="3" friction="1.25" solref="0.008 1.1" solimp="0.95 0.995 0.0005" />
+        <!-- Keep palm_capsule_* naming for reward bookkeeping, but use a
+             hand-fitted palm scaffold that matches the manual V2 palm model
+             more closely and stays clear of the four MCP roots. -->
+        <geom name="palm_capsule_000" type="box" size="0.0300 0.0310 0.0145" pos="0.0000 0.0580 -0.0010" group="3" friction="1.95 0.014 0.0002" solref="0.008 1.1" solimp="0.95 0.995 0.0005" />
+        <geom name="palm_capsule_001" type="box" size="0.0260 0.0140 0.0105" pos="0.0000 0.1060 -0.0010" group="3" friction="1.95 0.014 0.0002" solref="0.008 1.1" solimp="0.95 0.995 0.0005" />
+        <geom name="palm_capsule_002" type="box" size="0.0245 0.0170 0.0120" pos="0.0000 0.0230 0.0025" group="3" friction="1.90 0.014 0.0002" solref="0.008 1.1" solimp="0.95 0.995 0.0005" />
+        <geom name="palm_capsule_003" type="box" size="0.0070 0.0280 0.0100" pos="0.0280 0.0700 -0.0010" group="3" friction="1.95 0.014 0.0002" solref="0.008 1.1" solimp="0.95 0.995 0.0005" />
+        <geom name="palm_capsule_004" type="box" size="0.0070 0.0280 0.0100" pos="-0.0280 0.0700 -0.0010" group="3" friction="1.95 0.014 0.0002" solref="0.008 1.1" solimp="0.95 0.995 0.0005" />
+        <geom name="palm_capsule_005" type="box" size="0.0185 0.0330 0.0018" pos="0.0000 0.0715 0.0198" group="3" friction="2.80 0.020 0.0002" solref="0.008 1.1" solimp="0.95 0.995 0.0005" />
+        <geom name="palm_capsule_006" type="ellipsoid" group="3" friction="2.50 0.018 0.0002" solref="0.008 1.1" solimp="0.95 0.995 0.0005" pos="0.0145 0.0835 0.0195" quat="0.999048 -0.043619 0 0" size="0.0115 0.0175 0.0024" />
+        <geom name="palm_capsule_007" type="ellipsoid" group="3" friction="2.50 0.018 0.0002" solref="0.008 1.1" solimp="0.95 0.995 0.0005" pos="-0.0145 0.0835 0.0195" quat="0.999048 -0.043619 0 0" size="0.0115 0.0175 0.0024" />
+        <geom name="palm_capsule_008" type="ellipsoid" group="3" friction="2.45 0.017 0.0002" solref="0.008 1.1" solimp="0.95 0.995 0.0005" pos="0.0000 0.0980 0.0190" quat="0.999048 -0.043619 0 0" size="0.0145 0.0185 0.0024" />
+        <geom name="palm_capsule_009" type="box" size="0.0085 0.0075 0.0062" pos="0.0255 0.1205 0.0102" group="3" friction="2.10 0.015 0.0002" solref="0.008 1.1" solimp="0.95 0.995 0.0005" />
+        <geom name="palm_capsule_010" type="ellipsoid" group="3" friction="2.35 0.016 0.0002" solref="0.008 1.1" solimp="0.95 0.995 0.0005" pos="0.0255 0.1210 0.0182" quat="0.999048 -0.043619 0 0" size="0.0086 0.0100 0.0023" />
+        <geom name="palm_capsule_011" type="box" size="0.0084 0.0080 0.0063" pos="0.0085 0.1230 0.0100" group="3" friction="2.10 0.015 0.0002" solref="0.008 1.1" solimp="0.95 0.995 0.0005" />
+        <geom name="palm_capsule_012" type="ellipsoid" group="3" friction="2.35 0.016 0.0002" solref="0.008 1.1" solimp="0.95 0.995 0.0005" pos="0.0085 0.1235 0.0180" quat="0.999048 -0.043619 0 0" size="0.0085 0.0105 0.0023" />
+        <geom name="palm_capsule_013" type="box" size="0.0084 0.0080 0.0063" pos="-0.0095 0.1215 0.0100" group="3" friction="2.10 0.015 0.0002" solref="0.008 1.1" solimp="0.95 0.995 0.0005" />
+        <geom name="palm_capsule_014" type="ellipsoid" group="3" friction="2.35 0.016 0.0002" solref="0.008 1.1" solimp="0.95 0.995 0.0005" pos="-0.0095 0.1220 0.0180" quat="0.999048 -0.043619 0 0" size="0.0085 0.0105 0.0023" />
+        <geom name="palm_capsule_015" type="box" size="0.0088 0.0075 0.0062" pos="-0.0270 0.1190 0.0102" group="3" friction="2.10 0.015 0.0002" solref="0.008 1.1" solimp="0.95 0.995 0.0005" />
+        <geom name="palm_capsule_016" type="ellipsoid" group="3" friction="2.35 0.016 0.0002" solref="0.008 1.1" solimp="0.95 0.995 0.0005" pos="-0.0270 0.1195 0.0182" quat="0.999048 -0.043619 0 0" size="0.0088 0.0100 0.0023" />
         <site name="grasp_site" pos="0 0.085 -0.020" group="4" />
         <body name="right_index_proximal" pos="0.034276 0.1374 0.001">
           <inertial pos="-0.003657 0.0162 0.000274" mass="0.0686" diaginertia="7.49e-06 7.33e-06 2.82e-06" />
           <joint name="right_index_mcp" axis="1 0 0" class="mcp" />
           <geom type="mesh" mesh="v2_index_proximal" class="visual" />
-          <geom name="right_index_proximal_capsule_000" type="capsule" group="3" friction="1.5" solref="0.005 1.0" solimp="0.97 0.999 0.0001" fromto="-0.003733 0.008071 0.003736 -0.003793 0.026509 -0.000839" size="0.010229" />
+          <geom name="right_index_proximal_capsule_000" type="ellipsoid" group="3" friction="1.5" solref="0.005 1.0" solimp="0.97 0.999 0.0001" pos="-0.003700 0.006000 0.005400" quat="0.999048 -0.043619 0 0" size="0.009400 0.006600 0.007600" />
+          <geom name="right_index_proximal_capsule_001" type="ellipsoid" group="3" friction="1.5" solref="0.005 1.0" solimp="0.97 0.999 0.0001" pos="-0.003950 0.024400 0.000200" quat="0.987688 -0.156434 0 0" size="0.010400 0.011800 0.008900" />
+          <geom name="right_index_proximal_capsule_002" type="ellipsoid" group="3" friction="1.5" solref="0.005 1.0" solimp="0.97 0.999 0.0001" pos="-0.003650 0.015400 0.002700" quat="0.994522 -0.104528 0 0" size="0.010000 0.009600 0.008300" />
           <body name="right_index_distal" pos="0.00084336 0.031988 -0.0026473">
             <inertial pos="-0.00450 0.0246 0.00927" mass="0.0755" diaginertia="1.58e-05 1.57e-05 2.47e-06" />
             <joint name="right_index_pip" axis="1 0 0" class="pip" />
@@ -139,7 +149,9 @@
           <inertial pos="-0.003657 0.0162 0.000274" mass="0.0686" diaginertia="7.49e-06 7.33e-06 2.82e-06" />
           <joint name="right_middle_mcp" axis="1 0 0" class="mcp" />
           <geom type="mesh" mesh="v2_middle_proximal" class="visual" />
-          <geom name="right_middle_proximal_capsule_000" type="capsule" group="3" friction="1.5" solref="0.005 1.0" solimp="0.97 0.999 0.0001" fromto="-0.003733 0.008071 0.003736 -0.003793 0.026509 -0.000839" size="0.010229" />
+          <geom name="right_middle_proximal_capsule_000" type="ellipsoid" group="3" friction="1.5" solref="0.005 1.0" solimp="0.97 0.999 0.0001" pos="-0.003700 0.006100 0.005500" quat="0.999048 -0.043619 0 0" size="0.009600 0.006800 0.007800" />
+          <geom name="right_middle_proximal_capsule_001" type="ellipsoid" group="3" friction="1.5" solref="0.005 1.0" solimp="0.97 0.999 0.0001" pos="-0.003950 0.024600 0.000300" quat="0.987688 -0.156434 0 0" size="0.010500 0.012000 0.009000" />
+          <geom name="right_middle_proximal_capsule_002" type="ellipsoid" group="3" friction="1.5" solref="0.005 1.0" solimp="0.97 0.999 0.0001" pos="-0.003650 0.015600 0.002900" quat="0.994522 -0.104528 0 0" size="0.010100 0.009900 0.008500" />
           <body name="right_middle_distal" pos="0 0.02968 -0.0024563">
             <inertial pos="-0.00366 0.0269 0.00908" mass="0.0755" diaginertia="1.58e-05 1.57e-05 2.47e-06" />
             <joint name="right_middle_pip" axis="1 0 0" class="pip" />
@@ -169,7 +181,9 @@
           <inertial pos="-0.003657 0.0162 0.000274" mass="0.0686" diaginertia="7.49e-06 7.33e-06 2.82e-06" />
           <joint name="right_ring_mcp" axis="1 0 0" class="mcp" />
           <geom type="mesh" mesh="v2_ring_proximal" class="visual" />
-          <geom name="right_ring_proximal_capsule_000" type="capsule" group="3" friction="1.5" solref="0.005 1.0" solimp="0.97 0.999 0.0001" fromto="-0.003733 0.008071 0.003736 -0.003793 0.026509 -0.000839" size="0.010229" />
+          <geom name="right_ring_proximal_capsule_000" type="ellipsoid" group="3" friction="1.5" solref="0.005 1.0" solimp="0.97 0.999 0.0001" pos="-0.003700 0.006000 0.005300" quat="0.999048 -0.043619 0 0" size="0.009300 0.006500 0.007500" />
+          <geom name="right_ring_proximal_capsule_001" type="ellipsoid" group="3" friction="1.5" solref="0.005 1.0" solimp="0.97 0.999 0.0001" pos="-0.003950 0.024300 0.000150" quat="0.987688 -0.156434 0 0" size="0.010300 0.011700 0.008800" />
+          <geom name="right_ring_proximal_capsule_002" type="ellipsoid" group="3" friction="1.5" solref="0.005 1.0" solimp="0.97 0.999 0.0001" pos="-0.003650 0.015200 0.002600" quat="0.994522 -0.104528 0 0" size="0.009900 0.009500 0.008200" />
           <body name="right_ring_distal" pos="0 0.02968 -0.0024563">
             <inertial pos="-0.00366 0.0269 0.00908" mass="0.0755" diaginertia="1.58e-05 1.57e-05 2.47e-06" />
             <joint name="right_ring_pip" axis="1 0 0" class="pip" />
@@ -199,7 +213,9 @@
           <inertial pos="-0.003657 0.0162 0.000274" mass="0.0686" diaginertia="7.49e-06 7.33e-06 2.82e-06" />
           <joint name="right_pinky_mcp" axis="1 0 0" class="mcp" />
           <geom type="mesh" mesh="v2_pinky_proximal" class="visual" />
-          <geom name="right_pinky_proximal_capsule_000" type="capsule" group="3" friction="1.5" solref="0.005 1.0" solimp="0.97 0.999 0.0001" fromto="-0.003733 0.008071 0.003736 -0.003793 0.026509 -0.000839" size="0.010229" />
+          <geom name="right_pinky_proximal_capsule_000" type="ellipsoid" group="3" friction="1.5" solref="0.005 1.0" solimp="0.97 0.999 0.0001" pos="-0.003550 0.005700 0.005000" quat="0.999048 -0.043619 0 0" size="0.008700 0.006100 0.007100" />
+          <geom name="right_pinky_proximal_capsule_001" type="ellipsoid" group="3" friction="1.5" solref="0.005 1.0" solimp="0.97 0.999 0.0001" pos="-0.003850 0.023500 0.000000" quat="0.987688 -0.156434 0 0" size="0.009700 0.011000 0.008300" />
+          <geom name="right_pinky_proximal_capsule_002" type="ellipsoid" group="3" friction="1.5" solref="0.005 1.0" solimp="0.97 0.999 0.0001" pos="-0.003650 0.014700 0.002400" quat="0.994522 -0.104528 0 0" size="0.009200 0.008900 0.007700" />
           <body name="right_pinky_distal" pos="0.00084336 0.031988 -0.0026473">
             <inertial pos="-0.00450 0.0246 0.00927" mass="0.0755" diaginertia="1.58e-05 1.57e-05 2.47e-06" />
             <joint name="right_pinky_pip" axis="1 0 0" class="pip" />
@@ -229,19 +245,28 @@
           <inertial pos="0.013775 -0.009814 0.002084" mass="0.08488" diaginertia="1.03e-05 9.49e-06 5.67e-06" />
           <joint name="right_thumb_cmc_abd" axis="0 -1 0" class="thumb_cmc" />
           <geom type="mesh" mesh="v2_thumb_base" class="visual" />
-          <geom name="right_thumb_base_capsule_000" type="box" size="0.015325 0.013443 0.017225" pos="0.019292 -0.009593 0.002956" quat="0.237188 0.108156 0.803420 0.535313" group="3" friction="1.5" solref="0.005 1.0" solimp="0.97 0.999 0.0001" />
-          <geom name="right_thumb_base_capsule_001" type="box" size="0.008344 0.008646 0.008403" pos="-0.002984 -0.008688 -0.002984" quat="0.237188 0.108156 0.803420 0.535313" group="3" friction="1.5" solref="0.005 1.0" solimp="0.97 0.999 0.0001" />
+          <!-- Keep only the thumb-base box scaffold that actually contributes to
+               opposition support; avoid extra palm-connection ellipsoids. -->
+          <geom name="right_thumb_base_capsule_000" type="box" size="0.011200 0.010800 0.013800" pos="0.018600 -0.008900 0.003600" quat="0.237188 0.108156 0.803420 0.535313" group="3" friction="1.6" solref="0.005 1.0" solimp="0.97 0.999 0.0001" />
+          <geom name="right_thumb_base_capsule_001" type="box" size="0.008200 0.008800 0.010600" pos="0.009800 -0.014200 0.000400" quat="0.237188 0.108156 0.803420 0.535313" group="3" friction="1.6" solref="0.005 1.0" solimp="0.97 0.999 0.0001" />
+          <geom name="right_thumb_base_capsule_002" type="box" size="0.006400 0.007000 0.007600" pos="-0.001800 -0.008600 -0.003600" quat="0.237188 0.108156 0.803420 0.535313" group="3" friction="1.6" solref="0.005 1.0" solimp="0.97 0.999 0.0001" />
           <body name="right_thumb_mid" pos="0.02679 -0.0045 0.0045976" quat="0.641137 -0.027549 -0.766225 -0.032924">
             <inertial pos="0 0.01832 -0.01287" mass="0.18907" diaginertia="4.62e-05 4.25e-05 1.60e-05" />
             <joint name="right_thumb_cmc_flex" axis="1 0 0" class="thumb_flex" />
             <geom type="mesh" mesh="v2_thumb_mid" class="visual" />
-            <geom name="right_thumb_mid_capsule_000" type="capsule" group="3" friction="1.5" solref="0.005 1.0" solimp="0.97 0.999 0.0001" fromto="0.000259 0.029240 -0.018406 0.000155 0.011437 -0.004140" size="0.016560" />
+            <geom name="right_thumb_mid_capsule_bridge" type="ellipsoid" group="3" friction="1.62" solref="0.005 1.0" solimp="0.97 0.999 0.0001" pos="0.000300 0.010200 -0.010900" quat="0.981627 -0.190809 0 0" size="0.009000 0.011000 0.009600" />
+            <geom name="right_thumb_mid_capsule_000" type="ellipsoid" group="3" friction="1.60" solref="0.005 1.0" solimp="0.97 0.999 0.0001" pos="0.000300 0.018800 -0.014800" quat="0.970296 -0.241922 0 0" size="0.010800 0.012200 0.012800" />
+            <geom name="right_thumb_mid_capsule_001" type="ellipsoid" group="3" friction="1.60" solref="0.005 1.0" solimp="0.97 0.999 0.0001" pos="-0.000100 0.033500 -0.023400" quat="0.945519 -0.325568 0 0" size="0.010800 0.013200 0.011600" />
             <body name="right_thumb_tip" pos="0.0055478 0.0413 -0.024172">
               <inertial pos="-0.005551 0.005391 -0.014448" mass="0.07660" diaginertia="8.30e-06 8.00e-06 4.06e-06" />
               <joint name="right_thumb_mcp" axis="1 0 0" class="thumb_mcp" />
               <geom type="mesh" mesh="v2_thumb_tip" class="visual" />
-              <geom name="right_thumb_tip_capsule_000" type="capsule" group="3" friction="1.5" solref="0.005 1.0" solimp="0.97 0.999 0.0001" fromto="-0.005496 0.010877 -0.025065 -0.005505 0.009894 -0.023324" size="0.011363" />
-              <geom name="right_thumb_tip_capsule_001" type="capsule" group="3" friction="1.5" solref="0.005 1.0" solimp="0.97 0.999 0.0001" fromto="-0.005586 0.001141 -0.007809 -0.005595 0.000159 -0.006067" size="0.010936" />
+              <geom name="right_thumb_tip_capsule_000" type="ellipsoid" group="3" friction="1.6" solref="0.005 1.0" solimp="0.97 0.999 0.0001" pos="-0.005600 0.015600 -0.021600" quat="0.994522 -0.104528 0 0" size="0.007600 0.009800 0.005800" />
+              <geom name="right_thumb_tip_capsule_001" type="ellipsoid" group="3" friction="1.66" solref="0.005 1.0" solimp="0.97 0.999 0.0001" pos="-0.005450 0.005600 -0.020400" quat="0.982450 -0.186524 0 0" size="0.008400 0.012800 0.006000" />
+              <geom name="right_thumb_tip_capsule_002" type="ellipsoid" group="3" friction="1.6" solref="0.005 1.0" solimp="0.97 0.999 0.0001" pos="-0.005700 0.019200 -0.018800" quat="0.999048 0.043619 0 0" size="0.004800 0.005400 0.003900" />
+              <geom name="right_thumb_tip_capsule_003" type="ellipsoid" group="3" friction="1.7" solref="0.005 1.0" solimp="0.97 0.999 0.0001" pos="-0.005700 0.010400 -0.026800" quat="0.991445 -0.130526 0 0" size="0.006800 0.009800 0.004600" />
+              <geom name="right_thumb_tip_capsule_004" type="ellipsoid" group="3" friction="1.68" solref="0.005 1.0" solimp="0.97 0.999 0.0001" pos="-0.005500 -0.003200 -0.015800" quat="0.961262 -0.275637 0 0" size="0.008600 0.012200 0.005800" />
+              <geom name="right_thumb_tip_capsule_005" type="ellipsoid" group="3" friction="1.72" solref="0.005 1.0" solimp="0.97 0.999 0.0001" pos="-0.005650 0.001800 -0.023000" quat="0.987688 -0.156434 0 0" size="0.006400 0.008800 0.004800" />
               <site name="th_tip" pos="-0.006 0.021 -0.020" group="4" />
               <site name="th_tip_t00" pos="-0.010 0.008 -0.020" size="0.003" />
               <site name="th_tip_t01" pos="-0.007 0.008 -0.020" size="0.003" />

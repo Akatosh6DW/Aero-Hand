@@ -54,6 +54,7 @@ _envs = {
     "AeroCubeGraspV2Force": aero_hand_grasp_cube_v2_force.CubeGraspV2Force,
     "AeroCubeGraspV2ForceCoacd": aero_hand_grasp_cube_v2_force.CubeGraspV2ForceCoacd,
     "AeroCubeGraspV2ForceCoacdQbr": aero_hand_grasp_cube_v2_force.CubeGraspV2ForceCoacdQbr,
+    "AeroCubeGraspV2ForceCapsuleBottlePalmQbr": aero_hand_grasp_cube_v2_force.CubeGraspV2ForceCapsuleBottlePalmQbr,
     "AeroBottleGraspV2Force": aero_hand_grasp_bottle_v2_force.BottleGraspV2Force,
     "AeroCanGraspV2Force": aero_hand_grasp_can_v2_force.CanGraspV2Force,
 }
@@ -77,6 +78,7 @@ _cfgs = {
     "AeroCubeGraspV2Force": aero_hand_grasp_cube_v2_force.default_config,
     "AeroCubeGraspV2ForceCoacd": aero_hand_grasp_cube_v2_force.default_config,
     "AeroCubeGraspV2ForceCoacdQbr": aero_hand_grasp_cube_v2_force.default_config_qbr,
+    "AeroCubeGraspV2ForceCapsuleBottlePalmQbr": aero_hand_grasp_cube_v2_force.default_config_qbr,
     "AeroBottleGraspV2Force": aero_hand_grasp_bottle_v2_force.default_config,
     "AeroCanGraspV2Force": aero_hand_grasp_can_v2_force.default_config,
 }
@@ -93,6 +95,7 @@ _randomizer = {
     "AeroCubeGraspV2Force": aero_hand_grasp_cube_v2_force.domain_randomize,
     "AeroCubeGraspV2ForceCoacd": aero_hand_grasp_cube_v2_force.domain_randomize,
     "AeroCubeGraspV2ForceCoacdQbr": aero_hand_grasp_cube_v2_force.domain_randomize,
+    "AeroCubeGraspV2ForceCapsuleBottlePalmQbr": aero_hand_grasp_cube_v2_force.domain_randomize,
     "AeroBottleGraspV2Force": aero_hand_grasp_bottle_v2_force.domain_randomize,
     "AeroCanGraspV2Force": aero_hand_grasp_can_v2_force.domain_randomize,
 }

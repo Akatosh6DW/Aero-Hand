@@ -235,6 +235,7 @@ def brax_ppo_config(
       "AeroCubeGraspV2Force",
       "AeroCubeGraspV2ForceCoacd",
       "AeroCubeGraspV2ForceCoacdQbr",
+      "AeroCubeGraspV2ForceCapsuleBottlePalmQbr",
   ):
     # V2 灵犀手: 6 通道直接关节控制, efc_force 触觉
     rl_config.num_timesteps = 300_000_000

@@ -1133,3 +1133,672 @@
 - 下一轮建议：
   - 在 `0.4125` 配置上直接做长训验证，而不是立刻再扫更多邻域点。
   - 如果长训仍明显学坏，再考虑继续细扫 `0.40625` 或回到 `0.425`。
+
+### CAN178: long-train validation on the new 0.4125 ramp branch (interrupted)
+- 代码改动：
+  - 无新增代码改动，直接沿 `CAN177` 的当前最佳窄主线长训：
+    - `clear_drop_m=0.055`
+    - `release_ramp_sec=0.4125`
+- 训练命令：
+  - `CAN178_long_clear055_ramp04125_512`
+  - restore checkpoint:
+    - `/home/ll/SRTP/Aero-Hand/logs/AeroCanGraspV2Force-20260425-224507-CAN177_probe_clear055_ramp04125_512/checkpoints/000001064960`
+- smoke test：
+  - 复用 `CAN177` 同代码 smoke 结果，CPU smoke passed
+- 修改原因：
+  - `CAN177` 同时刷新了当前最高 step-0 和更好的 short-probe retention，因此需要优先验证它是否具备长训可持续性。
+- 预期效果：
+  - 若 `0.4125` 不只是漂亮的 step-0，而是更好的新主线，则长训应至少维持在 `2.0+` 邻域，并尽量靠近或超过 `CAN161 last=2.0543`。
+- 实际效果：
+  - 本次长训在上一轮被用户中断，只有首个 eval 写入，不能作为完整长训结论。
+  - 当前仅有部分结果：
+    - `first=max=2.025389671, best_step=0`
+    - 暂无有效 `last`
+  - partial诊断：
+    - `index_wrap_contact=168.71875`
+    - `middle_wrap_contact=224.00390625`
+    - `ring_wrap_contact=215.21484375`
+    - `thumb_wrap_contact=228.984375`
+    - `joint_palm_contact=212.4609375`
+    - `index_palm_press=24.116355895996094`
+    - `post_release_joint_palm_hold=4672.4677734375`
+    - `post_release_force_support=680.8101196289062`
+    - `post_release_grasp=826.483154296875`
+    - `post_release_survival=27845.861328125`
+- 分析：
+  - 因为训练被中断，这轮不能用来判断 `0.4125` 的长训可持续性。
+  - partial首点低于 `CAN177 short-probe first=2.1654` 是正常现象，因为这次是从 `CAN177` 训练后 checkpoint 继续，而不是从 `CAN147` 直接起跑。
+- 下一轮建议：
+  - 直接重跑同一长训验证，不修改代码，让 `0.4125` 这条线拿到完整四个 eval 点后再决定后续方向。
+
+### CAN179: long-train retry on the 0.4125 ramp branch
+- 代码改动：
+  - 无新增代码改动，直接重跑 `CAN177` 同配置长训：
+    - `clear_drop_m=0.055`
+    - `release_ramp_sec=0.4125`
+- 训练命令：
+  - `CAN179_long_clear055_ramp04125_retry_512`
+  - restore checkpoint:
+    - `/home/ll/SRTP/Aero-Hand/logs/AeroCanGraspV2Force-20260425-224507-CAN177_probe_clear055_ramp04125_512/checkpoints/000001064960`
+- smoke test：
+  - 复用 `CAN177` 同代码 smoke 结果，CPU smoke passed
+- 修改原因：
+  - `CAN177` 是当前最强 short probe，必须拿到完整长训曲线来判断这条 ramp 点是否真的具备可持续性。
+- 预期效果：
+  - 长训至少维持在 `2.0+` 邻域，并尽量延续 `CAN177` 的高起点。
+- 实际效果：
+  - `rows=[(0, 2.024218082), (716800, 2.043749094), (1433600, 1.976952314), (2150400, 1.974803925)]`
+  - `first=2.024218082, last=1.974803925, max=2.043749094, best_step=716800`
+  - best点诊断（716800）：
+    - `index_wrap_contact=169.625`
+    - `middle_wrap_contact=225.69921875`
+    - `ring_wrap_contact=215.78125`
+    - `thumb_wrap_contact=230.16796875`
+    - `joint_palm_contact=213.125`
+    - `index_palm_press=24.82032585144043`
+    - `post_release_joint_palm_hold=4570.7373046875`
+    - `post_release_force_support=641.45361328125`
+    - `post_release_grasp=815.9434814453125`
+    - `post_release_survival=27830.498046875`
+    - `post_release_slip=-563.1497802734375`
+  - final点诊断（2150400）：
+    - `index_wrap_contact=168.921875`
+    - `middle_wrap_contact=225.20703125`
+    - `ring_wrap_contact=213.69921875`
+    - `thumb_wrap_contact=229.15625`
+    - `joint_palm_contact=211.5390625`
+    - `index_palm_press=26.10226058959961`
+    - `post_release_joint_palm_hold=4270.015625`
+    - `post_release_force_support=569.6854248046875`
+    - `post_release_grasp=776.9342041015625`
+    - `post_release_survival=26448.83984375`
+    - `post_release_slip=-545.431884765625`
+- 分析：
+  - 这是目前为止最不“崩”的 continuation 之一，但仍然不算真正成功主线。
+  - 和过去的坏 continuation 相比：
+    - 它没有像 `CAN149/CAN162` 那样迅速掉到 `1.5~1.8`
+    - 说明 `0.4125` 的确更稳
+  - 但和当前最好 short-probe / retained probes 相比：
+    - `CAN177 short last=2.0289 > CAN179 long last=1.9748`
+    - `CAN161 short last=2.0543 > CAN179 long last=1.9748`
+    - `CAN174 short last=2.0113 > CAN179 long last=1.9748`
+  - 也就是说：
+    - `0.4125` 是当前 ramp 邻域的**最好 short-probe 点**
+    - 但继续长训后仍会缓慢学坏，只是坏得比老 continuation 更慢
+  - 当前瓶颈更加明确：
+    - 不是 ramp 点完全错了，
+    - 而是 short probe 建立出来的 release 后骨架，仍无法在后续更新里持续保住
+- 下一轮建议：
+  - 保留 `0.4125` 作为当前最强 ramp 候选。
+  - 不再继续长续同一 checkpoint。
+  - 下一步应保持 `release_ramp_sec=0.4125` 不动，转去另一个连续几何变量做窄 probe：
+    - 优先探索 `probe_drop_m` 邻域的更小步长，
+    - 或 clear/probe 过渡深度，而不是继续扫 gate 或继续盲目长训。
+
+### CAN180: keep the 0.4125 ramp and make probe drop slightly shallower
+- 代码改动：
+  - 仅做一处窄改动：
+    - `probe_drop_m: 0.018 -> 0.0175`
+  - 其他保持当前最佳主线：
+    - `release_ramp_sec=0.4125`
+    - `clear_drop_m=0.055`
+    - `release_after_sec=7.8`
+    - `force_release_after_sec=8.4`
+    - `min_release_active_fingers=4`
+    - `min_release_force=0.125`
+- 训练命令：
+  - `CAN180_probe_ramp04125_drop0175_512`
+  - base checkpoint:
+    - `/home/ll/SRTP/Aero-Hand/logs/AeroCanGraspV2Force-20260425-190032-CAN147_probe_thumb_support_0p082_512/checkpoints/000001064960`
+- smoke test：
+  - CPU smoke passed
+  - 输出确认：
+    - `release_ramp_sec=0.4125`
+    - `probe_drop_m=0.0175`
+    - `clear_drop_m=0.055`
+- 修改原因：
+  - `CAN179` 表明 `0.4125` 长训更稳，但仍会缓慢学坏。
+  - 于是锁住当前最强 ramp 点，只对 `probe_drop_m` 做半步变浅，检查是否能让 handover 更平顺、减少后续训练中的骨架流失。
+- 预期效果：
+  - 尽量保住 `CAN177` 的高 step-0，
+  - 同时让 short-probe final retention 至少不低于 `CAN177 last=2.0289`。
+- 实际效果：
+  - `first=2.162303925, last=2.029295921, max=2.162303925, best_step=0`
+  - best点诊断：
+    - `index_wrap_contact=169.62890625`
+    - `middle_wrap_contact=228.5859375`
+    - `ring_wrap_contact=218.43359375`
+    - `thumb_wrap_contact=233.44921875`
+    - `joint_palm_contact=216.0546875`
+    - `index_palm_press=47.97908020019531`
+    - `post_release_joint_palm_hold=5517.8046875`
+    - `post_release_force_support=835.3143920898438`
+    - `post_release_grasp=899.5469970703125`
+    - `post_release_survival=31588.5859375`
+    - `post_release_slip=-568.5889282226562`
+  - final点诊断：
+    - `index_wrap_contact=167.12109375`
+    - `middle_wrap_contact=226.48046875`
+    - `ring_wrap_contact=215.80078125`
+    - `thumb_wrap_contact=230.84375`
+    - `joint_palm_contact=213.30859375`
+    - `index_palm_press=22.932884216308594`
+    - `post_release_joint_palm_hold=4747.8662109375`
+    - `post_release_force_support=697.8555908203125`
+    - `post_release_grasp=818.88916015625`
+    - `post_release_survival=28343.4609375`
+    - `post_release_slip=-549.5241088867188`
+- 分析：
+  - 这是一个小幅但真实的正样本。
+  - 相比 `CAN177`：
+    - `first: 2.1623 < 2.1654`，几乎持平
+    - `last: 2.0293 > 2.0289`，极小幅改善
+  - 相比 `CAN174`：
+    - `first: 2.1623 > 2.1553`
+    - `last: 2.0293 > 2.0113`
+  - 相比 `CAN161`：
+    - `last: 2.0293 < 2.0543`
+  - 结论是：
+    - `ramp=0.4125 + probe_drop=0.0175` 目前是当前最值得继续验证的新 short-probe 主线，
+    - 但改进幅度仍然很小，离真正稳定 continuation 还有明显距离。
+- 下一轮建议：
+  - 在 `0.4125 + 0.0175` 上直接做长训验证。
+  - 若长训依旧缓慢退化，再决定是否继续细扫 `probe_drop_m` 或转到别的连续几何变量。
+
+
+### CAN181: long-train validation on the 0.4125 ramp + 0.0175 probe branch
+- 代码改动：
+  - 无新增代码改动，直接沿 `CAN180` 当前最佳窄主线长训：
+    - `release_ramp_sec=0.4125`
+    - `probe_drop_m=0.0175`
+    - `clear_drop_m=0.055`
+    - `support_pos=[0.010041, -0.040830, 0.106128]`
+    - `cube_pos=[0.010041, -0.040830, 0.130128]`
+- 训练命令：
+  - `CAN181_long_ramp04125_drop0175_512`
+  - checkpoint source:
+    - `/home/ll/SRTP/Aero-Hand/logs/AeroCanGraspV2Force-20260426-001849-CAN180_probe_ramp04125_drop0175_512/checkpoints/000001064960`
+- smoke test：
+  - 复用 `CAN180` 同代码 smoke 结果，CPU smoke passed
+  - 输出确认：
+    - `release_ramp_sec=0.4125`
+    - `probe_drop_m=0.0175`
+    - `clear_drop_m=0.055`
+- 修改原因：
+  - `CAN180` 给出了当前最强 short-probe 主线之一，因此需要直接验证这条支线是否比 `CAN179` 更能扛住 2M 长训。
+- 预期效果：
+  - 若 `probe_drop_m=0.0175` 的微调真的修到了 handover 骨架，则长训至少应比 `CAN179` 略更稳，最好把末点重新抬回 `2.0+` 邻域上方。
+- 实际效果：
+  - `first=2.046483517, last=1.965624213, max=2.097655535, best_step=716800`
+  - eval 序列：
+    - `0 -> 2.046483517`
+    - `716800 -> 2.097655535`
+    - `1433600 -> 1.987694502`
+    - `2150400 -> 1.965624213`
+- 分析：
+  - 这是一个“中段更强，但末点仍慢退化”的结果。
+  - 相比 `CAN179`：
+    - `first: 2.0465 > 2.0242`
+    - `max: 2.0977 > 2.0437`
+    - `best_step: 716800`，说明这一支线在训练前中段确实更能放大 unsupported hold
+    - `last: 1.9656 < 1.9748`，末点仍没有守住，甚至比 `CAN179` 略差
+  - 结论是：
+    - `ramp=0.4125 + probe_drop=0.0175` 依然是当前值得保留的短主线，
+    - 但问题并没有变成“可直接长训收敛”；PPO 还是会在后段慢慢把 release 后骨架磨掉。
+  - 这进一步说明下一步不该继续盲长训，也不该回去扫粗 reward/gate，而应继续沿 seated depth / handover geometry 做窄结构改动。
+- 下一轮建议：
+  - 保留 `release_ramp_sec=0.4125 + probe_drop_m=0.0175 + clear_drop_m=0.055` 不动。
+  - 下一轮优先试更深 seated 的半步几何改动，例如继续把 `cube_pos/support_pos` 同步再下探很小一档，验证是否能进一步把食指压掌和掌内托举骨架坐实。
+
+
+### CAN182: continue lowering the seated geometry by another 0.5 mm
+- 代码改动：
+  - 在 `CAN180/CAN181` 当前最佳骨架上，只做一处更深 seated 的半步改动：
+    - `support_pos.z: 0.106128 -> 0.105628`
+    - `cube_pos.z: 0.130128 -> 0.129628`
+  - 其他保持不变：
+    - `release_ramp_sec=0.4125`
+    - `probe_drop_m=0.0175`
+    - `clear_drop_m=0.055`
+- 训练命令：
+  - `CAN182_probe_lowered_seat_0p5mm_512`
+  - base checkpoint:
+    - `/home/ll/SRTP/Aero-Hand/logs/AeroCanGraspV2Force-20260425-190032-CAN147_probe_thumb_support_0p082_512/checkpoints/000001064960`
+- smoke test：
+  - CPU smoke passed
+  - 输出确认：
+    - `support_pos=[0.010041, -0.040830, 0.105628]`
+    - `spawn_pos=[0.010041, -0.040830, 0.129628]`
+    - `release_ramp_sec=0.4125`
+    - `probe_drop_m=0.0175`
+    - `clear_drop_m=0.055`
+- 修改原因：
+  - `CAN181` 说明当前瓶颈仍是 release 后骨架保不住。
+  - 既然更深 seated 曾经是有效主线，就继续沿同一结构方向做更小的半步试探，检查能否进一步让食指压掌与掌内托举成立。
+- 预期效果：
+  - 若当前物体仍略偏高，这个更深半步应继续抬高 step-0，并至少不弱于 `CAN180` 的 retention。
+- 实际效果：
+  - `first=1.979491472, last=1.938085318, max=1.979491472, best_step=0`
+- 分析：
+  - 这是明确负样本。
+  - 相比 `CAN180`：
+    - `first: 1.9795 << 2.1623`
+    - `last: 1.9381 << 2.0293`
+  - 相比 `CAN181` long 的起点：
+    - `1.9795 < 2.0465`
+  - 说明在当前 `ramp=0.4125 + probe_drop=0.0175 + clear_drop=0.055` 骨架上，继续把 can/support 再下探 `0.5 mm` 已经越过了有效窗口，反而破坏了 release 前的入手几何。
+  - 结论：
+    - “更深 seated” 不是单调增益；当前最优点更像停在 `z=0.130128 / 0.106128` 这一档附近。
+- 下一轮建议：
+  - 回退这次更深 seated 改动。
+  - 保留 `CAN180` 当前最佳骨架不动，转回去细扫 `probe_drop_m` 邻域的另一侧，例如 `0.01775`，检查是否能保住 step-0 同时减少 long-train erosion。
+
+
+### CAN183: move probe drop one quarter-step deeper from 0.0175 to 0.01775
+- 代码改动：
+  - 回到 `CAN180` 当前最佳骨架，只做一处邻域细扫：
+    - `probe_drop_m: 0.0175 -> 0.01775`
+  - 其他保持不变：
+    - `release_ramp_sec=0.4125`
+    - `clear_drop_m=0.055`
+    - `support_pos=[0.010041, -0.040830, 0.106128]`
+    - `cube_pos=[0.010041, -0.040830, 0.130128]`
+- 训练命令：
+  - `CAN183_probe_drop01775_512`
+  - base checkpoint:
+    - `/home/ll/SRTP/Aero-Hand/logs/AeroCanGraspV2Force-20260425-190032-CAN147_probe_thumb_support_0p082_512/checkpoints/000001064960`
+- smoke test：
+  - CPU smoke passed
+  - 输出确认：
+    - `probe_drop_m=0.01775`
+    - `clear_drop_m=0.055`
+    - `release_ramp_sec=0.4125`
+- 修改原因：
+  - `CAN182` 证伪了“继续加深 seated 总高度”的方向。
+  - 因此回到 `CAN180` 主线，只在 `probe_drop_m` 邻域的另一侧做更细半步，检查是否能在不伤首点的前提下改善 retention。
+- 预期效果：
+  - 如果 `0.0175` 还略偏浅，`0.01775` 应该在保持 `2.15+` 首点的同时，让训练后末点优于 `CAN180 last=2.0293` 或至少接近它。
+- 实际效果：
+  - `first=2.151171207, last=1.978319526, max=2.151171207, best_step=0`
+- 分析：
+  - 这是一个“首点仍强，但 retention 不够”的次优样本。
+  - 相比 `CAN180`：
+    - `first: 2.1512 < 2.1623`
+    - `last: 1.9783 < 2.0293`
+  - 相比 `CAN174`：
+    - `first: 2.1512 < 2.1553`
+    - `last: 1.9783 < 2.0113`
+  - 说明 `0.01775` 还处在可行区间内，没有像 `CAN182` 那样把骨架打坏，
+    但依然不如 `0.0175`，尤其训练后 retention 更差。
+  - 当前 `probe_drop_m` 邻域的证据开始收敛到：
+    - `0.0175` 仍是这一区间的最好点或非常接近最好点。
+- 下一轮建议：
+  - 继续补齐对称邻域，试 `probe_drop_m=0.01725`。
+  - 若 `0.01725` 也不如 `0.0175`，则可把 `probe_drop_m` 近邻扫描暂时收口，回到 `0.0175` 主线，再去找 probe/clear 过渡中的别的连续变量。
+
+
+### CAN184: move probe drop one quarter-step shallower from 0.0175 to 0.01725
+- 代码改动：
+  - 在 `CAN180` 当前最佳骨架上做对称邻域细扫：
+    - `probe_drop_m: 0.0175 -> 0.01725`
+  - 其他保持不变：
+    - `release_ramp_sec=0.4125`
+    - `clear_drop_m=0.055`
+    - `support_pos=[0.010041, -0.040830, 0.106128]`
+    - `cube_pos=[0.010041, -0.040830, 0.130128]`
+- 训练命令：
+  - `CAN184_probe_drop01725_512`
+  - base checkpoint:
+    - `/home/ll/SRTP/Aero-Hand/logs/AeroCanGraspV2Force-20260425-190032-CAN147_probe_thumb_support_0p082_512/checkpoints/000001064960`
+- smoke test：
+  - CPU smoke passed
+  - 输出确认：
+    - `probe_drop_m=0.01725`
+    - `clear_drop_m=0.055`
+    - `release_ramp_sec=0.4125`
+- 修改原因：
+  - `CAN183` 说明把 `probe_drop_m` 往更深侧推到 `0.01775` 仍不如 `0.0175`。
+  - 因此补齐对称邻域，检查更浅半步 `0.01725` 是否能进一步减小 handover 骨架流失。
+- 预期效果：
+  - 若 `0.0175` 还略偏深，`0.01725` 应该在保住 `2.15+` 首点的同时，把训练后末点抬到不低于 `CAN180 last=2.0293`。
+- 实际效果：
+  - `first=2.158788204, last=2.164257050, max=2.164257050, best_step=1064960`
+- 分析：
+  - 这是当前最强 short-probe 正样本。
+  - 相比 `CAN180`：
+    - `first: 2.1588 < 2.1623`，几乎持平
+    - `last: 2.1643 >> 2.0293`，显著提升
+    - `max: 2.1643 > 2.1623`，刷新当前 short-probe 最佳值
+    - `best_step=1064960`，说明这次不是靠 step-0 偶然高点，而是训练后真正学到了更稳的 unsupported hold 骨架
+  - 相比 `CAN183`：
+    - `first: 2.1588 > 2.1512`
+    - `last: 2.1643 >> 1.9783`
+  - 这基本把 `probe_drop_m` 的小邻域结论收口到：
+    - `0.01725` 优于 `0.0175` 和 `0.01775`，
+    - 当前最佳点位于 `0.01725` 这一侧，而不是更深侧。
+- 下一轮建议：
+  - 保留 `probe_drop_m=0.01725`，直接做长训验证。
+  - 若长训也能保住或继续抬升，则将 `CAN184` 升级为新的 continuation 主线；否则再回头看 probe/clear 过渡中的其他连续变量。
+
+
+### CAN185: long-train validation on the new 0.01725 probe-drop branch
+- 代码改动：
+  - 无新增代码改动，直接沿 `CAN184` 当前最佳短主线长训：
+    - `release_ramp_sec=0.4125`
+    - `probe_drop_m=0.01725`
+    - `clear_drop_m=0.055`
+    - `support_pos=[0.010041, -0.040830, 0.106128]`
+    - `cube_pos=[0.010041, -0.040830, 0.130128]`
+- 训练命令：
+  - `CAN185_long_from_CAN184_drop01725_512`
+  - checkpoint source:
+    - `/home/ll/SRTP/Aero-Hand/logs/AeroCanGraspV2Force-20260426-030125-CAN184_probe_drop01725_512/checkpoints/000001064960`
+- smoke test：
+  - 复用 `CAN184` 同代码 smoke 结果，CPU smoke passed
+- 修改原因：
+  - `CAN184` 刷新了当前 short-probe 最佳值，而且 best_step 出现在训练后端，必须验证它是否终于具备更好的 continuation 质量。
+- 预期效果：
+  - 若 `0.01725` 真正修到了 handover 骨架，则 2M 长训不应像 `CAN181` 那样慢退化，至少应在 `2.0+` 邻域里稳定更多 eval 点。
+- 实际效果：
+  - `first=2.154686451, last=1.820507050, max=2.154686451, best_step=0`
+  - eval 序列：
+    - `0 -> 2.154686451`
+    - `716800 -> 1.854100943`
+    - `1433600 -> 1.998046160`
+    - `2150400 -> 1.820507050`
+- 分析：
+  - 这是“短 probe 极强，但 long continuation 仍明显不稳”的结果。
+  - 相比 `CAN181`：
+    - `first: 2.1547 > 2.0465`
+    - `max: 2.1547 > 2.0977`
+    - 但 `last: 1.8205 << 1.9656`，末点更差
+  - 相比 `CAN179`：
+    - `first: 2.1547 > 2.0242`
+    - `last: 1.8205 << 1.9748`
+  - 这说明：
+    - `probe_drop_m=0.01725` 很适合建立高质量的短期 unsupported 骨架，
+    - 但仅靠这个变量还不足以解决 PPO continuation 中的后续漂移；它甚至可能让 early policy 更激进，从而更容易在长训前段被冲坏。
+  - 结论：
+    - `CAN184` 是新的 short-probe 最佳主线，
+    - 但还不能直接升级为 long-train 主线。接下来需要在它上面继续调 clear/release 动力学，而不是回去改总高度或扫离散 gate。
+- 下一轮建议：
+  - 保留 `probe_drop_m=0.01725`。
+  - 优先试更快半步的 `release_ramp_sec`（例如 `0.40625`），检查是否能减少 continuation 里的骨架侵蚀。
+
+
+### CAN186: keep the new 0.01725 probe-drop branch and make release ramp half-step faster
+- 代码改动：
+  - 在 `CAN184` 当前最佳短主线上只做一处动力学窄改动：
+    - `release_ramp_sec: 0.4125 -> 0.40625`
+  - 保持：
+    - `probe_drop_m=0.01725`
+    - `clear_drop_m=0.055`
+    - `support_pos=[0.010041, -0.040830, 0.106128]`
+    - `cube_pos=[0.010041, -0.040830, 0.130128]`
+- 训练命令：
+  - `CAN186_probe_ramp040625_drop01725_512`
+  - base checkpoint:
+    - `/home/ll/SRTP/Aero-Hand/logs/AeroCanGraspV2Force-20260425-190032-CAN147_probe_thumb_support_0p082_512/checkpoints/000001064960`
+- smoke test：
+  - CPU smoke passed
+  - 输出确认：
+    - `release_ramp_sec=0.40625`
+    - `probe_drop_m=0.01725`
+    - `clear_drop_m=0.055`
+- 修改原因：
+  - `CAN184` 说明 `probe_drop_m=0.01725` 是新的最强 short-probe 点，
+    但 `CAN185` 长训仍明显退化。
+  - 因此保持新的最佳 probe 深度不动，只把 clear/release 再往快侧收半步，检查是否能减少 continuation 里的骨架侵蚀。
+- 预期效果：
+  - 若 `CAN185` 的问题来自 release-clear 还略慢，这次应在保住 `2.15+` 首点的同时，让训练后末点至少不差于 `CAN180 last=2.0293`。
+- 实际效果：
+  - `first=2.158983469, last=2.078905582, max=2.158983469, best_step=0`
+- 分析：
+  - 这是一个次优正样本。
+  - 相比 `CAN184`：
+    - `first: 2.1590 ≈ 2.1588`
+    - `last: 2.0789 < 2.1643`
+    - 没有超过当前 short-probe 最佳主线
+  - 相比 `CAN180`：
+    - `first: 2.1590 < 2.1623`，几乎持平
+    - `last: 2.0789 > 2.0293`，仍是明显改善
+  - 说明更快半步的 ramp 并没有打坏当前骨架，反而维持在强正样本区间；
+    只是它还不如 `CAN184` 那样强。
+  - 这使它成为一个值得直接做 long-train 验证的“稳定化候选”，因为 continuation 真正要解决的是 trainability，不只是 short-probe 峰值。
+- 下一轮建议：
+  - 直接从 `CAN186` checkpoint 做 2M 长训，比较它是否比 `CAN185` 更抗 continuation 退化。
+
+
+### CAN187: long-train validation on the faster-ramp 0.40625 + 0.01725 branch
+- 代码改动：
+  - 无新增代码改动，直接沿 `CAN186` 长训：
+    - `release_ramp_sec=0.40625`
+    - `probe_drop_m=0.01725`
+    - `clear_drop_m=0.055`
+- 训练命令：
+  - `CAN187_long_from_CAN186_ramp040625_drop01725_512`
+  - checkpoint source:
+    - `/home/ll/SRTP/Aero-Hand/logs/AeroCanGraspV2Force-20260426-032328-CAN186_probe_ramp040625_drop01725_512/checkpoints/000001064960`
+- smoke test：
+  - 复用 `CAN186` 同代码 smoke 结果，CPU smoke passed
+- 修改原因：
+  - 验证更快半步的 ramp 是否比 `CAN185` 更抗 continuation 早期退化。
+- 预期效果：
+  - 若 `0.40625` 更适合当前 `0.01725` probe 骨架，则长训第二个 eval 不应像 `CAN185` 那样大幅跌到 `1.85` 附近。
+- 实际效果：
+  - `first=2.083983660, last=1.867577434, max=2.093553782, best_step=1433600`
+  - eval 序列：
+    - `0 -> 2.083983660`
+    - `716800 -> 1.972460270`
+    - `1433600 -> 2.093553782`
+    - `2150400 -> 1.867577434`
+- 分析：
+  - 这是一个“中段更稳，但末点仍掉”的改进 continuation。
+  - 相比 `CAN185`：
+    - `716800: 1.9725 > 1.8541`，早期退化明显减轻
+    - `1433600: 2.0936 > 1.9980`，中段也更强
+    - `last: 1.8676 > 1.8205`，末点仍有改善
+  - 但相比 `CAN181`：
+    - `last: 1.8676 < 1.9656`
+  - 结论：
+    - 更快半步的 `release_ramp_sec=0.40625` 是有价值的稳定化方向，
+    - 但它仍不足以把 continuation 拉回当前最好 long baseline。
+  - 当前失败形状已经更集中到 clear 末段/隐藏后的保持，而不是 release 初段本身。
+- 下一轮建议：
+  - 保留 `release_ramp_sec=0.40625 + probe_drop_m=0.01725`。
+  - 继续只动一个连续量：把 `clear_drop_m` 从 `0.055` 向浅侧回半步到 `0.0545`，检查是否能减少 over-clear 导致的后段骨架流失。
+
+
+### CAN188: keep 0.40625 + 0.01725 and make clear drop half-step shallower
+- 代码改动：
+  - 在 `CAN186/CAN187` 稳定化候选上只做一处窄改动：
+    - `clear_drop_m: 0.055 -> 0.0545`
+  - 保持：
+    - `release_ramp_sec=0.40625`
+    - `probe_drop_m=0.01725`
+- 训练命令：
+  - `CAN188_probe_ramp040625_drop01725_clear0545_512`
+  - base checkpoint:
+    - `/home/ll/SRTP/Aero-Hand/logs/AeroCanGraspV2Force-20260425-190032-CAN147_probe_thumb_support_0p082_512/checkpoints/000001064960`
+- smoke test：
+  - CPU smoke passed
+  - 输出确认：
+    - `release_ramp_sec=0.40625`
+    - `probe_drop_m=0.01725`
+    - `clear_drop_m=0.0545`
+- 修改原因：
+  - `CAN187` 说明更快半步的 ramp 有助于 continuation，
+    当前失败更像 clear 末段仍稍过深。
+  - 因此只把 `clear_drop_m` 向浅侧回半步，检查是否能保住后段骨架。
+- 预期效果：
+  - 若问题确实是 over-clear，则在不伤首点的前提下，训练后末点应优于 `CAN186 last=2.0789`。
+- 实际效果：
+  - `first=2.156053782, last=1.983788252, max=2.156053782, best_step=0`
+- 分析：
+  - 这是负样本。
+  - 相比 `CAN186`：
+    - `first: 2.1561 < 2.1590`，几乎持平
+    - `last: 1.9838 << 2.0789`，retention 明显更差
+  - 说明在当前 `0.40625 + 0.01725` 分支上，`clear_drop_m=0.055` 仍优于 `0.0545`。
+  - 所以当前 continuation 稳定化收益主要来自更快 ramp，而不是把 clear 深度往浅侧收回。
+- 下一轮建议：
+  - 回退 `clear_drop_m` 到 `0.055`。
+  - 继续沿更快 ramp 方向做更小半步，例如 `release_ramp_sec=0.403125`，检查 continuation 是否还能再改善。
+
+
+### CAN189: push release ramp another tiny half-step faster from 0.40625 to 0.403125
+- 代码改动：
+  - 在 `CAN186/CAN187` 稳定化候选上继续只动一个量：
+    - `release_ramp_sec: 0.40625 -> 0.403125`
+  - 保持：
+    - `probe_drop_m=0.01725`
+    - `clear_drop_m=0.055`
+- 训练命令：
+  - `CAN189_probe_ramp0403125_drop01725_512`
+  - base checkpoint:
+    - `/home/ll/SRTP/Aero-Hand/logs/AeroCanGraspV2Force-20260425-190032-CAN147_probe_thumb_support_0p082_512/checkpoints/000001064960`
+- smoke test：
+  - CPU smoke passed
+  - 输出确认：
+    - `release_ramp_sec=0.403125`
+    - `probe_drop_m=0.01725`
+    - `clear_drop_m=0.055`
+- 修改原因：
+  - `CAN188` 证伪了 `clear_drop_m` 浅半步方向。
+  - 于是继续沿当前唯一有稳定化信号的方向，也就是更快 ramp，再试更小的快侧半步。
+- 预期效果：
+  - 若 `0.40625` 还略慢，则 `0.403125` 应在保住 `2.16` 左右首点的同时，把训练后末点抬高到至少不低于 `CAN186 last=2.0789`。
+- 实际效果：
+  - `first=2.160545826, last=1.951757073, max=2.160545826, best_step=0`
+- 分析：
+  - 这是负样本。
+  - 相比 `CAN186`：
+    - `first: 2.1605 > 2.1590`，几乎持平略高
+    - `last: 1.9518 << 2.0789`，retention 明显更差
+  - 说明 `0.403125` 已经过快，`0.40625` 更接近当前 ramp 最优点。
+- 下一轮建议：
+  - 回退到 `release_ramp_sec=0.40625`。
+  - 不再在 ramp 快侧继续下探。下一步应直接验证“更强 checkpoint + 更稳环境”的组合，例如用 `CAN184` checkpoint 在 `0.40625 + 0.01725 + 0.055` 环境里做长训。
+
+
+### CAN190: use the stronger CAN184 checkpoint inside the steadier 0.40625 environment
+- 代码改动：
+  - 无新增代码改动，环境使用：
+    - `release_ramp_sec=0.40625`
+    - `probe_drop_m=0.01725`
+    - `clear_drop_m=0.055`
+  - 但 checkpoint 源改为更强的 `CAN184`，而不是 `CAN186`。
+- 训练命令：
+  - `CAN190_long_CAN184ckpt_envCAN186_512`
+  - checkpoint source:
+    - `/home/ll/SRTP/Aero-Hand/logs/AeroCanGraspV2Force-20260426-030125-CAN184_probe_drop01725_512/checkpoints/000001064960`
+- smoke test：
+  - 复用当前环境 smoke 结果，CPU smoke passed
+- 修改原因：
+  - `CAN187` 说明更稳环境有帮助，但它是从 `CAN186` 这个次优 short-probe checkpoint 出发。
+  - 因此直接验证“最强 short checkpoint + 更稳 continuation 环境”的组合，区分到底是 checkpoint 问题还是环境问题。
+- 预期效果：
+  - 若 `CAN184` 的骨架本身更好，而 `0.40625` 环境也更稳，则长训中后段应优于 `CAN187`，最好把末点守在 `2.0` 附近。
+- 实际效果：
+  - `first=2.157225609, last=1.930077314, max=2.157225609, best_step=0`
+  - eval 序列：
+    - `0 -> 2.157225609`
+    - `716800 -> 2.013085127`
+    - `1433600 -> 2.023046017`
+    - `2150400 -> 1.930077314`
+- 分析：
+  - 这是当前最好的一条 long-train 组合之一。
+  - 相比 `CAN187`：
+    - `716800: 2.0131 > 1.9725`
+    - `1433600: 2.0230 < 2.0936`，中段略弱
+    - `last: 1.9301 > 1.8676`，末点更好
+  - 相比 `CAN181`：
+    - `716800: 2.0131 < 2.0977`
+    - `1433600: 2.0230 > 1.9877`
+    - `last: 1.9301 < 1.9656`
+  - 结论：
+    - “更强 checkpoint + 更稳环境”确实比 `CAN187` 更像主线，
+    - 但仍没有超过 `CAN181` 这个旧 long 基准。
+  - 失败形状进一步集中为：长训后段仍存在轻微 support-dependence/over-dwell，可能需要缩短 probe 停留而不是继续改深度。
+- 下一轮建议：
+  - 保持 `0.40625 + 0.01725 + 0.055` 不动。
+  - 把 `probe_hold_sec` 从 `0.30` 向下收一个很小半步到 `0.275`，检查是否能减少后段支撑依赖。
+
+
+### CAN191: keep the steadier 0.40625 branch and shorten probe hold by one small half-step
+- 代码改动：
+  - 在当前最稳 continuation 环境上只做一处时序窄改动：
+    - `probe_hold_sec: 0.30 -> 0.275`
+  - 保持：
+    - `release_ramp_sec=0.40625`
+    - `probe_drop_m=0.01725`
+    - `clear_drop_m=0.055`
+- 训练命令：
+  - `CAN191_probe_hold0275_ramp040625_drop01725_512`
+  - base checkpoint:
+    - `/home/ll/SRTP/Aero-Hand/logs/AeroCanGraspV2Force-20260425-190032-CAN147_probe_thumb_support_0p082_512/checkpoints/000001064960`
+- smoke test：
+  - CPU smoke passed
+  - 输出确认：
+    - `release_ramp_sec=0.40625`
+    - `probe_drop_m=0.01725`
+    - `clear_drop_m=0.055`
+    - `probe_hold_sec=0.275`
+    - `probe_steps=6`
+- 修改原因：
+  - `CAN190` 说明更强 checkpoint + 更稳环境已经比 `CAN187` 更像主线，
+    但末点仍掉到 `1.93`。
+  - 因此不再动几何，转而轻微缩短 probe 停留，检查是否能减少后段 support dependence。
+- 预期效果：
+  - 若长训后段的问题来自 probe 停留偏久，这一小步缩短应在保住 `2.16` 左右首点的同时，训练后末点不低于 `CAN186 last=2.0789`。
+- 实际效果：
+  - `first=2.160741329, last=1.888280630, max=2.160741329, best_step=0`
+- 分析：
+  - 这是负样本。
+  - 相比 `CAN186`：
+    - `first: 2.1607 > 2.1590`，首点几乎持平略高
+    - `last: 1.8883 << 2.0789`，retention 明显更差
+  - 说明当前 continuation 问题并不是 probe 停得太久；相反，这个小幅缩短削弱了骨架建立。
+- 下一轮建议：
+  - 回退 `probe_hold_sec` 到 `0.30`。
+  - 继续保持 `0.40625 + 0.01725 + 0.055` 主线，只试新的 release 准备时序变量，而不是再动 probe/clear 深度。
+
+
+### CAN192: keep the 0.40625 branch and increase release-ready dwell slightly
+- 代码改动：
+  - 在当前较稳主线只做一处 release 准备时序改动：
+    - `release_ready_sec: 0.20 -> 0.22`
+  - 保持：
+    - `release_ramp_sec=0.40625`
+    - `probe_drop_m=0.01725`
+    - `clear_drop_m=0.055`
+    - `probe_hold_sec=0.30`
+- 训练命令：
+  - `CAN192_probe_releaseReady022_ramp040625_drop01725_512`
+  - base checkpoint:
+    - `/home/ll/SRTP/Aero-Hand/logs/AeroCanGraspV2Force-20260425-190032-CAN147_probe_thumb_support_0p082_512/checkpoints/000001064960`
+- smoke test：
+  - CPU smoke passed
+  - 输出确认：
+    - `release_ramp_sec=0.40625`
+    - `probe_drop_m=0.01725`
+    - `clear_drop_m=0.055`
+    - `probe_hold_sec=0.30`
+    - `release_ready_sec=0.22`
+- 修改原因：
+  - `CAN191` 证伪了缩短 probe hold 的方向。
+  - 因此保留当前主线，改为稍微增加 release-ready dwell，检查是否能减少过早 release 后的骨架漂移。
+- 预期效果：
+  - 若 release 前稳定 dwell 不足，`0.22s` 应在不明显伤首点的前提下提升 short-probe retention。
+- 实际效果：
+  - `first=2.153905392, last=1.905272722, max=2.153905392, best_step=0`
+- 分析：
+  - 这是负样本。
+  - 相比 `CAN186`：
+    - `first: 2.1539 < 2.1590`
+    - `last: 1.9053 << 2.0789`
+  - 相比 `CAN190` 长训前段组合的起点也没有优势。
+  - 说明当前 release-ready dwell 不是主要瓶颈；加 dwell 反而让训练后 retention 变差。
+- 下一轮建议：
+  - 回退 `release_ready_sec` 到 `0.20`。
+  - 当前较可信主线仍是 `release_ramp_sec=0.40625, probe_drop_m=0.01725, clear_drop_m=0.055, probe_hold_sec=0.30`，但它只能把 long-train 曲线维持在约 `1.9~2.1s`，远未接近 20s。
