@@ -110,10 +110,10 @@ def default_config() -> config_dict.ConfigDict:
       support_config=config_dict.create(
           release_after_sec=2.0,              # C15: early release for more post-release training
           release_ramp_sec=0.5,               # C15: faster ramp (0.5s instead of 1.0s)
-          support_pos=[0.025, -0.065, 0.1348],      # C08: aligned with cube_pos
+          support_pos=[0.021, -0.065, 0.1308],      # C156: continue x scan 2mm farther toward old cube line
           support_hidden_pos=[0.0, 0.0, -10.0],
           min_release_active_fingers=2,   # C12: easier conditional release
-          min_release_force=0.11,         # C135: slightly firmer release gate on the C124 mainline
+          min_release_force=0.10,         # C136: restore C124 gate while validating smoothed thumb collision
           require_grasp_for_release=True,   # C05: release when primary force/geom contact is ready
           force_release_after_sec=3.0,      # C15: force release at 3s (was 8s)
           # R66: 随机支撑释放 (1.5-4.0s)
@@ -122,7 +122,7 @@ def default_config() -> config_dict.ConfigDict:
           random_release_max_sec=3.0,       # C36: expose later support removal after C35 recovery
       ),
       spawn_config=config_dict.create(
-          cube_pos=[0.025, -0.065, 0.1503],           # C08: closer to palm center
+          cube_pos=[0.021, -0.065, 0.1463],           # C156: keep support/cube pair aligned after x -4mm scan
           cube_jitter=[0.0, 0.0, 0.0],
           support_enabled=True,
       ),
@@ -251,7 +251,7 @@ def default_config_qbr() -> config_dict.ConfigDict:
   pcfg.orientation_flip_change_interval = 120
   pcfg.orientation_flip_min_hold_steps = 400
 
-  cfg.reset_config.pre_grasp_noise_scale = 0.15
+  cfg.reset_config.pre_grasp_noise_scale = 0.10  # C146: validate best reset-noise point for smoothed thumb collision
   cfg.reset_config.lifted_grasp_fraction = 0.0
   cfg.reset_config.lifted_grasp_noise_scale = 0.06
   cfg.reset_config.lifted_cube_z_offset = 0.01
@@ -1833,7 +1833,7 @@ class CubeGraspV2ForceCapsuleBottlePalmQbr(CubeGraspV2ForceCoacdQbr):
     # the C84 timing line intact and move the next probe to the optimizer.
     config.reward_config.scales.three_finger_proximity = 18.0
     config.reward_config.scales.primary_finger_force = 72.0
-    config.reward_config.scales.post_release_grasp = 135.0
+    config.reward_config.scales.post_release_grasp = 135.0  # C149: restore C146 reward, lower continuation LR instead
     config.support_config.min_release_active_fingers = 2
     config.reward_config.scales.pre_release_grasp = 35.0
     config.support_config.random_release_min_sec = 1.5

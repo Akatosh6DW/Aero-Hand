@@ -6757,6 +6757,1218 @@ clean_gate_mode full_cheat_penalty
   - 下一轮建议:
     - 若提升明显，则继续围绕 release 条件做更窄半步；否则切到另一个 gate/threshold 单变量。
 
+- C140: lower seated cube/support by 6mm total for smoothed thumb collision
+  - 改动:
+    - 修改 [grasp_cube_v2_force.py](/home/ll/SRTP/Aero-Hand/sim_rl/mujoco_playground/mujoco_playground/_src/manipulation/aero_hand/grasp_cube_v2_force.py)
+    - 保留平滑 thumb collision 和 C124 release gate
+    - 仅继续 seated-height 扫描：
+      - `support_pos.z: 0.1308 -> 0.1288`
+      - `cube_pos.z: 0.1463 -> 0.1443`
+      - 相比 C124 总计下调 `6mm`
+  - smoke test:
+```
+smoke_ok_cube_capsule_bottlepalm_c140_cpu 0.0 0.0
+cube_pos [0.025, -0.065, 0.1443]
+support_pos [0.025, -0.065, 0.1288]
+min_release_force 0.1
+```
+  - 训练:
+    - env: `AeroCubeGraspV2ForceCapsuleBottlePalmQbr`
+    - restore: `C106 000002211840`
+    - run: `logs/AeroCubeGraspV2ForceCapsuleBottlePalmQbr-20260428-162552-C140_probe_dr_lr7p25e5_upd3_lower6mm_smooththumbgeom_from_C106best_relmax2p45_triad18_force72_capsule_bottlepalm_2048`
+    - command: `/home/ll/miniconda3/envs/aero_rl/bin/python sim_rl/mujoco_playground/learning/train_jax_ppo.py --env_name=AeroCubeGraspV2ForceCapsuleBottlePalmQbr --num_timesteps=1048576 --num_evals=2 --num_envs=2048 --num_eval_envs=128 --episode_length=800 --learning_rate=7.25e-5 --num_updates_per_batch=3 --entropy_cost=0.005 --domain_randomization --ignore_checkpoint_env_config=True --load_checkpoint_path=/home/ll/SRTP/Aero-Hand/logs/AeroCubeGraspV2ForceCapsuleBottlePalmQbr-20260427-164913-C106_long_dr_lr7p5e5_upd3_ent5e3_from_C103best_relmax2p45_postgrasp135_triad18_force72_capsule_bottlepalm_2048/checkpoints/000002211840 --suffix=C140_probe_dr_lr7p25e5_upd3_lower6mm_smooththumbgeom_from_C106best_relmax2p45_triad18_force72_capsule_bottlepalm_2048`
+  - metrics.csv:
+    - `first = 8.7281s`
+    - `last = 8.6672s`
+    - `max = 8.7281s`
+    - `best_step = 0`
+  - 接触形态:
+    - `palm_contact: 0.0312 -> 5.1484`
+    - `nonprimary_contact: 0.0000 -> 0.0234`
+    - `non_tip_primary_contact: 0.0000 -> 0.0000`
+    - `drop: 0.2656 -> 0.2734`
+    - `slip_event: 0.0078 -> 0.0000`
+  - 组件统计:
+    - `post_release_survival: 42576.87 -> 41573.45`
+    - `sustained_hold_bonus: 39915.14 -> 39153.79`
+    - `progressive_hold: 35074.62 -> 34413.76`
+    - `stable_hold: 25816.80 -> 25612.03`
+    - `post_release_pose_hold: 16770.17 -> 16523.70`
+    - `hold_position: 11455.92 -> 11152.13`
+    - `post_release_grasp: 13596.93 -> 13387.44`
+    - `force_balance: 5109.90 -> 5006.65`
+    - `primary_finger_force: 3586.03 -> 3500.26`
+    - `pre_release_grasp: 585.80 -> 582.59`
+  - 与前序对比:
+    - 相比 `C139`，`last 12.3805 -> 8.6672s`
+    - 相比 `C124`，`last 25.1686 -> 8.6672s`
+  - 修改原因:
+    - C138/C139 说明 seated lower 有小幅正效应，本轮验证更低 `-6mm` 是否仍在有效区间内。
+  - 预期效果:
+    - 如果最佳高度还在更低位置，`first/last` 应继续高于 C139 并保持 clean contact。
+  - 实际效果:
+    - 明显退化，并出现 palm/drop 诊断；`-6mm` 已越过可用 seated height。
+  - 失败模式分析:
+    - 高度扫描到 C139 后收益已经趋缓，C140 直接破坏初始承托/释放形态；该负样本不能留在主线。
+  - 下一轮建议:
+    - 回退到 C139 的 `-4mm` 干净高度，停止 seated-height 扫描；下一轮切换到 checkpoint 来源交叉验证，从 C124 best 继续而不是从 C106 继续。
+
+- C141: restore from C124 best on smoothed thumb collision at the clean -4mm seated height
+  - 改动:
+    - 修改 [grasp_cube_v2_force.py](/home/ll/SRTP/Aero-Hand/sim_rl/mujoco_playground/mujoco_playground/_src/manipulation/aero_hand/grasp_cube_v2_force.py)
+    - 回退 C140 负样本高度，保留 C139 的干净 seated point：
+      - `support_pos.z: 0.1288 -> 0.1308`
+      - `cube_pos.z: 0.1443 -> 0.1463`
+    - 训练单变量改动：restore 来源从 `C106 000002211840` 换到 `C124 000002949120`
+  - smoke test:
+```
+smoke_ok_cube_capsule_bottlepalm_c141_cpu 0.0 0.0
+cube_pos [0.025, -0.065, 0.1463]
+support_pos [0.025, -0.065, 0.1308]
+min_release_force 0.1
+```
+  - 训练:
+    - env: `AeroCubeGraspV2ForceCapsuleBottlePalmQbr`
+    - restore: `C124 000002949120`
+    - run: `logs/AeroCubeGraspV2ForceCapsuleBottlePalmQbr-20260428-163357-C141_probe_dr_lr7p25e5_upd3_lower4mm_smooththumbgeom_from_C124best_relmax2p45_triad18_force72_capsule_bottlepalm_2048`
+    - command: `/home/ll/miniconda3/envs/aero_rl/bin/python sim_rl/mujoco_playground/learning/train_jax_ppo.py --env_name=AeroCubeGraspV2ForceCapsuleBottlePalmQbr --num_timesteps=1048576 --num_evals=2 --num_envs=2048 --num_eval_envs=128 --episode_length=800 --learning_rate=7.25e-5 --num_updates_per_batch=3 --entropy_cost=0.005 --domain_randomization --ignore_checkpoint_env_config=True --load_checkpoint_path=/home/ll/SRTP/Aero-Hand/logs/AeroCubeGraspV2ForceCapsuleBottlePalmQbr-20260428-013906-C124_long_dr_lr7p25e5_upd3_force3p2_pose50_from_C106best_relmax2p45_postgrasp135_triad18_force72_capsule_bottlepalm_2048/checkpoints/000002949120 --suffix=C141_probe_dr_lr7p25e5_upd3_lower4mm_smooththumbgeom_from_C124best_relmax2p45_triad18_force72_capsule_bottlepalm_2048`
+  - metrics.csv:
+    - `first = 12.9469s`
+    - `last = 12.7047s`
+    - `max = 12.9469s`
+    - `best_step = 0`
+  - 接触形态:
+    - `palm_contact: 0.0000 -> 0.0000`
+    - `nonprimary_contact: 0.0000 -> 0.0000`
+    - `non_tip_primary_contact: 0.0000 -> 0.0000`
+    - `drop: 0.0000 -> 0.0000`
+    - `slip_event: 0.0000 -> 0.0000`
+  - 组件统计:
+    - `post_release_survival: 59010.78 -> 58417.49`
+    - `sustained_hold_bonus: 55452.54 -> 54542.77`
+    - `progressive_hold: 48578.23 -> 47909.57`
+    - `stable_hold: 36720.46 -> 36352.57`
+    - `post_release_pose_hold: 23352.00 -> 23174.68`
+    - `hold_position: 15908.21 -> 15724.24`
+    - `post_release_grasp: 17577.85 -> 17506.69`
+    - `force_balance: 6692.30 -> 6683.14`
+    - `primary_finger_force: 4583.79 -> 4547.39`
+    - `pre_release_grasp: 700.65 -> 692.00`
+  - 与前序对比:
+    - 相比 `C139`，`last 12.3805 -> 12.7047s`
+    - 相比 `C140`，`last 8.6672 -> 12.7047s`
+    - 相比旧几何 `C124`，`last 25.1686 -> 12.7047s`
+  - 修改原因:
+    - C106 checkpoint 在新平滑 thumb collision 上迁移较差；验证已收敛的 C124 cube checkpoint 是否保留更多有效抓取姿态。
+  - 预期效果:
+    - 若主要问题是 checkpoint 太早，应在同一新几何和 `-4mm` 高度下高于 C139，并保持 clean contact。
+  - 实际效果:
+    - 小幅正向且 contact clean，但 `best_step=0`，尾评仍低于初评。
+  - 失败模式分析:
+    - C124 来源更接近新几何下可用策略，但 PPO 更新仍在短探测内轻微漂移；问题更像 trainability/step-size，而不是单纯 checkpoint 来源。
+  - 下一轮建议:
+    - 保留 C124 checkpoint 和 `-4mm` 高度，切到 PPO 单变量：降低 learning rate，验证能否减少短探测下滑。
+
+- C142: lower PPO learning rate on C124 restore and clean -4mm smoothed-thumb geometry
+  - 改动:
+    - 代码环境不变，沿用 C141 的 `-4mm` seated height 和 C124 restore 来源
+    - 训练单变量改动：`learning_rate: 7.25e-5 -> 5.0e-5`
+  - smoke test:
+```
+smoke_ok_cube_capsule_bottlepalm_c142_cpu 0.0 0.0
+cube_pos [0.025, -0.065, 0.1463]
+support_pos [0.025, -0.065, 0.1308]
+min_release_force 0.1
+```
+  - 训练:
+    - env: `AeroCubeGraspV2ForceCapsuleBottlePalmQbr`
+    - restore: `C124 000002949120`
+    - run: `logs/AeroCubeGraspV2ForceCapsuleBottlePalmQbr-20260428-164053-C142_probe_dr_lr5e5_upd3_lower4mm_smooththumbgeom_from_C124best_relmax2p45_triad18_force72_capsule_bottlepalm_2048`
+    - command: `/home/ll/miniconda3/envs/aero_rl/bin/python sim_rl/mujoco_playground/learning/train_jax_ppo.py --env_name=AeroCubeGraspV2ForceCapsuleBottlePalmQbr --num_timesteps=1048576 --num_evals=2 --num_envs=2048 --num_eval_envs=128 --episode_length=800 --learning_rate=5.0e-5 --num_updates_per_batch=3 --entropy_cost=0.005 --domain_randomization --ignore_checkpoint_env_config=True --load_checkpoint_path=/home/ll/SRTP/Aero-Hand/logs/AeroCubeGraspV2ForceCapsuleBottlePalmQbr-20260428-013906-C124_long_dr_lr7p25e5_upd3_force3p2_pose50_from_C106best_relmax2p45_postgrasp135_triad18_force72_capsule_bottlepalm_2048/checkpoints/000002949120 --suffix=C142_probe_dr_lr5e5_upd3_lower4mm_smooththumbgeom_from_C124best_relmax2p45_triad18_force72_capsule_bottlepalm_2048`
+  - metrics.csv:
+    - `first = 12.9824s`
+    - `last = 12.7824s`
+    - `max = 12.9824s`
+    - `best_step = 0`
+  - 接触形态:
+    - `palm_contact: 0.0000 -> 0.0000`
+    - `nonprimary_contact: 0.0000 -> 0.0000`
+    - `non_tip_primary_contact: 0.0000 -> 0.0000`
+    - `drop: 0.0000 -> 0.0000`
+    - `slip_event: 0.0000 -> 0.0000`
+  - 组件统计:
+    - `post_release_survival: 59070.17 -> 58510.30`
+    - `sustained_hold_bonus: 55311.09 -> 54631.09`
+    - `progressive_hold: 48539.63 -> 47991.60`
+    - `stable_hold: 36728.63 -> 36353.80`
+    - `post_release_pose_hold: 23367.53 -> 23212.33`
+    - `hold_position: 15925.52 -> 15747.93`
+    - `post_release_grasp: 17557.96 -> 17412.99`
+    - `force_balance: 6690.76 -> 6677.29`
+    - `primary_finger_force: 4579.27 -> 4545.10`
+    - `pre_release_grasp: 701.15 -> 695.36`
+  - 与前序对比:
+    - 相比 `C141`，`last 12.7047 -> 12.7824s`
+    - 相比 `C139`，`last 12.3805 -> 12.7824s`
+    - 相比旧几何 `C124`，`last 25.1686 -> 12.7824s`
+  - 修改原因:
+    - C141 说明 C124 restore 更好但 PPO 更新有轻微漂移；降低 LR 验证是否能减少新碰撞几何下的策略破坏。
+  - 预期效果:
+    - 若漂移由步长过大导致，尾评应高于 C141 并保持 clean contact。
+  - 实际效果:
+    - 小幅改善且 clean；但 `best_step=0`，说明仍主要是在保留初始策略而非有效适配。
+  - 失败模式分析:
+    - 更低 LR 能缓解一点尾评下滑，但 smoothed thumb geometry 的接触面变化仍没有被 PPO 快速补偿。
+  - 下一轮建议:
+    - 继续同一 PPO 变量做半步到 `3.0e-5`；若收益停滞，停止 LR 扫描并切换到 reward/课程变量。
+
+- C143: lower PPO learning rate to 3e-5 on C124 restore and clean -4mm smoothed-thumb geometry
+  - 改动:
+    - 代码环境不变，沿用 C141/C142 的 `-4mm` seated height 和 C124 restore 来源
+    - 训练单变量改动：`learning_rate: 5.0e-5 -> 3.0e-5`
+  - smoke test:
+```
+smoke_ok_cube_capsule_bottlepalm_c143_cpu 0.0 0.0
+cube_pos [0.025, -0.065, 0.1463]
+support_pos [0.025, -0.065, 0.1308]
+min_release_force 0.1
+```
+  - 训练:
+    - env: `AeroCubeGraspV2ForceCapsuleBottlePalmQbr`
+    - restore: `C124 000002949120`
+    - run: `logs/AeroCubeGraspV2ForceCapsuleBottlePalmQbr-20260428-164737-C143_probe_dr_lr3e5_upd3_lower4mm_smooththumbgeom_from_C124best_relmax2p45_triad18_force72_capsule_bottlepalm_2048`
+    - command: `/home/ll/miniconda3/envs/aero_rl/bin/python sim_rl/mujoco_playground/learning/train_jax_ppo.py --env_name=AeroCubeGraspV2ForceCapsuleBottlePalmQbr --num_timesteps=1048576 --num_evals=2 --num_envs=2048 --num_eval_envs=128 --episode_length=800 --learning_rate=3.0e-5 --num_updates_per_batch=3 --entropy_cost=0.005 --domain_randomization --ignore_checkpoint_env_config=True --load_checkpoint_path=/home/ll/SRTP/Aero-Hand/logs/AeroCubeGraspV2ForceCapsuleBottlePalmQbr-20260428-013906-C124_long_dr_lr7p25e5_upd3_force3p2_pose50_from_C106best_relmax2p45_postgrasp135_triad18_force72_capsule_bottlepalm_2048/checkpoints/000002949120 --suffix=C143_probe_dr_lr3e5_upd3_lower4mm_smooththumbgeom_from_C124best_relmax2p45_triad18_force72_capsule_bottlepalm_2048`
+  - metrics.csv:
+    - `first = 13.0149s`
+    - `last = 12.6785s`
+    - `max = 13.0149s`
+    - `best_step = 0`
+  - 接触形态:
+    - `palm_contact: 0.0000 -> 0.0000`
+    - `nonprimary_contact: 0.0000 -> 0.0000`
+    - `non_tip_primary_contact: 0.0000 -> 0.0000`
+    - `drop: 0.0000 -> 0.0000`
+    - `slip_event: 0.0000 -> 0.0000`
+  - 组件统计:
+    - `post_release_survival: 59089.15 -> 58394.31`
+    - `sustained_hold_bonus: 55383.81 -> 54638.40`
+    - `progressive_hold: 48579.05 -> 47958.07`
+    - `stable_hold: 36779.90 -> 36250.36`
+    - `post_release_pose_hold: 23383.48 -> 23161.94`
+    - `hold_position: 15929.76 -> 15717.59`
+    - `post_release_grasp: 17577.45 -> 17419.84`
+    - `force_balance: 6692.94 -> 6675.19`
+    - `primary_finger_force: 4584.66 -> 4540.01`
+    - `pre_release_grasp: 700.85 -> 693.51`
+  - 与前序对比:
+    - 相比 `C142`，`last 12.7824 -> 12.6785s`
+    - 相比 `C141`，`last 12.7047 -> 12.6785s`
+  - 修改原因:
+    - C142 低 LR 小幅改善，继续验证更小步长是否能进一步减少新几何下的 PPO 漂移。
+  - 预期效果:
+    - 如果仍是步长过大，尾评应继续高于 C142。
+  - 实际效果:
+    - 未超过 C142；首评略高但尾评更低，仍然 `best_step=0`。
+  - 失败模式分析:
+    - 继续降低 LR 不再改善 retention；当前瓶颈不是单纯步长，而是新碰撞几何下初始闭合/课程匹配不足。
+  - 下一轮建议:
+    - 停止 LR 扫描，切换到 reset/curriculum 单变量：收紧 QBR `pre_grasp_noise_scale`，验证更稳定初始闭合是否能恢复时长。
+
+- C144: tighten QBR pre-grasp reset noise for smoothed thumb collision
+  - 改动:
+    - 修改 [grasp_cube_v2_force.py](/home/ll/SRTP/Aero-Hand/sim_rl/mujoco_playground/mujoco_playground/_src/manipulation/aero_hand/grasp_cube_v2_force.py)
+    - 环境/课程单变量：`cfg.reset_config.pre_grasp_noise_scale: 0.15 -> 0.10`
+    - 保留 C142 的较好训练设置：C124 restore、`learning_rate=5.0e-5`、`-4mm` seated height
+  - smoke test:
+```
+smoke_ok_cube_capsule_bottlepalm_c144_cpu 0.0 0.0
+cube_pos [0.025, -0.065, 0.1463]
+support_pos [0.025, -0.065, 0.1308]
+min_release_force 0.1
+pre_grasp_noise_scale 0.1
+```
+  - 训练:
+    - env: `AeroCubeGraspV2ForceCapsuleBottlePalmQbr`
+    - restore: `C124 000002949120`
+    - run: `logs/AeroCubeGraspV2ForceCapsuleBottlePalmQbr-20260428-165424-C144_probe_dr_lr5e5_upd3_lower4mm_pregraspnoise010_smooththumbgeom_from_C124best_relmax2p45_triad18_force72_capsule_bottlepalm_2048`
+    - command: `/home/ll/miniconda3/envs/aero_rl/bin/python sim_rl/mujoco_playground/learning/train_jax_ppo.py --env_name=AeroCubeGraspV2ForceCapsuleBottlePalmQbr --num_timesteps=1048576 --num_evals=2 --num_envs=2048 --num_eval_envs=128 --episode_length=800 --learning_rate=5.0e-5 --num_updates_per_batch=3 --entropy_cost=0.005 --domain_randomization --ignore_checkpoint_env_config=True --load_checkpoint_path=/home/ll/SRTP/Aero-Hand/logs/AeroCubeGraspV2ForceCapsuleBottlePalmQbr-20260428-013906-C124_long_dr_lr7p25e5_upd3_force3p2_pose50_from_C106best_relmax2p45_postgrasp135_triad18_force72_capsule_bottlepalm_2048/checkpoints/000002949120 --suffix=C144_probe_dr_lr5e5_upd3_lower4mm_pregraspnoise010_smooththumbgeom_from_C124best_relmax2p45_triad18_force72_capsule_bottlepalm_2048`
+  - metrics.csv:
+    - `first = 12.7887s`
+    - `last = 12.8461s`
+    - `max = 12.8461s`
+    - `best_step = 1310720`
+  - 接触形态:
+    - `palm_contact: 0.0000 -> 0.0000`
+    - `nonprimary_contact: 0.0000 -> 0.0000`
+    - `non_tip_primary_contact: 0.0000 -> 0.0000`
+    - `drop: 0.0000 -> 0.0000`
+    - `slip_event: 0.0000 -> 0.0000`
+  - 组件统计:
+    - `post_release_survival: 58827.41 -> 58588.41`
+    - `sustained_hold_bonus: 55053.44 -> 54714.77`
+    - `progressive_hold: 48304.62 -> 48078.68`
+    - `stable_hold: 36605.50 -> 36415.31`
+    - `post_release_pose_hold: 23275.58 -> 23240.17`
+    - `hold_position: 15860.16 -> 15770.60`
+    - `post_release_grasp: 17582.05 -> 17452.30`
+    - `force_balance: 6691.71 -> 6682.39`
+    - `primary_finger_force: 4581.24 -> 4551.83`
+    - `pre_release_grasp: 700.46 -> 695.96`
+  - 与前序对比:
+    - 相比 `C142`，`last 12.7824 -> 12.8461s`
+    - 相比 `C143`，`last 12.6785 -> 12.8461s`
+    - 相比旧几何 `C124`，`last 25.1686 -> 12.8461s`
+  - 修改原因:
+    - 新平滑 thumb collision 后，旧策略对初始闭合扰动更敏感；收紧 pre-grasp reset noise 验证是否能减少早期接触偏差。
+  - 预期效果:
+    - 若 reset 噪声是主要敏感项，尾评应超过 C142，并且 best step 不再停在 0。
+  - 实际效果:
+    - 小幅正向，`best_step=1310720`，contact clean；这是新几何 probe 中第一个尾评高于首评的点。
+  - 失败模式分析:
+    - 改善幅度仍小，说明 reset 噪声只缓解一部分新碰撞几何带来的接触错配。
+  - 下一轮建议:
+    - 继续同一 reset/curriculum 变量做半步：`pre_grasp_noise_scale 0.10 -> 0.05`；若仍提升，再考虑长训验证。
+
+- C145: tighter QBR pre-grasp reset noise scan to 0.05
+  - 改动:
+    - 修改 [grasp_cube_v2_force.py](/home/ll/SRTP/Aero-Hand/sim_rl/mujoco_playground/mujoco_playground/_src/manipulation/aero_hand/grasp_cube_v2_force.py)
+    - 环境/课程单变量：`cfg.reset_config.pre_grasp_noise_scale: 0.10 -> 0.05`
+    - 保留 C144 的 C124 restore、`learning_rate=5.0e-5`、`-4mm` seated height
+  - smoke test:
+```
+smoke_ok_cube_capsule_bottlepalm_c145_cpu 0.0 0.0
+cube_pos [0.025, -0.065, 0.1463]
+support_pos [0.025, -0.065, 0.1308]
+min_release_force 0.1
+pre_grasp_noise_scale 0.05
+```
+  - 训练:
+    - env: `AeroCubeGraspV2ForceCapsuleBottlePalmQbr`
+    - restore: `C124 000002949120`
+    - run: `logs/AeroCubeGraspV2ForceCapsuleBottlePalmQbr-20260428-170114-C145_probe_dr_lr5e5_upd3_lower4mm_pregraspnoise005_smooththumbgeom_from_C124best_relmax2p45_triad18_force72_capsule_bottlepalm_2048`
+    - command: `/home/ll/miniconda3/envs/aero_rl/bin/python sim_rl/mujoco_playground/learning/train_jax_ppo.py --env_name=AeroCubeGraspV2ForceCapsuleBottlePalmQbr --num_timesteps=1048576 --num_evals=2 --num_envs=2048 --num_eval_envs=128 --episode_length=800 --learning_rate=5.0e-5 --num_updates_per_batch=3 --entropy_cost=0.005 --domain_randomization --ignore_checkpoint_env_config=True --load_checkpoint_path=/home/ll/SRTP/Aero-Hand/logs/AeroCubeGraspV2ForceCapsuleBottlePalmQbr-20260428-013906-C124_long_dr_lr7p25e5_upd3_force3p2_pose50_from_C106best_relmax2p45_postgrasp135_triad18_force72_capsule_bottlepalm_2048/checkpoints/000002949120 --suffix=C145_probe_dr_lr5e5_upd3_lower4mm_pregraspnoise005_smooththumbgeom_from_C124best_relmax2p45_triad18_force72_capsule_bottlepalm_2048`
+  - metrics.csv:
+    - `first = 12.9543s`
+    - `last = 12.7957s`
+    - `max = 12.9543s`
+    - `best_step = 0`
+  - 接触形态:
+    - `palm_contact: 0.0000 -> 0.0000`
+    - `nonprimary_contact: 0.0000 -> 0.0000`
+    - `non_tip_primary_contact: 0.0000 -> 0.0000`
+    - `drop: 0.0000 -> 0.0000`
+    - `slip_event: 0.0000 -> 0.0000`
+  - 组件统计:
+    - `post_release_survival: 59009.47 -> 58502.67`
+    - `sustained_hold_bonus: 55315.08 -> 54705.47`
+    - `progressive_hold: 48504.55 -> 48037.29`
+    - `stable_hold: 36711.43 -> 36339.66`
+    - `post_release_pose_hold: 23354.69 -> 23215.79`
+    - `hold_position: 15908.06 -> 15744.53`
+    - `post_release_grasp: 17584.10 -> 17436.44`
+    - `force_balance: 6691.78 -> 6678.13`
+    - `primary_finger_force: 4585.65 -> 4551.04`
+    - `pre_release_grasp: 700.66 -> 693.98`
+  - 与前序对比:
+    - 相比 `C144`，`last 12.8461 -> 12.7957s`
+    - 相比 `C142`，`last 12.7824 -> 12.7957s`
+  - 修改原因:
+    - C144 证明收紧 reset noise 有正向信号；本轮验证更紧的 `0.05` 是否继续提升。
+  - 预期效果:
+    - 若 reset 噪声仍是主要瓶颈，尾评应高于 C144 且 best step 留在尾评。
+  - 实际效果:
+    - 未超过 C144，`best_step` 回到 0；contact 仍 clean，但训练不再受益。
+  - 失败模式分析:
+    - 过度收紧 reset noise 会削弱有效探索/适配，C144 的 `0.10` 是当前更好的课程点。
+  - 下一轮建议:
+    - 回退到 `pre_grasp_noise_scale=0.10`，对 C144 配置做长训验证。
+
+- C146: long validation for C144 reset-noise point on smoothed thumb collision
+  - 改动:
+    - 修改 [grasp_cube_v2_force.py](/home/ll/SRTP/Aero-Hand/sim_rl/mujoco_playground/mujoco_playground/_src/manipulation/aero_hand/grasp_cube_v2_force.py)
+    - 回退 C145 负样本，恢复 `cfg.reset_config.pre_grasp_noise_scale = 0.10`
+    - 长训验证 C144 配置：C124 restore、`learning_rate=5.0e-5`、`-4mm` seated height、4 eval
+  - smoke test:
+```
+smoke_ok_cube_capsule_bottlepalm_c146_cpu 0.0 0.0
+cube_pos [0.025, -0.065, 0.1463]
+support_pos [0.025, -0.065, 0.1308]
+min_release_force 0.1
+pre_grasp_noise_scale 0.1
+```
+  - 训练:
+    - env: `AeroCubeGraspV2ForceCapsuleBottlePalmQbr`
+    - restore: `C124 000002949120`
+    - run: `logs/AeroCubeGraspV2ForceCapsuleBottlePalmQbr-20260428-170823-C146_long_dr_lr5e5_upd3_lower4mm_pregraspnoise010_smooththumbgeom_from_C124best_relmax2p45_triad18_force72_capsule_bottlepalm_2048`
+    - command: `/home/ll/miniconda3/envs/aero_rl/bin/python sim_rl/mujoco_playground/learning/train_jax_ppo.py --env_name=AeroCubeGraspV2ForceCapsuleBottlePalmQbr --num_timesteps=2097152 --num_evals=4 --num_envs=2048 --num_eval_envs=128 --episode_length=800 --learning_rate=5.0e-5 --num_updates_per_batch=3 --entropy_cost=0.005 --domain_randomization --ignore_checkpoint_env_config=True --load_checkpoint_path=/home/ll/SRTP/Aero-Hand/logs/AeroCubeGraspV2ForceCapsuleBottlePalmQbr-20260428-013906-C124_long_dr_lr7p25e5_upd3_force3p2_pose50_from_C106best_relmax2p45_postgrasp135_triad18_force72_capsule_bottlepalm_2048/checkpoints/000002949120 --suffix=C146_long_dr_lr5e5_upd3_lower4mm_pregraspnoise010_smooththumbgeom_from_C124best_relmax2p45_triad18_force72_capsule_bottlepalm_2048`
+  - metrics.csv:
+    - `first = 12.8391s`
+    - `last = 13.1735s`
+    - `max = 13.1735s`
+    - `best_step = 2949120`
+  - 接触形态:
+    - `palm_contact: 0.0000 -> 0.0000 -> 0.0000 -> 0.0000`
+    - `nonprimary_contact: 0.0000 -> 0.0000 -> 0.0000 -> 0.0000`
+    - `non_tip_primary_contact: 0.0000 -> 0.0000 -> 0.0000 -> 0.0000`
+    - `drop: 0.0000 -> 0.0000 -> 0.0000 -> 0.0000`
+    - `slip_event: 0.0000 -> 0.0000 -> 0.0000 -> 0.0000`
+  - 组件统计:
+    - `post_release_survival: 58884.66 -> 58160.95 -> 58164.68 -> 58503.59`
+    - `sustained_hold_bonus: 55206.50 -> 54358.83 -> 55123.83 -> 56126.23`
+    - `progressive_hold: 48414.41 -> 47717.23 -> 48297.18 -> 49075.18`
+    - `stable_hold: 36595.59 -> 36122.16 -> 36158.43 -> 36383.56`
+    - `post_release_pose_hold: 23299.15 -> 23064.24 -> 23186.43 -> 23309.09`
+    - `hold_position: 15874.99 -> 15660.41 -> 15622.04 -> 15702.04`
+    - `post_release_grasp: 17574.48 -> 17449.25 -> 17471.66 -> 17611.46`
+    - `force_balance: 6692.19 -> 6680.18 -> 6681.28 -> 6679.30`
+    - `primary_finger_force: 4581.46 -> 4559.13 -> 4547.91 -> 4544.24`
+    - `pre_release_grasp: 700.52 -> 695.98 -> 703.63 -> 695.97`
+  - 与前序对比:
+    - 相比 `C144`，`last 12.8461 -> 13.1735s`
+    - 相比 `C145`，`last 12.7957 -> 13.1735s`
+    - 相比旧几何 `C124`，`last 25.1686 -> 13.1735s`
+  - 修改原因:
+    - C144 是短探测正样本且 `best_step` 在尾评；本轮验证该 reset-noise 改动是否能在更长训练中继续提升。
+  - 预期效果:
+    - 若新几何需要更多适配，4-eval 长训应在后段超过 C144 且保持 clean contact。
+  - 实际效果:
+    - 正向；`last=max=13.1735s`，best 在最后一个 eval，接触诊断全 clean。
+  - 失败模式分析:
+    - 仍远低于旧几何 C124，说明当前恢复主要来自课程和继续训练，尚未完全补偿 thumb collision 接触面变化。
+  - 下一轮建议:
+    - 保留 C146 配置，从 C146 best checkpoint 继续训练，验证恢复趋势是否能延续。
+
+- C147: continuation from C146 best on the C146 validated configuration
+  - 改动:
+    - 代码环境不变，沿用 C146 的 `pre_grasp_noise_scale=0.10`、`-4mm` seated height、`learning_rate=5.0e-5`
+    - 训练单变量改动：restore 来源从 `C124 000002949120` 推进到 `C146 000002949120`
+  - smoke test:
+```
+smoke_ok_cube_capsule_bottlepalm_c147_cpu 0.0 0.0
+cube_pos [0.025, -0.065, 0.1463]
+support_pos [0.025, -0.065, 0.1308]
+min_release_force 0.1
+pre_grasp_noise_scale 0.1
+```
+  - 训练:
+    - env: `AeroCubeGraspV2ForceCapsuleBottlePalmQbr`
+    - restore: `C146 000002949120`
+    - run: `logs/AeroCubeGraspV2ForceCapsuleBottlePalmQbr-20260428-171915-C147_long_dr_lr5e5_upd3_lower4mm_pregraspnoise010_smooththumbgeom_from_C146best_relmax2p45_triad18_force72_capsule_bottlepalm_2048`
+    - command: `/home/ll/miniconda3/envs/aero_rl/bin/python sim_rl/mujoco_playground/learning/train_jax_ppo.py --env_name=AeroCubeGraspV2ForceCapsuleBottlePalmQbr --num_timesteps=2097152 --num_evals=4 --num_envs=2048 --num_eval_envs=128 --episode_length=800 --learning_rate=5.0e-5 --num_updates_per_batch=3 --entropy_cost=0.005 --domain_randomization --ignore_checkpoint_env_config=True --load_checkpoint_path=/home/ll/SRTP/Aero-Hand/logs/AeroCubeGraspV2ForceCapsuleBottlePalmQbr-20260428-170823-C146_long_dr_lr5e5_upd3_lower4mm_pregraspnoise010_smooththumbgeom_from_C124best_relmax2p45_triad18_force72_capsule_bottlepalm_2048/checkpoints/000002949120 --suffix=C147_long_dr_lr5e5_upd3_lower4mm_pregraspnoise010_smooththumbgeom_from_C146best_relmax2p45_triad18_force72_capsule_bottlepalm_2048`
+  - metrics.csv:
+    - `first = 12.4594s`
+    - `last = 12.3457s`
+    - `max = 12.4594s`
+    - `best_step = 0`
+  - 接触形态:
+    - `palm_contact: 0.0000 -> 0.0000 -> 0.0000 -> 0.0000`
+    - `nonprimary_contact: 0.0000 -> 0.0000 -> 0.0000 -> 0.0000`
+    - `non_tip_primary_contact: 0.0000 -> 0.0000 -> 0.0000 -> 0.0000`
+    - `drop: 0.0000 -> 0.0000 -> 0.0000 -> 0.0000`
+    - `slip_event: 0.0000 -> 0.0000 -> 0.0000 -> 0.0000`
+  - 组件统计:
+    - `post_release_survival: 57578.52 -> 57084.44 -> 56277.16 -> 56720.87`
+    - `sustained_hold_bonus: 54689.53 -> 53934.16 -> 54100.84 -> 55112.54`
+    - `progressive_hold: 47941.26 -> 47369.68 -> 47362.09 -> 48199.87`
+    - `stable_hold: 35841.43 -> 35522.57 -> 35064.97 -> 35386.07`
+    - `post_release_pose_hold: 22961.60 -> 22794.70 -> 22582.59 -> 22756.88`
+    - `hold_position: 15449.52 -> 15303.70 -> 15052.59 -> 15157.35`
+    - `post_release_grasp: 17421.66 -> 17367.47 -> 17418.04 -> 17605.17`
+    - `force_balance: 6679.59 -> 6677.50 -> 6679.82 -> 6683.90`
+    - `primary_finger_force: 4553.42 -> 4547.16 -> 4555.80 -> 4560.40`
+    - `pre_release_grasp: 705.26 -> 702.98 -> 704.25 -> 699.93`
+  - 与前序对比:
+    - 相比 `C146`，`last 13.1735 -> 12.3457s`
+    - 相比 `C144`，`last 12.8461 -> 12.3457s`
+  - 修改原因:
+    - C146 best 在最后一评，验证继续训练是否还能延续恢复。
+  - 预期效果:
+    - 若 C146 仍在上升通道，C147 应继续高于 `13.17s` 或至少保持 clean 且不回落。
+  - 实际效果:
+    - 明显回落；contact 仍 clean，但主指标退化。
+  - 失败模式分析:
+    - 简单 continuation 不成立。`post_release_grasp` 后段升高但 `contact_duration_sec` 下降，提示策略可能在新 thumb collision 上追抓力形态而不是追稳定保持。
+  - 下一轮建议:
+    - 切到 reward 减法：降低 QBR `post_release_grasp` 权重，验证是否减少抓力形态过拟合并恢复主指标。
+
+- C148: reduce QBR post-release grasp weight after C147 continuation regression
+  - 改动:
+    - 修改 [grasp_cube_v2_force.py](/home/ll/SRTP/Aero-Hand/sim_rl/mujoco_playground/mujoco_playground/_src/manipulation/aero_hand/grasp_cube_v2_force.py)
+    - reward 单变量：`config.reward_config.scales.post_release_grasp: 135.0 -> 125.0`
+    - 保留 C146 配置：`pre_grasp_noise_scale=0.10`、`-4mm` seated height、从 C146 best restore
+  - smoke test:
+```
+smoke_ok_cube_capsule_bottlepalm_c148_cpu 0.0 0.0
+cube_pos [0.025, -0.065, 0.1463]
+support_pos [0.025, -0.065, 0.1308]
+min_release_force 0.1
+pre_grasp_noise_scale 0.1
+post_release_grasp 125.0
+```
+  - 训练:
+    - env: `AeroCubeGraspV2ForceCapsuleBottlePalmQbr`
+    - restore: `C146 000002949120`
+    - run: `logs/AeroCubeGraspV2ForceCapsuleBottlePalmQbr-20260428-173102-C148_probe_dr_lr5e5_upd3_postgrasp125_lower4mm_pregraspnoise010_smooththumbgeom_from_C146best_relmax2p45_triad18_force72_capsule_bottlepalm_2048`
+    - command: `/home/ll/miniconda3/envs/aero_rl/bin/python sim_rl/mujoco_playground/learning/train_jax_ppo.py --env_name=AeroCubeGraspV2ForceCapsuleBottlePalmQbr --num_timesteps=1048576 --num_evals=2 --num_envs=2048 --num_eval_envs=128 --episode_length=800 --learning_rate=5.0e-5 --num_updates_per_batch=3 --entropy_cost=0.005 --domain_randomization --ignore_checkpoint_env_config=True --load_checkpoint_path=/home/ll/SRTP/Aero-Hand/logs/AeroCubeGraspV2ForceCapsuleBottlePalmQbr-20260428-170823-C146_long_dr_lr5e5_upd3_lower4mm_pregraspnoise010_smooththumbgeom_from_C124best_relmax2p45_triad18_force72_capsule_bottlepalm_2048/checkpoints/000002949120 --suffix=C148_probe_dr_lr5e5_upd3_postgrasp125_lower4mm_pregraspnoise010_smooththumbgeom_from_C146best_relmax2p45_triad18_force72_capsule_bottlepalm_2048`
+  - metrics.csv:
+    - `first = 12.5496s`
+    - `last = 12.2860s`
+    - `max = 12.5496s`
+    - `best_step = 0`
+  - 接触形态:
+    - `palm_contact: 0.0000 -> 0.0000`
+    - `nonprimary_contact: 0.0000 -> 0.0000`
+    - `non_tip_primary_contact: 0.0000 -> 0.0000`
+    - `drop: 0.0000 -> 0.0000`
+    - `slip_event: 0.0000 -> 0.0000`
+  - 组件统计:
+    - `post_release_survival: 57702.25 -> 57112.11`
+    - `sustained_hold_bonus: 54594.90 -> 54105.16`
+    - `progressive_hold: 47908.90 -> 47511.30`
+    - `stable_hold: 35847.89 -> 35516.63`
+    - `post_release_pose_hold: 23006.51 -> 22820.06`
+    - `hold_position: 15483.97 -> 15305.62`
+    - `post_release_grasp: 16126.66 -> 16084.95`
+    - `force_balance: 6679.38 -> 6681.58`
+    - `primary_finger_force: 4554.00 -> 4547.81`
+    - `pre_release_grasp: 705.41 -> 702.42`
+  - 与前序对比:
+    - 相比 `C147`，`last 12.3457 -> 12.2860s`
+    - 相比 `C146`，`last 13.1735 -> 12.2860s`
+  - 修改原因:
+    - C147 中 `post_release_grasp` 后段上升但主指标下降，按 reward 减法验证是否能减少抓力形态过拟合。
+  - 预期效果:
+    - 若过拟合来自 post-release grasp 过重，降低该权重应高于 C147 或至少减少 continuation 回落。
+  - 实际效果:
+    - 负向，尾评低于 C147；不能保留。
+  - 失败模式分析:
+    - 抓力奖励不是当前 continuation 回落的主因；降低它反而减少有效夹持约束。
+  - 下一轮建议:
+    - 回退 `post_release_grasp=135.0`，改 PPO 单变量：从 C146 best 用更低 LR 做短 continuation，验证是否只是 C146 后续更新步长过大。
+
+- C149: lower continuation learning rate from C146 best
+  - 改动:
+    - 修改 [grasp_cube_v2_force.py](/home/ll/SRTP/Aero-Hand/sim_rl/mujoco_playground/mujoco_playground/_src/manipulation/aero_hand/grasp_cube_v2_force.py)
+    - 回退 C148 负样本，恢复 QBR `post_release_grasp=135.0`
+    - PPO 单变量：从 C146 best continuation 时 `learning_rate: 5.0e-5 -> 3.0e-5`
+  - smoke test:
+```
+smoke_ok_cube_capsule_bottlepalm_c149_cpu 0.0 0.0
+cube_pos [0.025, -0.065, 0.1463]
+support_pos [0.025, -0.065, 0.1308]
+min_release_force 0.1
+pre_grasp_noise_scale 0.1
+post_release_grasp 135.0
+```
+  - 训练:
+    - env: `AeroCubeGraspV2ForceCapsuleBottlePalmQbr`
+    - restore: `C146 000002949120`
+    - run: `logs/AeroCubeGraspV2ForceCapsuleBottlePalmQbr-20260428-173856-C149_probe_dr_lr3e5_upd3_lower4mm_pregraspnoise010_smooththumbgeom_from_C146best_relmax2p45_postgrasp135_force72_capsule_bottlepalm_2048`
+    - command: `/home/ll/miniconda3/envs/aero_rl/bin/python sim_rl/mujoco_playground/learning/train_jax_ppo.py --env_name=AeroCubeGraspV2ForceCapsuleBottlePalmQbr --num_timesteps=1048576 --num_evals=2 --num_envs=2048 --num_eval_envs=128 --episode_length=800 --learning_rate=3.0e-5 --num_updates_per_batch=3 --entropy_cost=0.005 --domain_randomization --ignore_checkpoint_env_config=True --load_checkpoint_path=/home/ll/SRTP/Aero-Hand/logs/AeroCubeGraspV2ForceCapsuleBottlePalmQbr-20260428-170823-C146_long_dr_lr5e5_upd3_lower4mm_pregraspnoise010_smooththumbgeom_from_C124best_relmax2p45_triad18_force72_capsule_bottlepalm_2048/checkpoints/000002949120 --suffix=C149_probe_dr_lr3e5_upd3_lower4mm_pregraspnoise010_smooththumbgeom_from_C146best_relmax2p45_postgrasp135_force72_capsule_bottlepalm_2048`
+  - metrics.csv:
+    - `first = 12.3563s`
+    - `last = 12.4168s`
+    - `max = 12.4168s`
+    - `best_step = 1310720`
+  - 接触形态:
+    - `palm_contact: 0.0000 -> 0.0000`
+    - `nonprimary_contact: 0.0000 -> 0.0000`
+    - `non_tip_primary_contact: 0.0000 -> 0.0000`
+    - `drop: 0.0000 -> 0.0000`
+    - `slip_event: 0.0000 -> 0.0000`
+  - 组件统计:
+    - `post_release_survival: 57476.65 -> 57256.11`
+    - `sustained_hold_bonus: 54469.06 -> 54141.35`
+    - `progressive_hold: 47776.62 -> 47569.95`
+    - `stable_hold: 35711.64 -> 35645.76`
+    - `post_release_pose_hold: 22914.72 -> 22879.56`
+    - `hold_position: 15423.94 -> 15342.21`
+    - `post_release_grasp: 17410.44 -> 17388.09`
+    - `force_balance: 6679.24 -> 6680.05`
+    - `primary_finger_force: 4553.52 -> 4542.95`
+    - `pre_release_grasp: 705.50 -> 700.50`
+  - 与前序对比:
+    - 相比 `C147`，`last 12.3457 -> 12.4168s`
+    - 相比 `C148`，`last 12.2860 -> 12.4168s`
+    - 相比 `C146`，`last 13.1735 -> 12.4168s`
+  - 修改原因:
+    - C147 continuation 回落可能来自更新步长过大；降低 LR 验证是否能减少 C146 后续策略漂移。
+  - 预期效果:
+    - 若是步长问题，应高于 C147/C148，并尽量接近 C146。
+  - 实际效果:
+    - 小幅高于 C147/C148，且尾评最佳，但仍明显低于 C146。
+  - 失败模式分析:
+    - 单纯降低 LR 只缓解 drift，不能恢复到 C146；每批更新次数也可能过多。
+  - 下一轮建议:
+    - 保持 C146 reward/课程和 C146 best restore，改 PPO 单变量：`num_updates_per_batch 3 -> 1`。
+
+- C150: reduce PPO updates per batch from C146 best
+  - 改动:
+    - 代码环境不变，沿用 C146 reward/课程、`pre_grasp_noise_scale=0.10`、`-4mm` seated height、从 C146 best restore
+    - PPO 单变量：`num_updates_per_batch: 3 -> 1`
+  - smoke test:
+```
+smoke_ok_cube_capsule_bottlepalm_c150_cpu 0.0 0.0
+cube_pos [0.025, -0.065, 0.1463]
+support_pos [0.025, -0.065, 0.1308]
+min_release_force 0.1
+pre_grasp_noise_scale 0.1
+post_release_grasp 135.0
+```
+  - 训练:
+    - env: `AeroCubeGraspV2ForceCapsuleBottlePalmQbr`
+    - restore: `C146 000002949120`
+    - run: `logs/AeroCubeGraspV2ForceCapsuleBottlePalmQbr-20260428-174613-C150_probe_dr_lr5e5_upd1_lower4mm_pregraspnoise010_smooththumbgeom_from_C146best_relmax2p45_postgrasp135_force72_capsule_bottlepalm_2048`
+    - command: `/home/ll/miniconda3/envs/aero_rl/bin/python sim_rl/mujoco_playground/learning/train_jax_ppo.py --env_name=AeroCubeGraspV2ForceCapsuleBottlePalmQbr --num_timesteps=1048576 --num_evals=2 --num_envs=2048 --num_eval_envs=128 --episode_length=800 --learning_rate=5.0e-5 --num_updates_per_batch=1 --entropy_cost=0.005 --domain_randomization --ignore_checkpoint_env_config=True --load_checkpoint_path=/home/ll/SRTP/Aero-Hand/logs/AeroCubeGraspV2ForceCapsuleBottlePalmQbr-20260428-170823-C146_long_dr_lr5e5_upd3_lower4mm_pregraspnoise010_smooththumbgeom_from_C124best_relmax2p45_triad18_force72_capsule_bottlepalm_2048/checkpoints/000002949120 --suffix=C150_probe_dr_lr5e5_upd1_lower4mm_pregraspnoise010_smooththumbgeom_from_C146best_relmax2p45_postgrasp135_force72_capsule_bottlepalm_2048`
+  - metrics.csv:
+    - `first = 12.3746s`
+    - `last = 12.1914s`
+    - `max = 12.3746s`
+    - `best_step = 0`
+  - 接触形态:
+    - `palm_contact: 0.0000 -> 0.0000`
+    - `nonprimary_contact: 0.0000 -> 0.0000`
+    - `non_tip_primary_contact: 0.0000 -> 0.0000`
+    - `drop: 0.0000 -> 0.0000`
+    - `slip_event: 0.0000 -> 0.0000`
+  - 组件统计:
+    - `post_release_survival: 57485.44 -> 56994.80`
+    - `sustained_hold_bonus: 54661.31 -> 53908.59`
+    - `progressive_hold: 47910.25 -> 47364.36`
+    - `stable_hold: 35727.15 -> 35458.25`
+    - `post_release_pose_hold: 22922.59 -> 22778.88`
+    - `hold_position: 15425.01 -> 15273.14`
+    - `post_release_grasp: 17404.15 -> 17338.68`
+    - `force_balance: 6679.02 -> 6679.65`
+    - `primary_finger_force: 4550.68 -> 4541.45`
+    - `pre_release_grasp: 705.45 -> 702.17`
+  - 与前序对比:
+    - 相比 `C149`，`last 12.4168 -> 12.1914s`
+    - 相比 `C147`，`last 12.3457 -> 12.1914s`
+    - 相比 `C146`，`last 13.1735 -> 12.1914s`
+  - 修改原因:
+    - C149 说明降低 LR 只能小幅缓解漂移；本轮验证减少每批更新次数是否更直接降低 over-update。
+  - 预期效果:
+    - 若 C146 后续回落来自每批更新过多，`upd1` 应高于 C147/C149。
+  - 实际效果:
+    - 负向，低于 C149/C147；不能继续该方向。
+  - 失败模式分析:
+    - C146 best 后续 PPO continuation 不是单纯更新强度问题；当前应停止从 C146 best 继续做 PPO 微调。
+  - 下一轮建议:
+    - 回到环境/几何对齐变量，从 C124/C146 已验证配置出发，扫描 cube/support 水平位置是否需要配合新的 smoothed thumb collision。
+
+- C151: shift cube/support y by +2mm for smoothed thumb alignment
+  - 改动:
+    - 修改 [grasp_cube_v2_force.py](/home/ll/SRTP/Aero-Hand/sim_rl/mujoco_playground/mujoco_playground/_src/manipulation/aero_hand/grasp_cube_v2_force.py)
+    - 环境/几何单变量：`cube_pos.y/support_pos.y: -0.065 -> -0.063`
+    - 保留 C146 课程/训练设置：`pre_grasp_noise_scale=0.10`、`z=-4mm`、C124 restore、`lr=5e-5/upd3`
+  - smoke test:
+```
+smoke_ok_cube_capsule_bottlepalm_c151_cpu 0.0 0.0
+cube_pos [0.025, -0.063, 0.1463]
+support_pos [0.025, -0.063, 0.1308]
+min_release_force 0.1
+pre_grasp_noise_scale 0.1
+post_release_grasp 135.0
+```
+  - 训练:
+    - env: `AeroCubeGraspV2ForceCapsuleBottlePalmQbr`
+    - restore: `C124 000002949120`
+    - run: `logs/AeroCubeGraspV2ForceCapsuleBottlePalmQbr-20260428-175402-C151_probe_dr_lr5e5_upd3_yplus2mm_lower4mm_pregraspnoise010_smooththumbgeom_from_C124best_relmax2p45_postgrasp135_force72_capsule_bottlepalm_2048`
+    - command: `/home/ll/miniconda3/envs/aero_rl/bin/python sim_rl/mujoco_playground/learning/train_jax_ppo.py --env_name=AeroCubeGraspV2ForceCapsuleBottlePalmQbr --num_timesteps=1048576 --num_evals=2 --num_envs=2048 --num_eval_envs=128 --episode_length=800 --learning_rate=5.0e-5 --num_updates_per_batch=3 --entropy_cost=0.005 --domain_randomization --ignore_checkpoint_env_config=True --load_checkpoint_path=/home/ll/SRTP/Aero-Hand/logs/AeroCubeGraspV2ForceCapsuleBottlePalmQbr-20260428-013906-C124_long_dr_lr7p25e5_upd3_force3p2_pose50_from_C106best_relmax2p45_postgrasp135_triad18_force72_capsule_bottlepalm_2048/checkpoints/000002949120 --suffix=C151_probe_dr_lr5e5_upd3_yplus2mm_lower4mm_pregraspnoise010_smooththumbgeom_from_C124best_relmax2p45_postgrasp135_force72_capsule_bottlepalm_2048`
+  - metrics.csv:
+    - `first = 13.0160s`
+    - `last = 12.6242s`
+    - `max = 13.0160s`
+    - `best_step = 0`
+  - 接触形态:
+    - `palm_contact: 0.0000 -> 0.0000`
+    - `nonprimary_contact: 0.0000 -> 0.0000`
+    - `non_tip_primary_contact: 0.0000 -> 0.0000`
+    - `drop: 0.0000 -> 0.0000`
+    - `slip_event: 0.0000 -> 0.0000`
+  - 组件统计:
+    - `post_release_survival: 59459.77 -> 58709.47`
+    - `sustained_hold_bonus: 55392.11 -> 54399.00`
+    - `progressive_hold: 48611.10 -> 47789.86`
+    - `stable_hold: 37310.52 -> 36459.18`
+    - `post_release_pose_hold: 23413.43 -> 23146.50`
+    - `hold_position: 16064.13 -> 15837.53`
+    - `post_release_grasp: 17984.36 -> 17429.77`
+    - `force_balance: 6736.85 -> 6664.22`
+    - `primary_finger_force: 4719.68 -> 4525.21`
+    - `pre_release_grasp: 671.48 -> 679.16`
+  - 与前序对比:
+    - 相比 `C144`，`last 12.8461 -> 12.6242s`
+    - 相比 `C146`，`last 13.1735 -> 12.6242s`
+  - 修改原因:
+    - 新 thumb collision 更小更贴近 STL 后，cube/support 水平对齐可能需要修正；先试向较浅 y 方向移动 2mm。
+  - 预期效果:
+    - 若物体原本偏深，`y+2mm` 应提升尾评并保持 clean contact。
+  - 实际效果:
+    - 首评略高但尾评退化，`best_step=0`；不能保留。
+  - 失败模式分析:
+    - 向较浅 y 移动可能改善初始力形态，但训练后保持不稳；该方向不是稳定提升。
+  - 下一轮建议:
+    - 扫反方向：从基线 `y=-0.065` 改到 `y=-0.067`，验证是否需要更深地贴近拇指承托/掌侧区域。
+
+- C152: shift cube/support y by -2mm for smoothed thumb alignment
+  - 改动:
+    - 修改 [grasp_cube_v2_force.py](/home/ll/SRTP/Aero-Hand/sim_rl/mujoco_playground/mujoco_playground/_src/manipulation/aero_hand/grasp_cube_v2_force.py)
+    - 环境/几何单变量：`cube_pos.y/support_pos.y: -0.065 -> -0.067`
+    - 保留 C146 课程/训练设置：`pre_grasp_noise_scale=0.10`、`z=-4mm`、C124 restore、`lr=5e-5/upd3`
+  - smoke test:
+```
+smoke_ok_cube_capsule_bottlepalm_c152_cpu 0.0 0.0
+cube_pos [0.025, -0.067, 0.1463]
+support_pos [0.025, -0.067, 0.1308]
+min_release_force 0.1
+pre_grasp_noise_scale 0.1
+post_release_grasp 135.0
+```
+  - 训练:
+    - env: `AeroCubeGraspV2ForceCapsuleBottlePalmQbr`
+    - restore: `C124 000002949120`
+    - run: `logs/AeroCubeGraspV2ForceCapsuleBottlePalmQbr-20260428-180133-C152_probe_dr_lr5e5_upd3_yminus2mm_lower4mm_pregraspnoise010_smooththumbgeom_from_C124best_relmax2p45_postgrasp135_force72_capsule_bottlepalm_2048`
+    - command: `/home/ll/miniconda3/envs/aero_rl/bin/python sim_rl/mujoco_playground/learning/train_jax_ppo.py --env_name=AeroCubeGraspV2ForceCapsuleBottlePalmQbr --num_timesteps=1048576 --num_evals=2 --num_envs=2048 --num_eval_envs=128 --episode_length=800 --learning_rate=5.0e-5 --num_updates_per_batch=3 --entropy_cost=0.005 --domain_randomization --ignore_checkpoint_env_config=True --load_checkpoint_path=/home/ll/SRTP/Aero-Hand/logs/AeroCubeGraspV2ForceCapsuleBottlePalmQbr-20260428-013906-C124_long_dr_lr7p25e5_upd3_force3p2_pose50_from_C106best_relmax2p45_postgrasp135_triad18_force72_capsule_bottlepalm_2048/checkpoints/000002949120 --suffix=C152_probe_dr_lr5e5_upd3_yminus2mm_lower4mm_pregraspnoise010_smooththumbgeom_from_C124best_relmax2p45_postgrasp135_force72_capsule_bottlepalm_2048`
+  - metrics.csv:
+    - `first = 12.5727s`
+    - `last = 12.3852s`
+    - `max = 12.5727s`
+    - `best_step = 0`
+  - 接触形态:
+    - `palm_contact: 0.0000 -> 0.0000`
+    - `nonprimary_contact: 0.0000 -> 0.0000`
+    - `non_tip_primary_contact: 0.0000 -> 0.0000`
+    - `drop: 0.0000 -> 0.0000`
+    - `slip_event: 0.0000 -> 0.0000`
+  - 组件统计:
+    - `post_release_survival: 58512.21 -> 57933.56`
+    - `sustained_hold_bonus: 55603.95 -> 54920.96`
+    - `progressive_hold: 48591.99 -> 48105.88`
+    - `stable_hold: 35982.74 -> 35790.19`
+    - `post_release_pose_hold: 23157.71 -> 23019.25`
+    - `hold_position: 15758.61 -> 15571.46`
+    - `post_release_grasp: 17226.94 -> 17260.62`
+    - `force_balance: 6648.75 -> 6658.61`
+    - `primary_finger_force: 4441.50 -> 4476.16`
+    - `pre_release_grasp: 690.32 -> 685.74`
+  - 与前序对比:
+    - 相比 `C151`，`last 12.6242 -> 12.3852s`
+    - 相比 `C144`，`last 12.8461 -> 12.3852s`
+    - 相比 `C146`，`last 13.1735 -> 12.3852s`
+  - 修改原因:
+    - C151 的 `y+2mm` 负向；扫反方向判断是否应更深地贴近拇指承托/掌侧区域。
+  - 预期效果:
+    - 若基线 y 偏浅，`y-2mm` 应高于 C151/C144。
+  - 实际效果:
+    - 负向，低于 C151/C144；不能保留。
+  - 失败模式分析:
+    - 当前性能瓶颈不来自 y 方向 2mm 水平错位，或 y 扫描需要依赖其他变量；先回到基线 y。
+  - 下一轮建议:
+    - 回退 `y=-0.065`，改扫 x 方向：`x 0.025 -> 0.023`，验证是否需要向旧位置回退。
+
+- C153: shift cube/support x by -2mm toward the older cube line
+  - 改动:
+    - 修改 [grasp_cube_v2_force.py](/home/ll/SRTP/Aero-Hand/sim_rl/mujoco_playground/mujoco_playground/_src/manipulation/aero_hand/grasp_cube_v2_force.py)
+    - 环境/几何单变量：
+      - `cube_pos: [0.025, -0.065, 0.1463] -> [0.023, -0.065, 0.1463]`
+      - `support_pos: [0.025, -0.065, 0.1308] -> [0.023, -0.065, 0.1308]`
+    - 保留 C146 课程/训练设置：`pre_grasp_noise_scale=0.10`、`z=-4mm`、C124 restore、`lr=5e-5/upd3`
+  - smoke test:
+```
+smoke_ok_cube_capsule_bottlepalm_c153_cpu 0.0 0.0
+cube_pos [0.023, -0.065, 0.1463]
+support_pos [0.023, -0.065, 0.1308]
+min_release_force 0.1
+pre_grasp_noise_scale 0.1
+post_release_grasp 135.0
+```
+  - 训练:
+    - env: `AeroCubeGraspV2ForceCapsuleBottlePalmQbr`
+    - restore: `C124 000002949120`
+    - run: `logs/AeroCubeGraspV2ForceCapsuleBottlePalmQbr-20260428-180837-C153_probe_dr_lr5e5_upd3_xminus2mm_lower4mm_pregraspnoise010_smooththumbgeom_from_C124best_relmax2p45_postgrasp135_force72_capsule_bottlepalm_2048`
+    - command: `/home/ll/miniconda3/envs/aero_rl/bin/python sim_rl/mujoco_playground/learning/train_jax_ppo.py --env_name=AeroCubeGraspV2ForceCapsuleBottlePalmQbr --num_timesteps=1048576 --num_evals=2 --num_envs=2048 --num_eval_envs=128 --episode_length=800 --learning_rate=5.0e-5 --num_updates_per_batch=3 --entropy_cost=0.005 --domain_randomization --ignore_checkpoint_env_config=True --load_checkpoint_path=/home/ll/SRTP/Aero-Hand/logs/AeroCubeGraspV2ForceCapsuleBottlePalmQbr-20260428-013906-C124_long_dr_lr7p25e5_upd3_force3p2_pose50_from_C106best_relmax2p45_postgrasp135_triad18_force72_capsule_bottlepalm_2048/checkpoints/000002949120 --suffix=C153_probe_dr_lr5e5_upd3_xminus2mm_lower4mm_pregraspnoise010_smooththumbgeom_from_C124best_relmax2p45_postgrasp135_force72_capsule_bottlepalm_2048`
+  - metrics.csv:
+    - `first = 16.7488s`
+    - `last = 15.9742s`
+    - `max = 16.7488s`
+    - `best_step = 0`
+  - 接触形态:
+    - `palm_contact: 0.0000 -> 0.0000`
+    - `nonprimary_contact: 0.0000 -> 0.0000`
+    - `non_tip_primary_contact: 0.0000 -> 0.0000`
+    - `drop: 0.0000 -> 0.0000`
+    - `slip_event: 0.0000 -> 0.0000`
+  - 组件统计:
+    - `post_release_survival: 61770.14 -> 60265.75`
+    - `sustained_hold_bonus: 56922.77 -> 55817.77`
+    - `progressive_hold: 50658.77 -> 49676.66`
+    - `stable_hold: 45838.31 -> 44405.68`
+    - `post_release_pose_hold: 25220.65 -> 24757.57`
+    - `hold_position: 16491.87 -> 16053.52`
+    - `post_release_grasp: 22766.30 -> 22103.43`
+    - `force_balance: 7393.57 -> 7309.28`
+    - `primary_finger_force: 6825.52 -> 6553.95`
+    - `pre_release_grasp: 747.20 -> 752.59`
+  - 与前序对比:
+    - 相比 `C146`，`last 13.1735 -> 15.9742s`
+    - 相比 `C151`，`last 12.6242 -> 15.9742s`
+    - 相比 `C152`，`last 12.3852 -> 15.9742s`
+  - 修改原因:
+    - y 方向扫描两侧均负向；历史上 cube line 对稳定性敏感，测试 x 向旧位置回退是否更匹配新 smoothed thumb collision。
+  - 预期效果:
+    - 如果新碰撞面需要更靠旧 x 线，尾评应显著超过 C146 且保持 clean contact。
+  - 实际效果:
+    - 强正向，`last=15.97s` 且 contact clean；但尾评低于首评，需长训验证稳定性。
+  - 失败模式分析:
+    - 仍未回到旧几何 C124 的 `25s+`，但 x 对齐是目前最强恢复方向。
+  - 下一轮建议:
+    - 对 C153 配置做 4-eval 长训验证；若后段仍高于 C146，则保留 x=0.023 作为新主线。
+
+- C154: long validation for C153 x=-2mm alignment
+  - 改动:
+    - 代码环境不变，沿用 C153 的 `cube_pos/support_pos x=0.023`、`y=-0.065`、`z=-4mm`
+    - 长训验证：C124 restore、`learning_rate=5.0e-5`、`num_updates_per_batch=3`、4 eval
+  - smoke test:
+```
+smoke_ok_cube_capsule_bottlepalm_c154_cpu 0.0 0.0
+cube_pos [0.023, -0.065, 0.1463]
+support_pos [0.023, -0.065, 0.1308]
+min_release_force 0.1
+pre_grasp_noise_scale 0.1
+post_release_grasp 135.0
+```
+  - 训练:
+    - env: `AeroCubeGraspV2ForceCapsuleBottlePalmQbr`
+    - restore: `C124 000002949120`
+    - run: `logs/AeroCubeGraspV2ForceCapsuleBottlePalmQbr-20260428-181535-C154_long_dr_lr5e5_upd3_xminus2mm_lower4mm_pregraspnoise010_smooththumbgeom_from_C124best_relmax2p45_postgrasp135_force72_capsule_bottlepalm_2048`
+    - command: `/home/ll/miniconda3/envs/aero_rl/bin/python sim_rl/mujoco_playground/learning/train_jax_ppo.py --env_name=AeroCubeGraspV2ForceCapsuleBottlePalmQbr --num_timesteps=2097152 --num_evals=4 --num_envs=2048 --num_eval_envs=128 --episode_length=800 --learning_rate=5.0e-5 --num_updates_per_batch=3 --entropy_cost=0.005 --domain_randomization --ignore_checkpoint_env_config=True --load_checkpoint_path=/home/ll/SRTP/Aero-Hand/logs/AeroCubeGraspV2ForceCapsuleBottlePalmQbr-20260428-013906-C124_long_dr_lr7p25e5_upd3_force3p2_pose50_from_C106best_relmax2p45_postgrasp135_triad18_force72_capsule_bottlepalm_2048/checkpoints/000002949120 --suffix=C154_long_dr_lr5e5_upd3_xminus2mm_lower4mm_pregraspnoise010_smooththumbgeom_from_C124best_relmax2p45_postgrasp135_force72_capsule_bottlepalm_2048`
+  - metrics.csv:
+    - `first = 16.6715s`
+    - `last = 17.0668s`
+    - `max = 17.0668s`
+    - `best_step = 2949120`
+  - 接触形态:
+    - `palm_contact: 0.0000 -> 0.0000 -> 0.0000 -> 0.0000`
+    - `nonprimary_contact: 0.0000 -> 0.0000 -> 0.0000 -> 0.0000`
+    - `non_tip_primary_contact: 0.0000 -> 0.0000 -> 0.0000 -> 0.0000`
+    - `drop: 0.0000 -> 0.0000 -> 0.0000 -> 0.0000`
+    - `slip_event: 0.0000 -> 0.0000 -> 0.0000 -> 0.0000`
+  - 组件统计:
+    - `post_release_survival: 61694.55 -> 60044.27 -> 60989.36 -> 61470.20`
+    - `sustained_hold_bonus: 56859.36 -> 55491.39 -> 56870.31 -> 57938.46`
+    - `progressive_hold: 50597.89 -> 49391.41 -> 50499.60 -> 51375.81`
+    - `stable_hold: 45756.21 -> 44142.78 -> 44797.45 -> 45347.95`
+    - `post_release_pose_hold: 25182.08 -> 24651.69 -> 25039.53 -> 25237.35`
+    - `hold_position: 16472.91 -> 16002.13 -> 16238.27 -> 16356.79`
+    - `post_release_grasp: 22770.43 -> 22034.95 -> 22403.36 -> 22689.42`
+    - `force_balance: 7393.24 -> 7303.66 -> 7355.44 -> 7374.61`
+    - `primary_finger_force: 6837.49 -> 6541.58 -> 6718.96 -> 6778.96`
+    - `pre_release_grasp: 747.69 -> 755.15 -> 763.43 -> 757.45`
+  - 与前序对比:
+    - 相比 `C153`，`last 15.9742 -> 17.0668s`
+    - 相比 `C146`，`last 13.1735 -> 17.0668s`
+    - 相比旧几何 `C124`，`last 25.1686 -> 17.0668s`
+  - 修改原因:
+    - C153 是强正样本但短探测尾评低于首评；需要长训验证 x 对齐是否稳定。
+  - 预期效果:
+    - 若 x=0.023 是正确几何对齐方向，长训后段应保持或超过 C153，并继续 clean。
+  - 实际效果:
+    - 正向且稳定，`last=max=17.0668s`，best 在最后一评，contact 全 clean。
+  - 失败模式分析:
+    - 新 x 对齐明显恢复主指标，但仍低于旧几何 C124；后续需验证 continuation 是否能继续提升，或继续窄扫 x。
+  - 下一轮建议:
+    - 保留 `x=0.023` 新主线，从 C154 best 做短 continuation；若继续提升，再长训或继续 x 窄扫。
+
+- C155: short continuation from C154 best on x=0.023 line
+  - 改动:
+    - 代码环境不变，沿用 C154 的 `x=0.023`、`y=-0.065`、`z=-4mm`
+    - 训练单变量：restore 来源从 `C124 000002949120` 推进到 `C154 000002949120`
+  - smoke test:
+```
+smoke_ok_cube_capsule_bottlepalm_c155_cpu 0.0 0.0
+cube_pos [0.023, -0.065, 0.1463]
+support_pos [0.023, -0.065, 0.1308]
+min_release_force 0.1
+pre_grasp_noise_scale 0.1
+post_release_grasp 135.0
+```
+  - 训练:
+    - env: `AeroCubeGraspV2ForceCapsuleBottlePalmQbr`
+    - restore: `C154 000002949120`
+    - run: `logs/AeroCubeGraspV2ForceCapsuleBottlePalmQbr-20260428-182638-C155_probe_dr_lr5e5_upd3_xminus2mm_lower4mm_pregraspnoise010_smooththumbgeom_from_C154best_relmax2p45_postgrasp135_force72_capsule_bottlepalm_2048`
+    - command: `/home/ll/miniconda3/envs/aero_rl/bin/python sim_rl/mujoco_playground/learning/train_jax_ppo.py --env_name=AeroCubeGraspV2ForceCapsuleBottlePalmQbr --num_timesteps=1048576 --num_evals=2 --num_envs=2048 --num_eval_envs=128 --episode_length=800 --learning_rate=5.0e-5 --num_updates_per_batch=3 --entropy_cost=0.005 --domain_randomization --ignore_checkpoint_env_config=True --load_checkpoint_path=/home/ll/SRTP/Aero-Hand/logs/AeroCubeGraspV2ForceCapsuleBottlePalmQbr-20260428-181535-C154_long_dr_lr5e5_upd3_xminus2mm_lower4mm_pregraspnoise010_smooththumbgeom_from_C124best_relmax2p45_postgrasp135_force72_capsule_bottlepalm_2048/checkpoints/000002949120 --suffix=C155_probe_dr_lr5e5_upd3_xminus2mm_lower4mm_pregraspnoise010_smooththumbgeom_from_C154best_relmax2p45_postgrasp135_force72_capsule_bottlepalm_2048`
+  - metrics.csv:
+    - `first = 15.8445s`
+    - `last = 15.7379s`
+    - `max = 15.8445s`
+    - `best_step = 0`
+  - 接触形态:
+    - `palm_contact: 0.0000 -> 0.0000`
+    - `nonprimary_contact: 0.0000 -> 0.0000`
+    - `non_tip_primary_contact: 0.0000 -> 0.0000`
+    - `drop: 0.0000 -> 0.0000`
+    - `slip_event: 0.0000 -> 0.0000`
+  - 组件统计:
+    - `post_release_survival: 59847.04 -> 59417.50`
+    - `sustained_hold_bonus: 55940.96 -> 55675.33`
+    - `progressive_hold: 49733.32 -> 49515.05`
+    - `stable_hold: 44013.67 -> 43531.13`
+    - `post_release_pose_hold: 24630.43 -> 24521.48`
+    - `hold_position: 15923.38 -> 15782.04`
+    - `post_release_grasp: 22076.82 -> 21767.41`
+    - `force_balance: 7322.76 -> 7304.71`
+    - `primary_finger_force: 6577.86 -> 6496.95`
+    - `pre_release_grasp: 766.26 -> 772.28`
+  - 与前序对比:
+    - 相比 `C154`，`last 17.0668 -> 15.7379s`
+    - 相比 `C153`，`last 15.9742 -> 15.7379s`
+  - 修改原因:
+    - C154 best 在最后一评，验证同配置 continuation 是否还能继续提升。
+  - 预期效果:
+    - 若 C154 仍在上升通道，C155 应接近或超过 `17.07s`。
+  - 实际效果:
+    - 回落，虽然仍高于 C146，但不能作为 continuation 主线。
+  - 失败模式分析:
+    - 和 C146 后续 continuation 类似，checkpoint 推进后短训不稳定；当前更适合继续扫环境对齐，而不是从最新 best 继续 PPO。
+  - 下一轮建议:
+    - 保留 C154/C153 的 x 对齐结论，继续 x 窄扫：`x=0.023 -> 0.021`。
+
+- C156: shift cube/support x by -4mm total toward the older cube line
+  - 改动:
+    - 修改 [grasp_cube_v2_force.py](/home/ll/SRTP/Aero-Hand/sim_rl/mujoco_playground/mujoco_playground/_src/manipulation/aero_hand/grasp_cube_v2_force.py)
+    - 环境/几何单变量：
+      - `cube_pos: [0.023, -0.065, 0.1463] -> [0.021, -0.065, 0.1463]`
+      - `support_pos: [0.023, -0.065, 0.1308] -> [0.021, -0.065, 0.1308]`
+    - 保留 C154/C153 课程/训练设置：`pre_grasp_noise_scale=0.10`、`z=-4mm`、C124 restore、`lr=5e-5/upd3`
+  - smoke test:
+```
+smoke_ok_cube_capsule_bottlepalm_c156_cpu 0.0 0.0
+cube_pos [0.021, -0.065, 0.1463]
+support_pos [0.021, -0.065, 0.1308]
+min_release_force 0.1
+pre_grasp_noise_scale 0.1
+post_release_grasp 135.0
+```
+  - 训练:
+    - env: `AeroCubeGraspV2ForceCapsuleBottlePalmQbr`
+    - restore: `C124 000002949120`
+    - run: `logs/AeroCubeGraspV2ForceCapsuleBottlePalmQbr-20260428-183341-C156_probe_dr_lr5e5_upd3_xminus4mm_lower4mm_pregraspnoise010_smooththumbgeom_from_C124best_relmax2p45_postgrasp135_force72_capsule_bottlepalm_2048`
+    - command: `/home/ll/miniconda3/envs/aero_rl/bin/python sim_rl/mujoco_playground/learning/train_jax_ppo.py --env_name=AeroCubeGraspV2ForceCapsuleBottlePalmQbr --num_timesteps=1048576 --num_evals=2 --num_envs=2048 --num_eval_envs=128 --episode_length=800 --learning_rate=5.0e-5 --num_updates_per_batch=3 --entropy_cost=0.005 --domain_randomization --ignore_checkpoint_env_config=True --load_checkpoint_path=/home/ll/SRTP/Aero-Hand/logs/AeroCubeGraspV2ForceCapsuleBottlePalmQbr-20260428-013906-C124_long_dr_lr7p25e5_upd3_force3p2_pose50_from_C106best_relmax2p45_postgrasp135_triad18_force72_capsule_bottlepalm_2048/checkpoints/000002949120 --suffix=C156_probe_dr_lr5e5_upd3_xminus4mm_lower4mm_pregraspnoise010_smooththumbgeom_from_C124best_relmax2p45_postgrasp135_force72_capsule_bottlepalm_2048`
+  - metrics.csv:
+    - `first = 37.3778s`
+    - `last = 37.0044s`
+    - `max = 37.3778s`
+    - `best_step = 0`
+  - 接触形态:
+    - `palm_contact: 0.0000 -> 0.0000`
+    - `nonprimary_contact: 0.0000 -> 0.0000`
+    - `non_tip_primary_contact: 0.0000 -> 0.0000`
+    - `drop: 0.0000 -> 0.0000`
+    - `slip_event: 0.0000 -> 0.0000`
+  - 组件统计:
+    - `post_release_survival: 89831.74 -> 88732.09`
+    - `sustained_hold_bonus: 86785.66 -> 86037.27`
+    - `progressive_hold: 75643.72 -> 75068.16`
+    - `stable_hold: 106279.21 -> 103525.05`
+    - `post_release_pose_hold: 34319.92 -> 33958.62`
+    - `hold_position: 24487.46 -> 24126.85`
+    - `post_release_grasp: 62142.15 -> 60245.50`
+    - `force_balance: 12191.02 -> 11889.44`
+    - `primary_finger_force: 26645.68 -> 24286.95`
+    - `pre_release_grasp: 719.52 -> 717.97`
+  - 与前序对比:
+    - 相比 `C154`，`last 17.0668 -> 37.0044s`
+    - 相比旧几何 `C124`，`last 25.1686 -> 37.0044s`
+  - 修改原因:
+    - C153/C154 证明 x 向旧位置回退 2mm 强正向；继续同一 x 变量半步，验证更靠旧线是否进一步匹配新 thumb collision。
+  - 预期效果:
+    - 若 x 对齐仍是主瓶颈，`x=0.021` 应显著超过 C154 并保持 clean。
+  - 实际效果:
+    - 大幅正向，首尾均约 `37s`，全接触诊断 clean，已经超过旧几何 C124。
+  - 失败模式分析:
+    - 短探测 best 在 step 0，说明 C124 policy 在新几何 + x=0.021 上已经非常匹配；仍需长训确认不会退化。
+  - 下一轮建议:
+    - 对 C156 配置做 4-eval 长训验证；若保持 `30s+` clean，则将 `x=0.021` 作为当前 cube 主线。
+
+- C157: long validation for C156 x=-4mm alignment
+  - 改动:
+    - 代码环境不变，沿用 C156 的 `cube_pos/support_pos x=0.021`、`y=-0.065`、`z=-4mm`
+    - 长训验证：C124 restore、`learning_rate=5.0e-5`、`num_updates_per_batch=3`、4 eval
+  - smoke test:
+```
+smoke_ok_cube_capsule_bottlepalm_c157_cpu 0.0 0.0
+cube_pos [0.021, -0.065, 0.1463]
+support_pos [0.021, -0.065, 0.1308]
+min_release_force 0.1
+pre_grasp_noise_scale 0.1
+post_release_grasp 135.0
+```
+  - 训练:
+    - env: `AeroCubeGraspV2ForceCapsuleBottlePalmQbr`
+    - restore: `C124 000002949120`
+    - run: `logs/AeroCubeGraspV2ForceCapsuleBottlePalmQbr-20260428-184050-C157_long_dr_lr5e5_upd3_xminus4mm_lower4mm_pregraspnoise010_smooththumbgeom_from_C124best_relmax2p45_postgrasp135_force72_capsule_bottlepalm_2048`
+    - command: `/home/ll/miniconda3/envs/aero_rl/bin/python sim_rl/mujoco_playground/learning/train_jax_ppo.py --env_name=AeroCubeGraspV2ForceCapsuleBottlePalmQbr --num_timesteps=2097152 --num_evals=4 --num_envs=2048 --num_eval_envs=128 --episode_length=800 --learning_rate=5.0e-5 --num_updates_per_batch=3 --entropy_cost=0.005 --domain_randomization --ignore_checkpoint_env_config=True --load_checkpoint_path=/home/ll/SRTP/Aero-Hand/logs/AeroCubeGraspV2ForceCapsuleBottlePalmQbr-20260428-013906-C124_long_dr_lr7p25e5_upd3_force3p2_pose50_from_C106best_relmax2p45_postgrasp135_triad18_force72_capsule_bottlepalm_2048/checkpoints/000002949120 --suffix=C157_long_dr_lr5e5_upd3_xminus4mm_lower4mm_pregraspnoise010_smooththumbgeom_from_C124best_relmax2p45_postgrasp135_force72_capsule_bottlepalm_2048`
+  - metrics.csv:
+    - `first = 37.3521s`
+    - `last = 36.6489s`
+    - `max = 37.3521s`
+    - `best_step = 0`
+  - 接触形态:
+    - `palm_contact: 0.0000 -> 0.0000 -> 0.0000 -> 0.0000`
+    - `nonprimary_contact: 0.0000 -> 0.0000 -> 0.0000 -> 0.0000`
+    - `non_tip_primary_contact: 0.0000 -> 0.0000 -> 0.0000 -> 0.0000`
+    - `drop: 0.0000 -> 0.0000 -> 0.0000 -> 0.0000`
+    - `slip_event: 0.0000 -> 0.0000 -> 0.0156 -> 0.0000`
+  - 组件统计:
+    - `post_release_survival: 89869.33 -> 88659.20 -> 87806.35 -> 87797.00`
+    - `sustained_hold_bonus: 86720.25 -> 85793.22 -> 85576.08 -> 85697.59`
+    - `progressive_hold: 75592.56 -> 74875.70 -> 74697.84 -> 74815.68`
+    - `stable_hold: 106275.81 -> 103568.38 -> 102785.03 -> 103041.84`
+    - `post_release_pose_hold: 34335.23 -> 33900.54 -> 33828.05 -> 33764.56`
+    - `hold_position: 24503.58 -> 24111.33 -> 23850.35 -> 23867.61`
+    - `post_release_grasp: 62318.14 -> 60162.27 -> 59588.09 -> 59694.96`
+    - `force_balance: 12225.92 -> 11874.41 -> 11740.95 -> 11659.23`
+    - `primary_finger_force: 26801.08 -> 24597.86 -> 23708.83 -> 23036.56`
+    - `pre_release_grasp: 719.54 -> 719.53 -> 718.41 -> 710.33`
+  - 与前序对比:
+    - 相比 `C156`，`last 37.0044 -> 36.6489s`
+    - 相比旧几何 `C124`，`last 25.1686 -> 36.6489s`
+    - 相比 C136 平滑 thumb 初始验证，`last 10.6516 -> 36.6489s`
+  - 修改原因:
+    - C156 短探测已达到 `37s`，需要确认 x=0.021 在长训中不退化并保持 clean contact。
+  - 预期效果:
+    - 若 C156 是稳定主线，4-eval 长训应保持 `30s+`，且 palm/nonprimary/drop 维持为 0。
+  - 实际效果:
+    - 验证通过：尾评 `36.6489s`，全程 palm/nonprimary/non-tip/drop 为 0，仅第三评有很小 `slip_event=0.0156` 后恢复为 0。
+  - 失败模式分析:
+    - 后段相比首评略降，但远高于 30s 和旧几何 C124；当前 cube 主线目标已达成。
+  - 下一轮建议:
+    - 暂停自动 cube 训练；保留 `x=0.021`、`y=-0.065`、`z=0.1463/support_z=0.1308` 作为当前 smoothed thumb collision 的 cube 主线配置。
+
+- C136: smoothed thumb collision geometry validation on the clean C124 gate
+  - 改动:
+    - 备份当前手模型到 [20260428_155301_smooth_thumb_capsule](/home/ll/SRTP/Aero-Hand/v2_iteration_docs/hand_model_backups/20260428_155301_smooth_thumb_capsule)
+    - 修改 [right_hand_v2_vertical_bottle.xml](/home/ll/SRTP/Aero-Hand/sim_rl/mujoco_playground/mujoco_playground/_src/manipulation/aero_hand/xmls/right_hand_v2_vertical_bottle.xml)
+    - 修改 [right_hand_v2_vertical_bottle_cube_eval.xml](/home/ll/SRTP/Aero-Hand/sim_rl/mujoco_playground/mujoco_playground/_src/manipulation/aero_hand/xmls/right_hand_v2_vertical_bottle_cube_eval.xml)
+    - `right_thumb_tip` 从上一轮 44 个 sphere 改成 24 个短 capsule，Open3D signed-distance 最大外扩 `1.352mm`
+    - `right_thumb_mid` 从粗 ellipsoid / box 改成 34 个短 capsule，Open3D signed-distance 最大外扩 `1.405mm`
+    - 为公平验证几何影响，回退 C135 负样本 gate：`min_release_force: 0.11 -> 0.10`
+  - smoke test:
+```
+smoke_ok_cube_capsule_bottlepalm_c136_cpu 0.9938641786575317 0.0
+min_release_force 0.1
+min_release_active_fingers 2
+post_release_grasp 135.0
+force_balance 28.0
+random_release_min_sec 1.5
+random_release_max_sec 2.45
+```
+  - 训练:
+    - env: `AeroCubeGraspV2ForceCapsuleBottlePalmQbr`
+    - restore: `C106 000002211840`
+    - run: `logs/AeroCubeGraspV2ForceCapsuleBottlePalmQbr-20260428-155358-C136_long_dr_lr7p25e5_upd3_force3p2_pose50_smooththumbgeom_from_C106best_relmax2p45_triad18_force72_capsule_bottlepalm_2048`
+    - command: `/home/ll/miniconda3/envs/aero_rl/bin/python sim_rl/mujoco_playground/learning/train_jax_ppo.py --env_name=AeroCubeGraspV2ForceCapsuleBottlePalmQbr --num_timesteps=2097152 --num_evals=4 --num_envs=2048 --num_eval_envs=128 --episode_length=800 --learning_rate=7.25e-5 --num_updates_per_batch=3 --entropy_cost=0.005 --domain_randomization --ignore_checkpoint_env_config=True --load_checkpoint_path=/home/ll/SRTP/Aero-Hand/logs/AeroCubeGraspV2ForceCapsuleBottlePalmQbr-20260427-164913-C106_long_dr_lr7p5e5_upd3_ent5e3_from_C103best_relmax2p45_postgrasp135_triad18_force72_capsule_bottlepalm_2048/checkpoints/000002211840 --suffix=C136_long_dr_lr7p25e5_upd3_force3p2_pose50_smooththumbgeom_from_C106best_relmax2p45_triad18_force72_capsule_bottlepalm_2048`
+  - metrics.csv:
+    - partial only, stopped early after persistent collapse
+    - `first = 10.7887s`
+    - `last = 10.6516s`
+    - `max = 10.7887s`
+    - `best_step = 0`
+  - 接触形态:
+    - `palm_contact: 0.0000 -> 0.0000 -> 0.0000`
+    - `nonprimary_contact: 0.0000 -> 0.0000 -> 0.0000`
+    - `non_tip_primary_contact: 0.0000 -> 0.0000 -> 0.0000`
+    - `drop: 0.0000 -> 0.0000 -> 0.0000`
+    - `slip_event: 0.0000 -> 0.0000 -> 0.0000`
+  - 组件统计:
+    - `post_release_survival: 55476.21 -> 55482.03 -> 55103.54`
+    - `sustained_hold_bonus: 54587.27 -> 53936.15 -> 53964.04`
+    - `progressive_hold: 47538.69 -> 47056.97 -> 47052.53`
+    - `stable_hold: 33846.53 -> 33680.20 -> 33445.97`
+    - `post_release_pose_hold: 22294.25 -> 22213.19 -> 22123.97`
+    - `hold_position: 15188.48 -> 15173.40 -> 15037.32`
+    - `post_release_grasp: 16632.91 -> 16616.02 -> 16672.69`
+    - `force_balance: 6746.08 -> 6749.78 -> 6748.81`
+    - `primary_finger_force: 4131.72 -> 4147.53 -> 4169.53`
+    - `pre_release_grasp: 673.04 -> 678.99 -> 677.68`
+  - 与前序对比:
+    - 相比 `C124`，`last 25.1686 -> 10.6516s`
+    - 差值: `-14.5170s`
+  - 修改原因:
+    - 用户要求修正并平滑 thumb tip 与 thumb mid 碰撞模型，且误差不超过 `1.5mm`；本轮验证这个几何替换是否能直接接上 cube 主线训练
+  - 预期效果:
+    - 如果旧碰撞过度外扩是 cube 长持握瓶颈，新的平滑几何应保持 clean-contact 并提升或至少接近 C124
+  - 实际效果:
+    - 强负样本；全程 clean，但真实 contact duration 从初评开始塌到 `~10.7s`
+  - 失败模式分析:
+    - 新几何虽然更贴合 STL，但有效接触面和旧 C106/C124 checkpoint 学到的接触代理差异过大，旧策略不能直接迁移
+    - 问题不是脏接触，而是新 thumb contact surface 改变了 release 后受力闭合
+  - 下一轮建议:
+    - 切换到 PPO 超参数 probe：保留新几何，增大学习率，测试是否只是 checkpoint adaptation 不足
+
+- C137: higher learning-rate adaptation probe on smoothed thumb geometry
+  - 改动:
+    - 不改环境代码 / reward / gate / 几何
+    - 仅把 PPO `learning_rate: 7.25e-5 -> 1.0e-4`
+  - smoke test:
+    - 沿用 C136 smoke；当前有效 gate 仍为 `min_release_force=0.10`, `min_release_active_fingers=2`
+  - 训练:
+    - env: `AeroCubeGraspV2ForceCapsuleBottlePalmQbr`
+    - restore: `C106 000002211840`
+    - run: `logs/AeroCubeGraspV2ForceCapsuleBottlePalmQbr-20260428-160217-C137_probe_dr_lr1e4_upd3_force3p2_pose50_smooththumbgeom_from_C106best_relmax2p45_triad18_force72_capsule_bottlepalm_2048`
+    - command: `/home/ll/miniconda3/envs/aero_rl/bin/python sim_rl/mujoco_playground/learning/train_jax_ppo.py --env_name=AeroCubeGraspV2ForceCapsuleBottlePalmQbr --num_timesteps=1048576 --num_evals=2 --num_envs=2048 --num_eval_envs=128 --episode_length=800 --learning_rate=1.0e-4 --num_updates_per_batch=3 --entropy_cost=0.005 --domain_randomization --ignore_checkpoint_env_config=True --load_checkpoint_path=/home/ll/SRTP/Aero-Hand/logs/AeroCubeGraspV2ForceCapsuleBottlePalmQbr-20260427-164913-C106_long_dr_lr7p5e5_upd3_ent5e3_from_C103best_relmax2p45_postgrasp135_triad18_force72_capsule_bottlepalm_2048/checkpoints/000002211840 --suffix=C137_probe_dr_lr1e4_upd3_force3p2_pose50_smooththumbgeom_from_C106best_relmax2p45_triad18_force72_capsule_bottlepalm_2048`
+  - metrics.csv:
+    - `first = 10.7172s`
+    - `last = 10.9610s`
+    - `max = 10.9610s`
+    - `best_step = 1310720`
+  - 接触形态:
+    - `palm_contact: 0.0000 -> 0.0000`
+    - `nonprimary_contact: 0.0000 -> 0.0000`
+    - `non_tip_primary_contact: 0.0000 -> 0.0000`
+    - `drop: 0.0000 -> 0.0000`
+    - `slip_event: 0.0000 -> 0.0000`
+  - 组件统计:
+    - `post_release_survival: 55388.87 -> 55707.12`
+    - `sustained_hold_bonus: 54673.26 -> 54107.81`
+    - `progressive_hold: 47565.42 -> 47231.49`
+    - `stable_hold: 33768.60 -> 33798.00`
+    - `post_release_pose_hold: 22257.51 -> 22304.89`
+    - `hold_position: 15163.24 -> 15233.53`
+    - `post_release_grasp: 16630.27 -> 16612.30`
+    - `force_balance: 6747.00 -> 6750.08`
+    - `primary_finger_force: 4133.90 -> 4143.18`
+    - `pre_release_grasp: 671.93 -> 677.95`
+  - 与前序对比:
+    - 相比 `C136`，`last 10.6516 -> 10.9610s`
+    - 相比 `C124`，`last 25.1686 -> 10.9610s`
+  - 修改原因:
+    - 测试 C136 的塌陷是否主要来自旧 checkpoint 对新 contact surface 不适应，能否通过更快 PPO 更新恢复
+  - 预期效果:
+    - 若只是 adaptation 不足，应能在短探测中明显从 `~10.7s` 回升
+  - 实际效果:
+    - 只有轻微回升，仍停在 `~11s`
+  - 失败模式分析:
+    - 单纯提高学习率不足以适配新几何；更像 seated geometry / 初始接触位姿已经偏离旧策略学到的有效闭合区
+  - 下一轮建议:
+    - 回到环境 / reset 几何，先下调 cube 和 support 初始高度，测试新 thumb collision 是否需要更低 seated 位姿
+
+- C138: lower seated cube/support by 2mm for smoothed thumb collision
+  - 改动:
+    - 修改 [grasp_cube_v2_force.py](/home/ll/SRTP/Aero-Hand/sim_rl/mujoco_playground/mujoco_playground/_src/manipulation/aero_hand/grasp_cube_v2_force.py)
+    - 保留 C136/C137 平滑 thumb collision 几何
+    - 保留 C124 release gate：`min_release_force=0.10`, `min_release_active_fingers=2`
+    - 仅把 seated geometry 整体下调 `2mm`：
+      - `support_pos.z: 0.1348 -> 0.1328`
+      - `cube_pos.z: 0.1503 -> 0.1483`
+  - smoke test:
+```
+smoke_ok_cube_capsule_bottlepalm_c138_cpu 1.2350670099258423 0.0
+cube_pos [0.025, -0.065, 0.1483]
+support_pos [0.025, -0.065, 0.1328]
+min_release_force 0.1
+post_release_grasp 135.0
+```
+  - 训练:
+    - env: `AeroCubeGraspV2ForceCapsuleBottlePalmQbr`
+    - restore: `C106 000002211840`
+    - run: `logs/AeroCubeGraspV2ForceCapsuleBottlePalmQbr-20260428-160951-C138_probe_dr_lr7p25e5_upd3_lower2mm_smooththumbgeom_from_C106best_relmax2p45_triad18_force72_capsule_bottlepalm_2048`
+    - command: `/home/ll/miniconda3/envs/aero_rl/bin/python sim_rl/mujoco_playground/learning/train_jax_ppo.py --env_name=AeroCubeGraspV2ForceCapsuleBottlePalmQbr --num_timesteps=1048576 --num_evals=2 --num_envs=2048 --num_eval_envs=128 --episode_length=800 --learning_rate=7.25e-5 --num_updates_per_batch=3 --entropy_cost=0.005 --domain_randomization --ignore_checkpoint_env_config=True --load_checkpoint_path=/home/ll/SRTP/Aero-Hand/logs/AeroCubeGraspV2ForceCapsuleBottlePalmQbr-20260427-164913-C106_long_dr_lr7p5e5_upd3_ent5e3_from_C103best_relmax2p45_postgrasp135_triad18_force72_capsule_bottlepalm_2048/checkpoints/000002211840 --suffix=C138_probe_dr_lr7p25e5_upd3_lower2mm_smooththumbgeom_from_C106best_relmax2p45_triad18_force72_capsule_bottlepalm_2048`
+  - metrics.csv:
+    - `first = 12.3953s`
+    - `last = 12.2055s`
+    - `max = 12.3953s`
+    - `best_step = 0`
+  - 接触形态:
+    - `palm_contact: 0.0000 -> 0.0000`
+    - `nonprimary_contact: 0.0000 -> 0.0000`
+    - `non_tip_primary_contact: 0.0000 -> 0.0000`
+    - `drop: 0.0000 -> 0.0000`
+    - `slip_event: 0.0000 -> 0.0000`
+  - 组件统计:
+    - `post_release_survival: 57778.59 -> 57271.85`
+    - `sustained_hold_bonus: 54978.40 -> 54487.32`
+    - `progressive_hold: 48120.36 -> 47760.24`
+    - `stable_hold: 35526.54 -> 35191.31`
+    - `post_release_pose_hold: 23050.88 -> 22899.93`
+    - `hold_position: 15618.35 -> 15451.63`
+    - `post_release_grasp: 17276.27 -> 17215.92`
+    - `force_balance: 6712.77 -> 6694.06`
+    - `primary_finger_force: 4413.18 -> 4388.39`
+    - `pre_release_grasp: 683.92 -> 674.34`
+  - 与前序对比:
+    - 相比 `C137`，`last 10.9610 -> 12.2055s`
+    - 相比 `C124`，`last 25.1686 -> 12.2055s`
+  - 修改原因:
+    - 新 thumb collision 更贴近 STL 后，有效承托面相对旧策略变小；测试 cube/support 是否需要更低 seated 位姿来重新接触拇指下托区域
+  - 预期效果:
+    - 若 C136/C137 主要是 seated height 偏高，这轮应从 `~11s` 明显恢复
+  - 实际效果:
+    - 正向但不足；初评和尾评均升到 `~12.2s`
+  - 失败模式分析:
+    - seated height 是有效方向，但 `-2mm` 不足以恢复 C124；需要继续窄范围扫描，或后续结合接触面覆盖修正
+  - 下一轮建议:
+    - 在同一几何变量上继续半步：把 cube/support 再整体下调 `2mm`，验证是否存在更低 seated optimum
+
+- C139: lower seated cube/support by 4mm total for smoothed thumb collision
+  - 改动:
+    - 修改 [grasp_cube_v2_force.py](/home/ll/SRTP/Aero-Hand/sim_rl/mujoco_playground/mujoco_playground/_src/manipulation/aero_hand/grasp_cube_v2_force.py)
+    - 保留平滑 thumb collision 和 C124 release gate
+    - 仅继续 seated-height 扫描：
+      - `support_pos.z: 0.1328 -> 0.1308`
+      - `cube_pos.z: 0.1483 -> 0.1463`
+      - 相比 C124 总计下调 `4mm`
+  - smoke test:
+```
+smoke_ok_cube_capsule_bottlepalm_c139_cpu 1.3175047636032104 0.0
+cube_pos [0.025, -0.065, 0.1463]
+support_pos [0.025, -0.065, 0.1308]
+min_release_force 0.1
+post_release_grasp 135.0
+```
+  - 训练:
+    - env: `AeroCubeGraspV2ForceCapsuleBottlePalmQbr`
+    - restore: `C106 000002211840`
+    - run: `logs/AeroCubeGraspV2ForceCapsuleBottlePalmQbr-20260428-161643-C139_probe_dr_lr7p25e5_upd3_lower4mm_smooththumbgeom_from_C106best_relmax2p45_triad18_force72_capsule_bottlepalm_2048`
+    - command: `/home/ll/miniconda3/envs/aero_rl/bin/python sim_rl/mujoco_playground/learning/train_jax_ppo.py --env_name=AeroCubeGraspV2ForceCapsuleBottlePalmQbr --num_timesteps=1048576 --num_evals=2 --num_envs=2048 --num_eval_envs=128 --episode_length=800 --learning_rate=7.25e-5 --num_updates_per_batch=3 --entropy_cost=0.005 --domain_randomization --ignore_checkpoint_env_config=True --load_checkpoint_path=/home/ll/SRTP/Aero-Hand/logs/AeroCubeGraspV2ForceCapsuleBottlePalmQbr-20260427-164913-C106_long_dr_lr7p5e5_upd3_ent5e3_from_C103best_relmax2p45_postgrasp135_triad18_force72_capsule_bottlepalm_2048/checkpoints/000002211840 --suffix=C139_probe_dr_lr7p25e5_upd3_lower4mm_smooththumbgeom_from_C106best_relmax2p45_triad18_force72_capsule_bottlepalm_2048`
+  - metrics.csv:
+    - `first = 12.6336s`
+    - `last = 12.3805s`
+    - `max = 12.6336s`
+    - `best_step = 0`
+  - 接触形态:
+    - `palm_contact: 0.0000 -> 0.0000`
+    - `nonprimary_contact: 0.0000 -> 0.0000`
+    - `non_tip_primary_contact: 0.0000 -> 0.0000`
+    - `drop: 0.0000 -> 0.0000`
+    - `slip_event: 0.0000 -> 0.0000`
+  - 组件统计:
+    - `post_release_survival: 58418.90 -> 57753.30`
+    - `sustained_hold_bonus: 55127.48 -> 54220.37`
+    - `progressive_hold: 48294.76 -> 47620.88`
+    - `stable_hold: 36218.26 -> 35779.43`
+    - `post_release_pose_hold: 23187.60 -> 23001.00`
+    - `hold_position: 15727.97 -> 15519.90`
+    - `post_release_grasp: 17651.84 -> 17579.48`
+    - `force_balance: 6667.34 -> 6658.27`
+    - `primary_finger_force: 4584.16 -> 4584.44`
+    - `pre_release_grasp: 676.92 -> 673.15`
+  - 与前序对比:
+    - 相比 `C138`，`last 12.2055 -> 12.3805s`
+    - 相比 `C124`，`last 25.1686 -> 12.3805s`
+  - 修改原因:
+    - C138 说明 seated lower 是正向线索，本轮继续同一变量半步，寻找新 thumb collision 下的 seated optimum
+  - 预期效果:
+    - 若更低位姿更接近新 thumb 承托面，应继续提升 `first/last`
+  - 实际效果:
+    - 小幅正向，`first` 与 `last` 均高于 C138，但收益明显变小
+  - 失败模式分析:
+    - seated-height 确实有影响，但不能单独把新几何恢复到 C124；还可能需要更宽的接触覆盖或重新训练课程
+  - 下一轮建议:
+    - 再做最后一个半步到总下调 `6mm`；若不继续提升，停止 seated-height 扫描并切换方向
+
 
 - C135: slightly firmer release-force gate on the clean C124 mainline
   - 改动:

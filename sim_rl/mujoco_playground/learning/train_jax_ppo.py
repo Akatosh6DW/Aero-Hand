@@ -22,6 +22,7 @@ import json
 import os
 import time
 import warnings
+from typing import Sequence
 
 
 xla_flags = os.environ.get("XLA_FLAGS", "")
@@ -49,6 +50,10 @@ from mujoco_playground.config import dm_control_suite_params
 from mujoco_playground.config import locomotion_params
 from mujoco_playground.config import manipulation_params
 import mujoco
+import numpy as np
+from PIL import Image
+from PIL import ImageDraw
+from PIL import ImageFont
 import tensorboardX
 import wandb
 
@@ -156,10 +161,26 @@ _NUM_VIDEOS = flags.DEFINE_integer(
 _CAMERA = flags.DEFINE_string(
     "camera", None, "Camera name for video rendering (default: free camera)."
 )
+_RENDER_MODE = flags.DEFINE_enum(
+    "render_mode",
+    "visual",
+    ["visual", "collision", "overlay"],
+    "Video render mode: STL only, collision only, or both.",
+)
 _RENDER_COLLISION_DEBUG = flags.DEFINE_boolean(
     "render_collision_debug",
     False,
     "Also render rollout*_collision_debug.mp4 with collision geoms visible.",
+)
+_RENDER_FORCE_HUD = flags.DEFINE_boolean(
+    "render_force_hud",
+    False,
+    "Overlay explicit xfrc_applied arrow and numeric HUD in rendered videos.",
+)
+_RENDER_FORCE_HUD_SCALE_N = flags.DEFINE_float(
+    "render_force_hud_scale_n",
+    0.0,
+    "Force scale in Newtons for the HUD arrow. <= 0 uses an inferred scale.",
 )
 _NUM_EVALS = flags.DEFINE_integer("num_evals", 5, "Number of evaluations")
 _REWARD_SCALING = flags.DEFINE_float("reward_scaling", 0.1, "Reward scaling")
@@ -279,6 +300,192 @@ def main(argv):
   """Run training and evaluation for the specified environment."""
 
   del argv
+
+  def _make_render_scene_option(render_mode: str) -> mujoco.MjvOption:
+    scene_option = mujoco.MjvOption()
+    scene_option.geomgroup[:] = 0
+    scene_option.geomgroup[0] = 1  # world
+    scene_option.geomgroup[1] = 1  # object
+    scene_option.geomgroup[2] = int(render_mode in ("visual", "overlay"))
+    scene_option.geomgroup[3] = int(render_mode in ("collision", "overlay"))
+    scene_option.flags[mujoco.mjtVisFlag.mjVIS_TRANSPARENT] = int(
+        render_mode == "overlay"
+    )
+    scene_option.flags[mujoco.mjtVisFlag.mjVIS_PERTFORCE] = True
+    scene_option.flags[mujoco.mjtVisFlag.mjVIS_PERTOBJ] = True
+    scene_option.flags[mujoco.mjtVisFlag.mjVIS_CONTACTFORCE] = False
+    scene_option.flags[mujoco.mjtVisFlag.mjVIS_CONTACTPOINT] = int(
+        render_mode in ("collision", "overlay")
+    )
+    return scene_option
+
+  def _infer_force_hud_scale(env) -> float:
+    pcfg = getattr(env, "_config", None).perturbation_config
+    total_force_clip = float(getattr(pcfg, "total_force_clip_n", 0.0))
+    if total_force_clip > 0.0:
+      return total_force_clip
+    cube_mass = float(getattr(env, "_cube_mass", 0.0))
+    gravity_force = cube_mass * 9.81
+    return max(
+        0.1,
+        float(getattr(pcfg, "external_force_magnitude", 0.0)),
+        gravity_force * float(getattr(pcfg, "orientation_flip_force_scale", 0.0)),
+        gravity_force * np.sin(float(getattr(pcfg, "gravity_tilt_max_rad", 0.0))),
+    )
+
+  def _draw_force_hud(
+      frames: Sequence[np.ndarray],
+      traj: Sequence,
+      body_id: int,
+      scale_n: float,
+      camera_name: str,
+  ) -> list[np.ndarray]:
+    hud_frames = []
+    scale_n = max(scale_n, 1e-6)
+    font = ImageFont.load_default()
+
+    def _draw_arrow(draw, start, end, color, width):
+      draw.line([start, end], fill=color, width=width)
+      dx = end[0] - start[0]
+      dy = end[1] - start[1]
+      length = float(np.hypot(dx, dy))
+      if length < 1e-6:
+        return
+      ux, uy = dx / length, dy / length
+      head_len = min(14.0, max(8.0, length * 0.28))
+      px, py = -uy, ux
+      tip = np.array(end, dtype=np.float32)
+      base = tip - head_len * np.array([ux, uy], dtype=np.float32)
+      left = base + 5.0 * np.array([px, py], dtype=np.float32)
+      right = base - 5.0 * np.array([px, py], dtype=np.float32)
+      draw.polygon(
+          [tuple(tip), tuple(left), tuple(right)],
+          fill=color,
+      )
+
+    for frame, state in zip(frames, traj):
+      img = Image.fromarray(np.ascontiguousarray(frame.copy()))
+      draw = ImageDraw.Draw(img, "RGBA")
+      force = np.asarray(state.data.xfrc_applied[body_id, :3], dtype=np.float32)
+      torque = np.asarray(state.data.xfrc_applied[body_id, 3:6], dtype=np.float32)
+      force_norm = float(np.linalg.norm(force))
+      torque_norm = float(np.linalg.norm(torque))
+
+      w, h = img.size
+      panel_x0, panel_y0 = 18, 18
+      panel_w = min(360, w - 36)
+      panel_h = 184
+      draw.rounded_rectangle(
+          (panel_x0, panel_y0, panel_x0 + panel_w, panel_y0 + panel_h),
+          radius=10,
+          fill=(18, 18, 18, 196),
+          outline=(180, 180, 180, 255),
+          width=1,
+      )
+      draw.text(
+          (panel_x0 + 12, panel_y0 + 10),
+          f"xfrc_applied HUD ({camera_name})",
+          fill=(255, 255, 255, 255),
+          font=font,
+      )
+
+      center = np.array([panel_x0 + 82, panel_y0 + 104], dtype=np.int32)
+      arrow_radius = 54
+      draw.ellipse(
+          (
+              center[0] - arrow_radius,
+              center[1] - arrow_radius,
+              center[0] + arrow_radius,
+              center[1] + arrow_radius,
+          ),
+          outline=(110, 110, 110, 255),
+          width=1,
+      )
+      draw.line(
+          [(center[0] - arrow_radius, center[1]), (center[0] + arrow_radius, center[1])],
+          fill=(90, 90, 90, 255),
+          width=1,
+      )
+      draw.line(
+          [(center[0], center[1] - arrow_radius), (center[0], center[1] + arrow_radius)],
+          fill=(90, 90, 90, 255),
+          width=1,
+      )
+      draw.text((center[0] + arrow_radius + 8, center[1] - 6), "+X", fill=(255, 120, 120, 255), font=font)
+      draw.text((center[0] - 8, center[1] - arrow_radius - 16), "+Y", fill=(120, 255, 120, 255), font=font)
+
+      xy_force = force[:2]
+      xy_scale = float(np.linalg.norm(xy_force) / scale_n)
+      xy_scale = min(xy_scale, 1.0)
+      arrow_vec = np.array([
+          xy_force[0],
+          -xy_force[1],
+      ], dtype=np.float32)
+      arrow_len = float(np.linalg.norm(arrow_vec))
+      if arrow_len > 1e-6:
+        arrow_dir = arrow_vec / arrow_len
+        arrow_px = center + np.round(arrow_dir * arrow_radius * xy_scale).astype(np.int32)
+        _draw_arrow(draw, tuple(center), tuple(arrow_px), (255, 90, 90, 255), 3)
+      else:
+        draw.ellipse(
+            (center[0] - 4, center[1] - 4, center[0] + 4, center[1] + 4),
+            fill=(160, 160, 160, 255),
+        )
+
+      z_base_x = panel_x0 + 176
+      z_base_y0 = panel_y0 + 148
+      z_base_y1 = panel_y0 + 60
+      draw.line(
+          [(z_base_x, z_base_y0), (z_base_x, z_base_y1)],
+          fill=(90, 90, 90, 255),
+          width=2,
+      )
+      draw.text((z_base_x + 10, z_base_y1 - 6), "+Z", fill=(120, 180, 255, 255), font=font)
+      z_scale = min(abs(float(force[2])) / scale_n, 1.0)
+      z_target_y = int(round(z_base_y0 - (z_base_y0 - z_base_y1) * z_scale))
+      z_color = (120, 180, 255) if force[2] >= 0.0 else (255, 200, 120)
+      if abs(float(force[2])) > 1e-6:
+        _draw_arrow(
+            draw,
+            (z_base_x, z_base_y0),
+            (z_base_x, z_target_y),
+            (*z_color, 255),
+            3,
+        )
+      else:
+        draw.ellipse(
+            (z_base_x - 4, z_base_y0 - 4, z_base_x + 4, z_base_y0 + 4),
+            fill=(160, 160, 160, 255),
+        )
+
+      lines = [
+          f"|F|   = {force_norm:6.3f} N",
+          f"Fx    = {force[0]:+6.3f} N",
+          f"Fy    = {force[1]:+6.3f} N",
+          f"Fz    = {force[2]:+6.3f} N",
+          f"|tau| = {torque_norm:6.3f} Nm",
+          f"t     = {float(state.data.time):6.2f} s",
+          f"scale = {scale_n:5.3f} N",
+      ]
+      text_x = panel_x0 + 220
+      for idx, line in enumerate(lines):
+        draw.text(
+            (text_x, panel_y0 + 28 + idx * 20),
+            line,
+            fill=(255, 255, 255, 255),
+            font=font,
+        )
+
+      status = "ACTIVE" if force_norm > 1e-6 else "idle"
+      status_color = (255, 100, 100) if force_norm > 1e-6 else (180, 180, 180)
+      draw.text(
+          (panel_x0 + 12, panel_y0 + panel_h - 22),
+          f"force status: {status}",
+          fill=(*status_color, 255),
+          font=font,
+      )
+      hud_frames.append(np.asarray(img))
+    return hud_frames
 
   def _resolve_latest_checkpoint_dir(path: epath.Path) -> epath.Path:
     """Return latest concrete checkpoint directory under `path` if available."""
@@ -746,34 +953,51 @@ def main(argv):
   render_every = 2
   fps = 1.0 / eval_env.dt / render_every
   print(f"FPS for rendering: {fps}")
-  scene_option = mujoco.MjvOption()
-  scene_option.flags[mujoco.mjtVisFlag.mjVIS_TRANSPARENT] = False
-  scene_option.flags[mujoco.mjtVisFlag.mjVIS_PERTFORCE] = True   # C22: 可视化xfrc_applied外力
-  scene_option.flags[mujoco.mjtVisFlag.mjVIS_PERTOBJ] = True     # C22: 显示受力物体标记
-  scene_option.flags[mujoco.mjtVisFlag.mjVIS_CONTACTFORCE] = False
+  scene_option = _make_render_scene_option(_RENDER_MODE.value)
+  force_hud_body_id = None
+  force_hud_scale_n = None
+  if _RENDER_FORCE_HUD.value:
+    force_hud_body_id = int(eval_env.mj_model.body("cube").id)
+    force_hud_scale_n = (
+        float(_RENDER_FORCE_HUD_SCALE_N.value)
+        if _RENDER_FORCE_HUD_SCALE_N.value > 0.0
+        else _infer_force_hud_scale(eval_env)
+    )
+    print(
+        "Force HUD enabled: "
+        f"body='cube', scale={force_hud_scale_n:.3f}N"
+    )
   for i, rollout in enumerate(trajectories):
     traj = rollout[::render_every]
     frames = eval_env.render(
         traj, height=480, width=640, camera=_CAMERA.value,
         scene_option=scene_option,
     )
+    if _RENDER_FORCE_HUD.value:
+      frames = _draw_force_hud(
+          frames,
+          traj,
+          force_hud_body_id,
+          force_hud_scale_n,
+          _CAMERA.value or "free",
+      )
     video_path = str(logdir / f"rollout{i}.mp4")
     media.write_video(video_path, frames, fps=fps)
     print(f"Rollout video saved as '{video_path}'.")
     if _RENDER_COLLISION_DEBUG.value:
-      debug_scene_option = mujoco.MjvOption()
-      debug_scene_option.geomgroup[:] = 0
-      debug_scene_option.geomgroup[1] = 1  # cube
-      debug_scene_option.geomgroup[2] = 1  # visual meshes
-      debug_scene_option.geomgroup[3] = 1  # collision primitives
-      debug_scene_option.flags[mujoco.mjtVisFlag.mjVIS_TRANSPARENT] = True
-      debug_scene_option.flags[mujoco.mjtVisFlag.mjVIS_CONTACTPOINT] = True
-      debug_scene_option.flags[mujoco.mjtVisFlag.mjVIS_PERTFORCE] = True
-      debug_scene_option.flags[mujoco.mjtVisFlag.mjVIS_PERTOBJ] = True
+      debug_scene_option = _make_render_scene_option("overlay")
       debug_frames = eval_env.render(
           traj, height=480, width=640, camera=_CAMERA.value,
           scene_option=debug_scene_option,
       )
+      if _RENDER_FORCE_HUD.value:
+        debug_frames = _draw_force_hud(
+            debug_frames,
+            traj,
+            force_hud_body_id,
+            force_hud_scale_n,
+            _CAMERA.value or "free",
+        )
       debug_video_path = str(logdir / f"rollout{i}_collision_debug.mp4")
       media.write_video(debug_video_path, debug_frames, fps=fps)
       print(f"Collision debug video saved as '{debug_video_path}'.")

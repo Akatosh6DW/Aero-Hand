@@ -1802,3 +1802,2878 @@
 - 下一轮建议：
   - 回退 `release_ready_sec` 到 `0.20`。
   - 当前较可信主线仍是 `release_ramp_sec=0.40625, probe_drop_m=0.01725, clear_drop_m=0.055, probe_hold_sec=0.30`，但它只能把 long-train 曲线维持在约 `1.9~2.1s`，远未接近 20s。
+
+
+### CAN193: re-baseline the old can mainline on the current hand collision geometry
+- 代码改动：
+  - 不改 `grasp_can_v2_force.py`。
+  - 直接在当前代码上复测旧 can 主线，隔离“手部碰撞几何更新”对 can 的影响。
+- 训练命令：
+  - `CAN193_probe_rebaseline_current_handgeom_CAN184ckpt_512`
+  - base checkpoint:
+    - `/home/ll/SRTP/Aero-Hand/logs/AeroCanGraspV2Force-20260426-030125-CAN184_probe_drop01725_512/checkpoints/000001064960`
+- smoke test：
+  - CPU smoke passed
+  - 输出确认：
+    - `release_ramp_sec=0.40625`
+    - `probe_drop_m=0.01725`
+    - `clear_drop_m=0.055`
+    - `probe_hold_sec=0.30`
+    - `release_ready_sec=0.20`
+    - `support_pos_z=0.106128`
+    - `cube_pos_z=0.130128`
+- 修改原因：
+  - `CAN190~CAN192` 的 can 结果都建立在 2026-04-26 的旧手模上。
+  - 当前手部碰撞模型已对拇指指尖和其下游关节做了平滑重拟合，必须先确认 can 主线是否还成立，不能直接沿旧指标继续。
+- 预期效果：
+  - 若新手模基本兼容旧 can 主线，则 `CAN184` checkpoint 在当前环境上的 short probe 至少应维持在 `~2s` 量级，而不是掉到接近 `0s`。
+- 实际效果：
+  - `first=0.000195313, last=0.005078125, max=0.005078125, best_step=1064960`
+- 分析：
+  - 这是明显的灾难性退化。
+  - 相比旧记录：
+    - `CAN184 first=2.1604 -> CAN193 first=0.0002`
+    - `CAN188 last=1.9838 -> CAN193 last=0.0051`
+  - 物体几乎始终 `drop=1.0`，`lift_success=0.0`，说明当前问题不是“后段 retention 稍差”，而是当前 seating/接触初始几何已经不再支持旧抓握骨架。
+  - 同时 `palm_contact` 与 `joint_palm_contact` 仍很高，`triad_wrap_count` 也不低，说明不是完全没接触，而是“有很多包裹接触，但有效的 unsupported force closure 消失了”。
+  - 这与最新拇指碰撞平滑修改后的直觉一致：can 任务更依赖拇指从下方托举，当前 object/support 高度很可能已经偏高。
+- 下一轮建议：
+  - 先不要碰 reward。
+  - 只做一处窄结构改动：把 `cube_pos.z` 和 `support_pos.z` 同步下调 `2mm`，检查是否能恢复旧的托举 seating。
+
+
+### CAN194: lower can and support together by 2mm under the new hand geometry
+- 代码改动：
+  - 在 `grasp_can_v2_force.py` 当前主线上只做一个结构改动：
+    - `support_pos.z: 0.106128 -> 0.104128`
+    - `cube_pos.z: 0.130128 -> 0.128128`
+  - 其他 release/probe/reward 都保持不变。
+- 训练命令：
+  - `CAN194_probe_lower2mm_current_handgeom_CAN184ckpt_512`
+  - base checkpoint:
+    - `/home/ll/SRTP/Aero-Hand/logs/AeroCanGraspV2Force-20260426-030125-CAN184_probe_drop01725_512/checkpoints/000001064960`
+- smoke test：
+  - CPU smoke passed
+  - 输出确认：
+    - `release_ramp_sec=0.40625`
+    - `probe_drop_m=0.01725`
+    - `clear_drop_m=0.055`
+    - `probe_hold_sec=0.30`
+    - `release_ready_sec=0.20`
+    - `support_pos_z=0.104128`
+    - `cube_pos_z=0.128128`
+- 修改原因：
+  - `CAN193` 说明新手模下旧 can 主线几乎完全失效。
+  - 根据当前记忆与形态直觉，优先怀疑“拇指托举 seating 偏高”，所以先做最保守的整体下调。
+- 预期效果：
+  - 若主要问题确实是 seating 偏高，则即便 `2mm` 不足以完全恢复，也应明显高于 `CAN193` 的近零时长。
+- 实际效果：
+  - `first=0.001757813, last=0.003710937, max=0.003710937, best_step=1064960`
+- 分析：
+  - 这是负样本，但方向有极弱正信号。
+  - 相比 `CAN193`：
+    - `first: 0.0001953 -> 0.0017578`
+    - `last: 0.0050781 -> 0.0037109`
+  - 首点略有提升，但最终仍是 `drop=1.0`、`lift_success=0.0`，量级依然接近 0，远不足以说明 `2mm` 已经够用。
+  - `index_wrap_contact` 明显下降而 `thumb_wrap_contact`、`middle_wrap_contact` 仍高，说明简单下调后接触形态在变，但还没有恢复成有效的 thumb-under support closure。
+  - 因此可以把这轮视为“高度方向可能是对的，但幅度不够”的证据，而不是有效修复。
+- 下一轮建议：
+  - 继续只沿 seat-height 一个变量推进。
+  - 把 `cube_pos.z` 和 `support_pos.z` 再同步下调 `2mm`，即总计下调 `4mm`，检查是否出现非线性恢复。
+
+
+### CAN195: test total 4mm lowering and close the over-lowering branch
+- 代码改动：
+  - 在 `CAN194` 的基础上继续只动一个结构量：
+    - `support_pos.z: 0.104128 -> 0.102128`
+    - `cube_pos.z: 0.128128 -> 0.126128`
+  - 其他配置保持不变。
+- 训练命令：
+  - `CAN195_probe_lower4mm_current_handgeom_CAN184ckpt_512`
+  - base checkpoint:
+    - `/home/ll/SRTP/Aero-Hand/logs/AeroCanGraspV2Force-20260426-030125-CAN184_probe_drop01725_512/checkpoints/000001064960`
+- smoke test：
+  - CPU smoke passed
+  - 输出确认：
+    - `support_pos_z=0.102128`
+    - `cube_pos_z=0.126128`
+    - `release_ramp_sec=0.40625`
+    - `probe_drop_m=0.01725`
+    - `clear_drop_m=0.055`
+- 修改原因：
+  - `CAN194` 虽然仍是负样本，但首点比 `CAN193` 略高，因此需要确认“2mm 不够，4mm 是否会出现非线性恢复”。
+- 预期效果：
+  - 若新手模下真正的问题只是 z 偏高，则总下调 `4mm` 应至少不差于 `CAN194`。
+- 实际效果：
+  - `first=0.000000000, last=0.000000000, max=0.000000000, best_step=0`
+- 分析：
+  - 这是明确负样本，说明继续往下压 z 会把剩余的有效接触也一起破坏。
+  - 相比 `CAN194`：
+    - `first: 0.0017578 -> 0.0000`
+    - `last: 0.0037109 -> 0.0000`
+    - `index_wrap_contact: 35.34 -> 0.00`
+  - 结论：
+    - 过度 lowering 会直接打掉食指接入。
+    - seat-height 方向到这里可以暂时收口，不再继续往更低试。
+- 下一轮建议：
+  - 回退到 `CAN194` 的 `z - 2mm`。
+  - 下一步不要再动 z，改试一个横向对齐变量，优先看 `cube/support x` 是否需要向拇指方向微调。
+
+
+### CAN196: keep z-2mm and shift can/support 2mm along x
+- 代码改动：
+  - 按 `CAN195` 的结论回退过低的 z，并只做一个横向对齐改动：
+    - `support_pos: [0.010041, -0.040830, 0.106128] -> [0.008041, -0.040830, 0.104128]`
+    - `cube_pos: [0.010041, -0.040830, 0.130128] -> [0.008041, -0.040830, 0.128128]`
+  - 等价地说，就是保留 `z - 2mm`，再加 `x - 2mm`。
+- 训练命令：
+  - `CAN196_probe_lower2mm_xminus2_current_handgeom_CAN184ckpt_512`
+  - base checkpoint:
+    - `/home/ll/SRTP/Aero-Hand/logs/AeroCanGraspV2Force-20260426-030125-CAN184_probe_drop01725_512/checkpoints/000001064960`
+- smoke test：
+  - CPU smoke passed
+  - 输出确认：
+    - `support_pos=[0.008041, -0.04083, 0.104128]`
+    - `cube_pos=[0.008041, -0.04083, 0.128128]`
+    - `release_ramp_sec=0.40625`
+    - `probe_drop_m=0.01725`
+    - `clear_drop_m=0.055`
+- 修改原因：
+  - `CAN195` 已证伪继续 lowering。
+  - 最近 cube 线在新拇指几何下对横向对齐更敏感，而 can 当前表现是“接触很多但不成 closure”，因此优先试单一的 `x` 微调。
+- 预期效果：
+  - 若问题更偏横向对齐，那么至少首个 eval 的 `contact_duration_sec` 应高于 `CAN194`，且不要像 `CAN195` 那样把 `index_wrap_contact` 彻底打没。
+- 实际效果：
+  - `first=0.004492188, last=0.002929688, max=0.004492188, best_step=0`
+- 分析：
+  - 这是混合信号，仍然是负样本，但比纯 lowering 更接近有效方向。
+  - 相比 `CAN194`：
+    - `first: 0.0017578 -> 0.0044922`，首点明显更高
+    - `max: 0.0037109 -> 0.0044922`，最好点更高
+    - `last: 0.0037109 -> 0.0029297`，末点略差
+  - 说明 `x - 2mm` 能在 reset 初期恢复一部分骨架，但 retention 仍然崩。
+  - `index_wrap_contact` 在首点仍只到 `13.23`，末点几乎归零，说明当前主要缺口已经更像“食指接入和拇指下托的相对几何仍不对”，而不是纯高度或纯时序问题。
+- 下一轮建议：
+  - 先保留 `x - 2mm, z - 2mm` 作为当前最接近有效的几何候选。
+  - 下一步不要再碰 reward；优先直接检查 can 初始 seating 的 `collision` 视图，或只再试一个 `y`/thumb-side 横向变量。
+
+
+### CAN197: keep x-2mm/z-2mm and shift can/support 2mm toward shallower y
+- 代码改动：
+  - 在 `CAN196` 的 `x - 2mm, z - 2mm` 候选上只扫一个 y 对齐变量：
+    - `support_pos: [0.008041, -0.040830, 0.104128] -> [0.008041, -0.038830, 0.104128]`
+    - `cube_pos: [0.008041, -0.040830, 0.128128] -> [0.008041, -0.038830, 0.128128]`
+  - release/probe/reward/checkpoint 全部保持不变。
+- 训练命令：
+  - `CAN197_probe_lower2mm_xminus2_yplus2_current_handgeom_CAN184ckpt_512`
+  - base checkpoint:
+    - `/home/ll/SRTP/Aero-Hand/logs/AeroCanGraspV2Force-20260426-030125-CAN184_probe_drop01725_512/checkpoints/000001064960`
+- smoke test：
+  - CPU smoke passed
+  - 输出确认：
+    - `release_ramp_sec=0.40625`
+    - `probe_drop_m=0.01725`
+    - `clear_drop_m=0.055`
+    - `probe_hold_sec=0.30`
+    - `release_ready_sec=0.20`
+    - `support_pos=[0.008041, -0.03883, 0.104128]`
+    - `cube_pos=[0.008041, -0.03883, 0.128128]`
+- 修改原因：
+  - `CAN196` 说明 `x -2mm, z -2mm` 能抬高首点，但食指接入仍弱且末点退化。
+  - 因此先不动 reward 或 release 时序，只扫 y 方向，检查更浅的物体位置是否能恢复有效 index/thumb 相对几何。
+- 预期效果：
+  - 若 CAN196 的失败来自 can 偏深，更浅的 y 应提高 `contact_duration_sec` 并至少不继续降低食指接触。
+- 实际效果：
+  - `first=0.005664063, last=0.005664063, max=0.005664063, best_step=0`
+  - `drop=1.0 -> 1.0`
+  - `lift_success=0.0 -> 0.0`
+  - `index_wrap_contact=8.9297 -> 0.1875`
+  - `thumb_wrap_contact=168.7266 -> 188.2578`
+  - `triad_wrap_count=349.8320 -> 344.8750`
+- 分析：
+  - 这是混合信号，但仍不是可保留的正样本。
+  - 相比 `CAN196`：
+    - `first: 0.0044922 -> 0.0056641`
+    - `last: 0.0029297 -> 0.0056641`
+    - `max: 0.0044922 -> 0.0056641`
+  - `contact_duration_sec` 是当前新手模 rebaseline 线的最高值，但量级仍接近 0，且 `drop=1.0` 没有改善。
+  - 接触形态更偏 thumb/palm：末点 `thumb_wrap_contact` 上升，但 `index_wrap_contact` 几乎归零，说明 y+ 只是增加了无效包覆/掌侧接触，没有恢复食指压向手掌的 force closure。
+- 下一轮建议：
+  - 不把 y+2 作为主线。
+  - 回到 `CAN196` 的 `x -2mm, z -2mm`，反向扫 `y -2mm`：
+    - `support_pos/cube_pos.y: -0.040830 -> -0.042830`
+  - 若反向仍接近 0，应停止单纯 xyz 平移，改检查 can 初始 seating/碰撞视图或从初始手姿态做单变量微调。
+
+
+### CAN198: keep x-2mm/z-2mm and shift can/support 2mm toward deeper y
+- 代码改动：
+  - 按 `CAN197` 建议回到 `CAN196` 的 y 基线并反向扫一个 y 对齐变量：
+    - `support_pos: [0.008041, -0.040830, 0.104128] -> [0.008041, -0.042830, 0.104128]`
+    - `cube_pos: [0.008041, -0.040830, 0.128128] -> [0.008041, -0.042830, 0.128128]`
+  - release/probe/reward/checkpoint 全部保持不变。
+- 训练命令：
+  - `CAN198_probe_lower2mm_xminus2_yminus2_current_handgeom_CAN184ckpt_512`
+  - base checkpoint:
+    - `/home/ll/SRTP/Aero-Hand/logs/AeroCanGraspV2Force-20260426-030125-CAN184_probe_drop01725_512/checkpoints/000001064960`
+- smoke test：
+  - CPU smoke passed
+  - 输出确认：
+    - `release_ramp_sec=0.40625`
+    - `probe_drop_m=0.01725`
+    - `clear_drop_m=0.055`
+    - `probe_hold_sec=0.30`
+    - `release_ready_sec=0.20`
+    - `support_pos=[0.008041, -0.04283, 0.104128]`
+    - `cube_pos=[0.008041, -0.04283, 0.128128]`
+- 修改原因：
+  - `CAN197` 的 y+ 虽然抬高了近零级 `contact_duration_sec`，但末点食指接触几乎归零，形态偏 thumb/palm。
+  - 反向扫 y 用来判断是否需要更深地贴近拇指承托/掌侧区域，并观察食指接入能否恢复。
+- 预期效果：
+  - 如果 CAN197 是朝错误 y 方向移动，`y -2mm` 应恢复或提高 `index_wrap_contact`，并把 `contact_duration_sec` 至少维持在 `CAN196` 附近。
+- 实际效果：
+  - `first=0.001562500, last=0.001562500, max=0.001562500, best_step=0`
+  - `drop=1.0 -> 1.0`
+  - `lift_success=0.0 -> 0.0`
+  - `index_wrap_contact=19.8750 -> 0.1367`
+  - `thumb_wrap_contact=178.0938 -> 183.0117`
+  - `triad_wrap_count=357.8750 -> 343.7305`
+- 分析：
+  - 这是负样本。
+  - 相比 `CAN196`：
+    - `first: 0.0044922 -> 0.0015625`
+    - `last: 0.0029297 -> 0.0015625`
+    - `max: 0.0044922 -> 0.0015625`
+  - 虽然首点 `index_wrap_contact` 比 CAN196 高，但它没有转化为 unsupported 时长，训练后食指同样掉到接近 0。
+  - y 扫描两侧都失败：y+ 只增加无效 thumb/palm 包覆，y- 则直接压低 contact duration。当前不能继续靠 xyz 平移解决。
+- 下一轮建议：
+  - 回退到 `CAN196` 的几何候选：
+    - `support_pos=[0.008041, -0.040830, 0.104128]`
+    - `cube_pos=[0.008041, -0.040830, 0.128128]`
+  - 下一步只做一个手形/控制变量小步，而不是继续位姿扫描。优先复测旧线里相对温和的 index-only action-scale 微增：
+    - `action_scale[2]: 0.22 -> 0.225`
+  - 如果这个仍接近 0，应转入 collision/rollout 可视化排查初始 seating，而不是继续盲扫。
+
+
+### CAN199: return to CAN196 geometry and slightly increase index action scale
+- 代码改动：
+  - 回退 `CAN198` 的 y 扫描，恢复 `CAN196` 几何候选：
+    - `support_pos=[0.008041, -0.040830, 0.104128]`
+    - `cube_pos=[0.008041, -0.040830, 0.128128]`
+  - 只做一个控制变量小步：
+    - `action_scale[2]: 0.22 -> 0.225`
+  - 其他 action scale、release/probe/reward 保持不变。
+- 训练命令：
+  - `CAN199_probe_xminus2_zminus2_indexscale0225_current_handgeom_CAN184ckpt_512`
+  - base checkpoint:
+    - `/home/ll/SRTP/Aero-Hand/logs/AeroCanGraspV2Force-20260426-030125-CAN184_probe_drop01725_512/checkpoints/000001064960`
+- smoke test：
+  - CPU smoke passed
+  - 输出确认：
+    - `action_scale=[0.07, 0.255, 0.225, 0.22, 0.24, 0.082]`
+    - `release_ramp_sec=0.40625`
+    - `probe_drop_m=0.01725`
+    - `clear_drop_m=0.055`
+    - `probe_hold_sec=0.30`
+    - `release_ready_sec=0.20`
+    - `support_pos=[0.008041, -0.04083, 0.104128]`
+    - `cube_pos=[0.008041, -0.04083, 0.128128]`
+- 修改原因：
+  - `CAN197/CAN198` 说明 y 两侧扫描都不能恢复有效 closure。
+  - 旧线里 index-only action-scale 微增比改 nominal pose 更温和，因此作为最后一个非可视化的小控制变量复测。
+- 预期效果：
+  - 如果新手模下主要缺口是策略输出给食指的有效行程略不足，`action_scale[2]=0.225` 应提高食指接触并至少不降低 `CAN196` 的 `max=0.00449s`。
+- 实际效果：
+  - `first=0.003710938, last=0.003906250, max=0.003906250, best_step=1064960`
+  - `drop=1.0 -> 1.0`
+  - `lift_success=0.0 -> 0.0`
+  - `index_wrap_contact=12.6797 -> 0.1992`
+  - `thumb_wrap_contact=173.0430 -> 183.7305`
+  - `triad_wrap_count=352.2734 -> 343.7109`
+- 分析：
+  - 这是负样本。
+  - 相比 `CAN196`：
+    - `first: 0.0044922 -> 0.0037109`
+    - `last: 0.0029297 -> 0.0039063`
+    - `max: 0.0044922 -> 0.0039063`
+  - 末点略高但 max 与首点都更差，且末点食指接触仍几乎归零。
+  - 结论是：当前新手模灾难性退化不能靠小幅 y/x/z 或 index action-scale 修复。接触很多但没有有效 unsupported closure，必须先看 reset/rollout 碰撞形态。
+- 下一轮建议：
+  - 暂停盲目参数扫描。
+  - 用当前环境和 CAN184/CAN196 线 checkpoint 渲染 side/palm collision rollout，重点检查：
+    - can 是否实际坐到拇指下方支撑面；
+    - 食指是否只是擦过 can 而没有把 can 压向掌面；
+    - support clear 时 can 是否已经落到掌侧无效接触。
+  - 可视化确认后再选择下一个单变量，例如 can 初始姿态/quat、support z 相对 can 的间隙、或 pre-grasp index MCP。
+
+
+### CAN200: render current reset/rollout collision views before more parameter scans
+- 代码改动：
+  - 无新训练改动。
+  - 渲染时使用当时的 `CAN199` 配置：
+    - `action_scale=[0.07, 0.255, 0.225, 0.22, 0.24, 0.082]`
+    - `support_pos=[0.008041, -0.040830, 0.104128]`
+    - `cube_pos=[0.008041, -0.040830, 0.128128]`
+- 渲染命令：
+  - side:
+    - `CAN200_render_side_overlay_CAN184ckpt_currentcfg`
+    - `--num_timesteps=0 --episode_length=240 --num_videos=1 --camera=side --render_mode=overlay --render_collision_debug=True`
+  - palm:
+    - `CAN200_render_palm_overlay_CAN184ckpt_currentcfg`
+    - `--num_timesteps=0 --episode_length=240 --num_videos=1 --camera=palm --render_mode=overlay --render_collision_debug=True`
+  - base checkpoint:
+    - `/home/ll/SRTP/Aero-Hand/logs/AeroCanGraspV2Force-20260426-030125-CAN184_probe_drop01725_512/checkpoints/000001064960`
+- 输出文件：
+  - side collision:
+    - `/home/ll/SRTP/Aero-Hand/logs/AeroCanGraspV2Force-20260506-132232-CAN200_render_side_overlay_CAN184ckpt_currentcfg/rollout0_collision_debug.mp4`
+  - palm collision:
+    - `/home/ll/SRTP/Aero-Hand/logs/AeroCanGraspV2Force-20260506-132409-CAN200_render_palm_overlay_CAN184ckpt_currentcfg/rollout0_collision_debug.mp4`
+  - 抽帧：
+    - `tempvideo/CAN200_side_frames/frame_001.png` ... `frame_005.png`
+    - `tempvideo/CAN200_palm_frames/frame_001.png` ... `frame_005.png`
+- 观察结果：
+  - side 视角：
+    - release/clear 前 can 位于手指外侧偏上，手指闭合但没有形成下托。
+    - clear 后 can 很快从手内空间消失，手仍闭合但已经没有物体。
+  - palm 视角：
+    - 食指/中指在 can 上方和外侧闭合，没有把 can 压向掌面。
+    - can 更像被 thumb/palm 一侧短暂碰到，而不是被 index/thumb 形成 force closure。
+- 分析：
+  - 这解释了 `drop=1.0` 且 `index_wrap_contact` 末点接近 0 的指标。
+  - 当前问题不是 reward 总量不足，而是 reset/early rollout 的 seating 仍在手外侧，support clear 后没有留在拇指下托与食指压掌之间。
+  - `CAN196` 的 `x -2mm` 是最近唯一把首点明显抬高的平移变量；y 两侧与 index action-scale 都没有恢复 closure。
+- 下一轮建议：
+  - 回退 `CAN199` 的 `action_scale[2]=0.225` 到 `0.22`。
+  - 保留 `z -2mm` 和 y 基线，沿 `CAN196` 正信号继续只扫 x：
+    - `support_pos/cube_pos.x: 0.008041 -> 0.006041`
+  - 若 `x -4mm` 仍不能把 contact duration 抬离近零量级，再转向初始 can 姿态/quat 或 pre-grasp index MCP，而不是继续 y/z。
+
+
+### CAN201: keep z-2mm and continue x scan to total x-4mm
+- 代码改动：
+  - 回退 `CAN199` 的 `action_scale[2]=0.225` 到 `0.22`。
+  - 保持 y 基线和 `z -2mm`，只继续 `CAN196` 有正信号的 x 方向：
+    - `support_pos: [0.008041, -0.040830, 0.104128] -> [0.006041, -0.040830, 0.104128]`
+    - `cube_pos: [0.008041, -0.040830, 0.128128] -> [0.006041, -0.040830, 0.128128]`
+- 训练命令：
+  - `CAN201_probe_lower2mm_xminus4_current_handgeom_CAN184ckpt_512`
+  - base checkpoint:
+    - `/home/ll/SRTP/Aero-Hand/logs/AeroCanGraspV2Force-20260426-030125-CAN184_probe_drop01725_512/checkpoints/000001064960`
+- smoke test：
+  - CPU smoke passed
+  - 输出确认：
+    - `action_scale=[0.07, 0.255, 0.22, 0.22, 0.24, 0.082]`
+    - `release_ramp_sec=0.40625`
+    - `probe_drop_m=0.01725`
+    - `clear_drop_m=0.055`
+    - `probe_hold_sec=0.30`
+    - `release_ready_sec=0.20`
+    - `support_pos=[0.006041, -0.04083, 0.104128]`
+    - `cube_pos=[0.006041, -0.04083, 0.128128]`
+- 修改原因：
+  - `CAN200` 可视化显示 can 在手指外侧/上侧，clear 后直接离开手内空间。
+  - `CAN196` 的 `x -2mm` 是最近唯一有首点正信号的平移变量，因此沿同方向再扫 2mm，验证是否能把 can 更深地带入食指/拇指之间。
+- 预期效果：
+  - 若 x 对齐仍是主瓶颈，`x -4mm` 应把 `contact_duration_sec` 抬高到 `CAN197/CAN196` 之上，并改善或至少维持 last。
+- 实际效果：
+  - `first=0.006640625, last=0.002929688, max=0.006640625, best_step=0`
+  - `drop=1.0 -> 1.0`
+  - `lift_success=0.0 -> 0.0`
+  - `index_wrap_contact=8.7461 -> 0.0898`
+  - `thumb_wrap_contact=175.9570 -> 187.6133`
+  - `triad_wrap_count=349.7305 -> 345.8477`
+- 分析：
+  - 这是混合信号，不能当作修复。
+  - 相比 `CAN196`：
+    - `first: 0.0044922 -> 0.0066406`
+    - `last: 0.0029297 -> 0.0029297`
+    - `max: 0.0044922 -> 0.0066406`
+  - x 方向确实改善初始进入，但训练后 retention 没有任何改善，食指末点更低。
+  - 说明 x 对齐是 seating 的一部分，但不是完整 closure；继续只扫 x 很可能只会增加 thumb/palm 侧短暂接触。
+- 下一轮建议：
+  - 保留 `x -4mm` 作为当前最强首点线索。
+  - 不再动 y/z/action-scale。
+  - 只做一个很小的 reset hand-shape 变量来补食指接入：
+    - `_pre_grasp_pose[0]` / index MCP: `0.3400 -> 0.3500`
+  - 不同时改 default ctrl，避免重复 CAN153/CAN154 那种较大 nominal/control 改动。
+
+
+### CAN202: keep x-4mm and slightly flex index MCP in the reset pre-grasp pose
+- 代码改动：
+  - 保留 `CAN201` 的 `x -4mm, z -2mm` 几何候选。
+  - 只做一个很小的 reset hand-shape 变量：
+    - `_pre_grasp_pose[0]` / index MCP: `0.3400 -> 0.3500`
+  - 不改 default ctrl，不改 action scale，不改 reward/release/probe。
+- 训练命令：
+  - `CAN202_probe_xminus4_indexmcp035_current_handgeom_CAN184ckpt_512`
+  - base checkpoint:
+    - `/home/ll/SRTP/Aero-Hand/logs/AeroCanGraspV2Force-20260426-030125-CAN184_probe_drop01725_512/checkpoints/000001064960`
+- smoke test：
+  - CPU smoke passed
+  - 输出确认：
+    - `index_mcp_pre_grasp=0.35`
+    - `action_scale=[0.07, 0.255, 0.22, 0.22, 0.24, 0.082]`
+    - `support_pos=[0.006041, -0.04083, 0.104128]`
+    - `cube_pos=[0.006041, -0.04083, 0.128128]`
+- 修改原因：
+  - `CAN201` 说明 `x -4mm` 改善初始进入，但食指末点仍归零。
+  - 视觉和指标都指向“食指没有把 can 压向掌面”，所以只微调预抓取 index MCP，避免大改 nominal/control。
+- 预期效果：
+  - 若 reset 时食指离 can 偏远，index MCP 增加 0.01 应提高 `index_wrap_contact`，并把 `CAN201 last=0.00293s` 抬高。
+- 实际效果：
+  - `first=0.006250000, last=0.004101563, max=0.006250000, best_step=0`
+  - `drop=1.0 -> 1.0`
+  - `lift_success=0.0 -> 0.0`
+  - `index_wrap_contact=7.5352 -> 0.0234`
+  - `thumb_wrap_contact=174.8320 -> 186.9766`
+  - `triad_wrap_count=348.5898 -> 344.6250`
+- 分析：
+  - 这是混合信号，不能保留为明确正样本。
+  - 相比 `CAN201`：
+    - `first: 0.0066406 -> 0.0062500`
+    - `last: 0.0029297 -> 0.0041016`
+    - `max: 0.0066406 -> 0.0062500`
+  - last 有小幅改善，但首点下降，且食指接触更差，说明微增 index MCP 没有按预期改善食指压掌，可能只是改变了后段 thumb/palm 接触。
+- 下一轮建议：
+  - 回退 index MCP 到 `0.3400`。
+  - 为收口 x 分支，只再试一次总 `x -6mm`：
+    - `support_pos/cube_pos.x: 0.006041 -> 0.004041`
+  - 如果 `x -6mm` 不能明显超过 `CAN201 max=0.00664s` 且改善 last，就停止 x 扫描，转向 can 初始姿态/quat 或 support 相对高度。
+
+
+### CAN203: close or extend the x branch with total x-6mm
+- 代码改动：
+  - 回退 `CAN202` 的 index MCP 微调：
+    - `_pre_grasp_pose[0]: 0.3500 -> 0.3400`
+  - 保持 y 基线和 `z -2mm`，只继续 x 方向：
+    - `support_pos: [0.006041, -0.040830, 0.104128] -> [0.004041, -0.040830, 0.104128]`
+    - `cube_pos: [0.006041, -0.040830, 0.128128] -> [0.004041, -0.040830, 0.128128]`
+- 训练命令：
+  - `CAN203_probe_lower2mm_xminus6_current_handgeom_CAN184ckpt_512`
+  - base checkpoint:
+    - `/home/ll/SRTP/Aero-Hand/logs/AeroCanGraspV2Force-20260426-030125-CAN184_probe_drop01725_512/checkpoints/000001064960`
+- smoke test：
+  - CPU smoke passed
+  - 输出确认：
+    - `index_mcp_pre_grasp=0.34`
+    - `action_scale=[0.07, 0.255, 0.22, 0.22, 0.24, 0.082]`
+    - `support_pos=[0.004041, -0.04083, 0.104128]`
+    - `cube_pos=[0.004041, -0.04083, 0.128128]`
+- 修改原因：
+  - `CAN202` 的 index MCP 微调没有改善食指压掌。
+  - `CAN201` 证明 x 方向改善首点但不改善 retention，因此用 `x -6mm` 检查是否存在更深 seating 的非线性恢复。
+- 预期效果：
+  - 若 x 对齐仍未到位，`x -6mm` 应同时不低于 `CAN201 first/max=0.00664s`，并改善 `last`。
+- 实际效果：
+  - `first=0.006640625, last=0.058203131, max=0.058203131, best_step=1064960`
+  - `drop=1.0 -> 1.0`
+  - `lift_success=0.0 -> 0.0`
+  - `index_wrap_contact=11.8555 -> 0.0000`
+  - `thumb_wrap_contact=164.9727 -> 178.3633`
+  - `middle_wrap_contact=169.3633 -> 175.0547`
+  - `ring_wrap_contact=171.7422 -> 175.6406`
+  - `joint_palm_contact=147.5352 -> 173.2617`
+- 分析：
+  - 这是当前新手模 rebaseline 线的第一个明确量级提升。
+  - 相比 `CAN201`：
+    - `first: 0.0066406 -> 0.0066406`
+    - `last: 0.0029297 -> 0.0582031`
+    - `max: 0.0066406 -> 0.0582031`
+  - 仍然远低于 20s，且 `drop=1.0/lift_success=0` 没变。
+  - 接触形态并不干净：末点食指为 0，提升主要来自 thumb/middle/ring/joint-palm 接触增强。
+  - 但从毫秒级到 58ms 的变化足以说明 x 分支存在有效 seating 信号，不能在此处收口。
+- 下一轮建议：
+  - 继续只扫 x 一小步到总 `x -8mm`：
+    - `support_pos/cube_pos.x: 0.004041 -> 0.002041`
+  - 若 `x -8mm` 继续提升 last，再用可视化检查是否是有效 closure 还是脏 palm catch。
+  - 若 `x -8mm` 退化，则回到 `x -6mm`，再考虑 support 相对高度或 can 初始姿态。
+
+
+### CAN204: test total x-8mm after CAN203's retention jump
+- 代码改动：
+  - 保持 y 基线和 `z -2mm`，只继续 x 方向：
+    - `support_pos: [0.004041, -0.040830, 0.104128] -> [0.002041, -0.040830, 0.104128]`
+    - `cube_pos: [0.004041, -0.040830, 0.128128] -> [0.002041, -0.040830, 0.128128]`
+  - action scale、pre-grasp、release/probe/reward 都保持不变。
+- 训练命令：
+  - `CAN204_probe_lower2mm_xminus8_current_handgeom_CAN184ckpt_512`
+  - base checkpoint:
+    - `/home/ll/SRTP/Aero-Hand/logs/AeroCanGraspV2Force-20260426-030125-CAN184_probe_drop01725_512/checkpoints/000001064960`
+- smoke test：
+  - CPU smoke passed
+  - 输出确认：
+    - `index_mcp_pre_grasp=0.34`
+    - `action_scale=[0.07, 0.255, 0.22, 0.22, 0.24, 0.082]`
+    - `support_pos=[0.002041, -0.04083, 0.104128]`
+    - `cube_pos=[0.002041, -0.04083, 0.128128]`
+- 修改原因：
+  - `CAN203` 把 last 从毫秒级抬到 `0.0582s`，说明 x 方向存在真实 seating 信号。
+  - 继续到 `x -8mm` 用于判断该方向是否还能提升，或是否已经过量。
+- 预期效果：
+  - 若 x 仍未到位，`x -8mm` 应超过 `CAN203 last=0.0582s`，并最好提高首点或保住首点。
+- 实际效果：
+  - `first=0.004882812, last=0.057617195, max=0.057617195, best_step=1064960`
+  - `drop=1.0 -> 1.0`
+  - `lift_success=0.0 -> 0.0`
+  - `index_wrap_contact=14.6641 -> 0.0000`
+  - `thumb_wrap_contact=158.7656 -> 175.0742`
+  - `middle_wrap_contact=168.4375 -> 174.5273`
+  - `ring_wrap_contact=172.9922 -> 175.0898`
+  - `joint_palm_contact=142.0430 -> 167.7148`
+- 分析：
+  - `x -8mm` 不是明显正样本。
+  - 相比 `CAN203`：
+    - `first: 0.0066406 -> 0.0048828`
+    - `last: 0.0582031 -> 0.0576172`
+    - `max: 0.0582031 -> 0.0576172`
+  - 首点退化，last 略低，说明 x 方向到 `x -6mm` 附近已经到峰值或进入平台。
+  - 食指首点更高但末点仍为 0，说明进一步 x 移动没有解决食指 retention。
+- 下一轮建议：
+  - 回到当前最好 `CAN203` 几何：
+    - `support_pos/cube_pos.x=0.004041`
+  - 不继续 x 扫描。
+  - 只试一个 support 相对高度变量：
+    - `support_pos.z: 0.104128 -> 0.103128`
+    - `cube_pos.z` 保持 `0.128128`
+  - 目的：让 can 在 release 前更深坐入 cradle，检查是否把 `0.058s` 级短暂 catch 转成更长 unsupported retention。
+
+
+### CAN205: return to x-6mm and lower support relative to can by 1mm
+- 代码改动：
+  - 回到 `CAN203` 的最佳 x 几何：
+    - `support_pos/cube_pos.x=0.004041`
+  - 只做 support 相对高度变量：
+    - `support_pos.z: 0.104128 -> 0.103128`
+    - `cube_pos.z` 保持 `0.128128`
+  - action scale、pre-grasp、release/probe/reward 都保持不变。
+- 训练命令：
+  - 首次 run：
+    - `CAN205_probe_xminus6_supportzminus1rel_current_handgeom_CAN184ckpt_512`
+    - 异常结束，`metrics.csv` 为空，未形成 eval 结论。
+  - retry run：
+    - `CAN205_retry_probe_xminus6_supportzminus1rel_current_handgeom_CAN184ckpt_512`
+  - base checkpoint:
+    - `/home/ll/SRTP/Aero-Hand/logs/AeroCanGraspV2Force-20260426-030125-CAN184_probe_drop01725_512/checkpoints/000001064960`
+- smoke test：
+  - CPU smoke passed
+  - 输出确认：
+    - `index_mcp_pre_grasp=0.34`
+    - `action_scale=[0.07, 0.255, 0.22, 0.22, 0.24, 0.082]`
+    - `support_pos=[0.004041, -0.04083, 0.103128]`
+    - `cube_pos=[0.004041, -0.04083, 0.128128]`
+- 修改原因：
+  - `CAN203` 只有短暂 catch，怀疑 support/can 相对高度影响 release 前 seating。
+  - 先试 support 更低 1mm，检查能否让 can 更深坐入 cradle。
+- 预期效果：
+  - 若 support 偏高导致 can 没有坐进手内，support 下移 1mm 应提升 `CAN203 last=0.0582s`。
+- 实际效果：
+  - `first=0.000000000, last=0.004101562, max=0.004101562, best_step=1064960`
+  - `drop=1.0 -> 1.0`
+  - `lift_success=0.0 -> 0.0`
+  - `index_wrap_contact=0.0000 -> 0.0000`
+  - `thumb_wrap_contact=174.0820 -> 189.3398`
+  - `triad_wrap_count=338.9297 -> 344.8203`
+- 分析：
+  - 这是明确负样本。
+  - 相比 `CAN203`：
+    - `first: 0.0066406 -> 0.0000`
+    - `last: 0.0582031 -> 0.0041016`
+    - `max: 0.0582031 -> 0.0041016`
+  - support 下移 1mm 直接破坏首点 seating，说明当前短暂 catch 不是因为 support 偏高。
+- 下一轮建议：
+  - 回到 `CAN203` 的 support z：
+    - `support_pos.z=0.104128`
+  - 反向只试 support 相对 can 上移 1mm：
+    - `support_pos.z: 0.104128 -> 0.105128`
+  - 若仍退化，则 support 相对高度分支收口，保留 `CAN203` 为当前 best fixed-physics rebaseline。
+
+
+### CAN206: return to x-6mm and raise support relative to can by 1mm
+- 代码改动：
+  - 回到 `CAN203` 的最佳 x 几何：
+    - `support_pos/cube_pos.x=0.004041`
+  - 只做 support 相对高度变量：
+    - `support_pos.z: 0.104128 -> 0.105128`
+    - `cube_pos.z` 保持 `0.128128`
+  - action scale、pre-grasp、release/probe/reward 都保持不变。
+- 训练命令：
+  - `CAN206_probe_xminus6_supportzplus1rel_current_handgeom_CAN184ckpt_512`
+  - base checkpoint:
+    - `/home/ll/SRTP/Aero-Hand/logs/AeroCanGraspV2Force-20260426-030125-CAN184_probe_drop01725_512/checkpoints/000001064960`
+- smoke test：
+  - CPU smoke passed
+  - 输出确认：
+    - `index_mcp_pre_grasp=0.34`
+    - `action_scale=[0.07, 0.255, 0.22, 0.22, 0.24, 0.082]`
+    - `support_pos=[0.004041, -0.04083, 0.105128]`
+    - `cube_pos=[0.004041, -0.04083, 0.128128]`
+- 修改原因：
+  - `CAN205` 说明 support 下移 1mm 会破坏 seating。
+  - 反向上移 1mm 用于判断食指接入是否需要 can 在 release 前更高地压入指腹。
+- 预期效果：
+  - 如果 support 偏低，support 上移 1mm 应同时提高 `index_wrap_contact` 和 `contact_duration_sec`。
+- 实际效果：
+  - `first=0.000976562, last=0.015820311, max=0.015820311, best_step=1064960`
+  - `drop=1.0 -> 1.0`
+  - `lift_success=0.0 -> 0.0`
+  - `index_wrap_contact=100.1680 -> 35.6758`
+  - `thumb_wrap_contact=164.4648 -> 189.5156`
+  - `triad_wrap_count=438.8789 -> 383.2617`
+- 分析：
+  - 这是诊断信号，但不是正样本。
+  - 相比 `CAN203`：
+    - `first: 0.0066406 -> 0.0009766`
+    - `last: 0.0582031 -> 0.0158203`
+    - `max: 0.0582031 -> 0.0158203`
+  - support 上移显著恢复食指接触，但反而缩短 unsupported duration。
+  - 说明“食指接触”和“短暂 catch retention”在当前高度上存在冲突：高 support 让食指碰到 can，但没有形成承托；基线 support 能形成短暂 catch，却丢食指。
+- 下一轮建议：
+  - 只试中间 support 高度：
+    - `support_pos.z: 0.104128 -> 0.104628`
+    - `cube_pos.z` 保持 `0.128128`
+  - 如果中间值不能接近 `CAN203 last=0.0582s` 且保留部分食指接触，support 相对高度分支应收口。
+
+
+### CAN207: test midpoint support relative height at x-6mm
+- 代码改动：
+  - 保持 `CAN203` 的 x 几何：
+    - `support_pos/cube_pos.x=0.004041`
+  - 只做 support 相对高度中间值：
+    - `support_pos.z: 0.104128 -> 0.104628`
+    - `cube_pos.z` 保持 `0.128128`
+  - action scale、pre-grasp、release/probe/reward 都保持不变。
+- 训练命令：
+  - `CAN207_probe_xminus6_supportzplus0p5rel_current_handgeom_CAN184ckpt_512`
+  - base checkpoint:
+    - `/home/ll/SRTP/Aero-Hand/logs/AeroCanGraspV2Force-20260426-030125-CAN184_probe_drop01725_512/checkpoints/000001064960`
+- smoke test：
+  - CPU smoke passed
+  - 输出确认：
+    - `index_mcp_pre_grasp=0.34`
+    - `action_scale=[0.07, 0.255, 0.22, 0.22, 0.24, 0.082]`
+    - `support_pos=[0.004041, -0.04083, 0.104628]`
+    - `cube_pos=[0.004041, -0.04083, 0.128128]`
+- 修改原因：
+  - `CAN206` 说明 support 上移 1mm 会恢复食指接触但明显牺牲 duration。
+  - 取中间值检查是否能在 `CAN203` 的 retention 和 `CAN206` 的食指接触之间取得更好折中。
+- 预期效果：
+  - 若高度存在窄峰，中间值应接近或超过 `CAN203 last=0.0582s`，并保留部分食指接触。
+- 实际效果：
+  - `first=0.004687500, last=0.064648442, max=0.064648442, best_step=1064960`
+  - `drop=1.0 -> 1.0`
+  - `lift_success=0.0 -> 0.0`
+  - `index_wrap_contact=54.0234 -> 0.0000`
+  - `thumb_wrap_contact=161.6055 -> 185.3438`
+  - `middle_wrap_contact=169.9883 -> 176.6836`
+  - `ring_wrap_contact=170.8008 -> 174.9766`
+  - `joint_palm_contact=144.5781 -> 173.9961`
+- 分析：
+  - 这是当前 fixed-physics rebaseline 的最好短探测结果。
+  - 相比 `CAN203`：
+    - `first: 0.0066406 -> 0.0046875`
+    - `last: 0.0582031 -> 0.0646484`
+    - `max: 0.0582031 -> 0.0646484`
+  - 支持高度 +0.5mm 提升了 retention，但没有解决末点食指丢失。
+  - 当前 best 仍是非常短的 catch，不是稳定 unsupported grasp；需要看 rollout 形态，确认是否只是 palm/joint catch。
+- 下一轮建议：
+  - 保留 `CAN207` 参数作为当前 best：
+    - `x=0.004041`
+    - `support_z=0.104628`
+    - `cube_z=0.128128`
+  - 渲染 side/palm collision rollout，检查 `0.064s` 的 retention 来自有效 cradle 还是脏接触。
+  - 如果可视化仍显示 can 立即掉离手内空间，下一轮不要长训，改试 can 初始姿态/quat 或更小 support height interpolation。
+
+
+### CAN208: render current best CAN207 collision rollout
+- 代码改动：
+  - 无训练改动。
+  - 使用 `CAN207` 当前 best 配置：
+    - `support_pos=[0.004041, -0.040830, 0.104628]`
+    - `cube_pos=[0.004041, -0.040830, 0.128128]`
+- 渲染命令：
+  - side:
+    - `CAN208_render_side_CAN207best_currentcfg`
+    - `--num_timesteps=0 --episode_length=240 --num_videos=1 --camera=side --render_mode=overlay --render_collision_debug=True`
+  - palm:
+    - `CAN208_render_palm_CAN207best_currentcfg`
+    - `--num_timesteps=0 --episode_length=240 --num_videos=1 --camera=palm --render_mode=overlay --render_collision_debug=True`
+  - base checkpoint:
+    - `/home/ll/SRTP/Aero-Hand/logs/AeroCanGraspV2Force-20260426-030125-CAN184_probe_drop01725_512/checkpoints/000001064960`
+- 输出文件：
+  - side collision:
+    - `/home/ll/SRTP/Aero-Hand/logs/AeroCanGraspV2Force-20260506-144104-CAN208_render_side_CAN207best_currentcfg/rollout0_collision_debug.mp4`
+  - palm collision:
+    - `/home/ll/SRTP/Aero-Hand/logs/AeroCanGraspV2Force-20260506-144155-CAN208_render_palm_CAN207best_currentcfg/rollout0_collision_debug.mp4`
+  - 抽帧：
+    - `tempvideo/CAN208_side_frames/frame_001.png` ... `frame_006.png`
+    - `tempvideo/CAN208_palm_frames/frame_001.png` ... `frame_006.png`
+- 观察结果：
+  - can 在 release 前已经比 CAN200 更接近手内，但仍偏外侧/掌侧。
+  - clear 后 can 会短暂贴在外侧碰撞和掌侧区域，随后离开手内空间。
+  - 食指没有形成持续压掌；`CAN207 index_wrap_contact` 末点为 0 与视频一致。
+- 分析：
+  - `CAN207` 的 `0.0646s` 不是稳定 unsupported grasp，而是短暂外侧/palm catch。
+  - 但它比 CAN200 明显更接近可用 seating，说明 x/support 相对高度线索有效。
+- 下一轮建议：
+  - 保持 `CAN207` 的 `x=0.004041, support_z=0.104628`。
+  - 只做一个很小的 y 深入变量，尝试把 can 从外侧送向掌侧承托区：
+    - `support_pos/cube_pos.y: -0.040830 -> -0.041830`
+  - 若 y 深入破坏 duration，则回到 CAN207 并考虑 can 初始姿态/quat。
+
+
+### CAN209: keep CAN207 best and shift can/support 1mm deeper along y
+- 代码改动：
+  - 保持 `CAN207` 的 x/support-z best：
+    - `x=0.004041`
+    - `support_pos.z=0.104628`
+    - `cube_pos.z=0.128128`
+  - 只做 y 深入 1mm：
+    - `support_pos/cube_pos.y: -0.040830 -> -0.041830`
+  - action scale、pre-grasp、release/probe/reward 都保持不变。
+- 训练命令：
+  - `CAN209_probe_xminus6_supportzplus0p5_yminus1_current_handgeom_CAN184ckpt_512`
+  - base checkpoint:
+    - `/home/ll/SRTP/Aero-Hand/logs/AeroCanGraspV2Force-20260426-030125-CAN184_probe_drop01725_512/checkpoints/000001064960`
+- smoke test：
+  - CPU smoke passed
+  - 输出确认：
+    - `support_pos=[0.004041, -0.04183, 0.104628]`
+    - `cube_pos=[0.004041, -0.04183, 0.128128]`
+- 修改原因：
+  - `CAN208` 可视化显示 can 仍偏外侧/掌侧短暂 catch。
+  - y 深入 1mm 用于检查是否能把 can 送向掌侧承托区，同时保留 `CAN207` 的 retention。
+- 预期效果：
+  - 若 can 仍偏浅，y 深入应提升或至少维持 `CAN207 last=0.06465s`，并改善食指接触。
+- 实际效果：
+  - `first=0.002734375, last=0.060742192, max=0.060742192, best_step=1064960`
+  - `drop=1.0 -> 1.0`
+  - `lift_success=0.0 -> 0.0`
+  - `index_wrap_contact=63.8789 -> 0.0000`
+  - `thumb_wrap_contact=165.2266 -> 187.1875`
+  - `middle_wrap_contact=168.1250 -> 177.3086`
+  - `joint_palm_contact=145.3867 -> 173.9570`
+- 分析：
+  - 这是负样本。
+  - 相比 `CAN207`：
+    - `first: 0.0046875 -> 0.0027344`
+    - `last: 0.0646484 -> 0.0607422`
+    - `max: 0.0646484 -> 0.0607422`
+  - y 深入提高了首点食指接触，但没有带来末点食指 retention，也降低了真实 contact duration。
+- 下一轮建议：
+  - 回到 `CAN207` y 基线。
+  - 反向只试 y 变浅 1mm：
+    - `support_pos/cube_pos.y: -0.040830 -> -0.039830`
+  - 若 y+ 也不能超过 CAN207，则 y 分支在当前 x/support-z 下收口。
+
+
+### CAN210: keep CAN207 best and shift can/support 1mm shallower along y
+- 代码改动：
+  - 保持 `CAN207` 的 x/support-z best：
+    - `x=0.004041`
+    - `support_pos.z=0.104628`
+    - `cube_pos.z=0.128128`
+  - 只做 y 变浅 1mm：
+    - `support_pos/cube_pos.y: -0.040830 -> -0.039830`
+  - action scale、pre-grasp、release/probe/reward 都保持不变。
+- 训练命令：
+  - `CAN210_probe_xminus6_supportzplus0p5_yplus1_current_handgeom_CAN184ckpt_512`
+  - base checkpoint:
+    - `/home/ll/SRTP/Aero-Hand/logs/AeroCanGraspV2Force-20260426-030125-CAN184_probe_drop01725_512/checkpoints/000001064960`
+- smoke test：
+  - CPU smoke passed
+  - 输出确认：
+    - `support_pos=[0.004041, -0.03983, 0.104628]`
+    - `cube_pos=[0.004041, -0.03983, 0.128128]`
+- 修改原因：
+  - `CAN209` 的 y 深入 1mm 降低 duration。
+  - 反向扫 y 变浅 1mm，判断当前 best 是否还存在 y 对齐提升空间。
+- 预期效果：
+  - 若 can 在 CAN207 中仍偏深，y+1mm 应提升或至少维持 `CAN207 last=0.06465s`。
+- 实际效果：
+  - `first=0.002539063, last=0.040820315, max=0.040820315, best_step=1064960`
+  - `drop=1.0 -> 1.0`
+  - `lift_success=0.0 -> 0.0`
+  - `index_wrap_contact=67.0586 -> 0.4453`
+- 分析：
+  - 这是负样本。
+  - 相比 `CAN207`：
+    - `first: 0.0046875 -> 0.0025391`
+    - `last: 0.0646484 -> 0.0408203`
+    - `max: 0.0646484 -> 0.0408203`
+  - y 两侧在当前 x/support-z 组合下都降低 duration；y 分支收口。
+- 下一轮建议：
+  - 回到 `CAN207` 当前 best：
+    - `support_pos=[0.004041, -0.040830, 0.104628]`
+    - `cube_pos=[0.004041, -0.040830, 0.128128]`
+  - 不继续扫 x/y/support-z。
+  - 下一步优先试 can 初始姿态/quat 或 release/clear 时序的单变量，而不是继续平移。
+
+
+### CAN211: keep CAN207 geometry and slow release ramp by 50ms
+- 代码改动：
+  - 保持 `CAN207` 当前 best 几何：
+    - `support_pos=[0.004041, -0.040830, 0.104628]`
+    - `cube_pos=[0.004041, -0.040830, 0.128128]`
+  - 只做 release 时序变量：
+    - `release_ramp_sec: 0.40625 -> 0.45625`
+  - action scale、pre-grasp、reward、probe/clear depth 都保持不变。
+- 为什么本轮仍不改 reward：
+  - 当前 `drop=1.0` 且渲染显示 can 只是短暂外侧/palm catch。
+  - 这时直接加大 `post_release_survival`、`cradle_lock`、`index_palm_press` 等 reward，容易强化无效 thumb/palm 接触，而不是解决 can 坐不进手内的问题。
+  - 因此仍优先做 release/clear 或初始姿态这类能改变 handover 几何的窄变量。
+- 训练命令：
+  - `CAN211_probe_CAN207geom_ramp045625_current_handgeom_CAN184ckpt_512`
+  - base checkpoint:
+    - `/home/ll/SRTP/Aero-Hand/logs/AeroCanGraspV2Force-20260426-030125-CAN184_probe_drop01725_512/checkpoints/000001064960`
+- smoke test：
+  - CPU smoke passed
+  - 输出确认：
+    - `release_ramp_sec=0.45625`
+    - `probe_drop_m=0.01725`
+    - `clear_drop_m=0.055`
+    - `support_pos=[0.004041, -0.04083, 0.104628]`
+    - `cube_pos=[0.004041, -0.04083, 0.128128]`
+- 修改原因：
+  - `CAN207` 的短暂 catch 可能在 support clear 过渡中被打散。
+  - 放慢 release ramp 50ms，检查更平滑的 support 撤离能否延长 `0.0646s` 的 catch。
+- 预期效果：
+  - 如果失败来自 release 过快，`release_ramp_sec=0.45625` 应提高 `last`，至少不低于 `CAN207 last=0.06465s`。
+- 实际效果：
+  - `first=0.002148438, last=0.044531256, max=0.044531256, best_step=1064960`
+  - `drop=1.0 -> 1.0`
+  - `lift_success=0.0 -> 0.0`
+  - `index_wrap_contact=52.3906 -> 0.0000`
+  - `thumb_wrap_contact=160.5742 -> 183.6641`
+  - `middle_wrap_contact=170.1367 -> 177.1523`
+  - `joint_palm_contact=143.5391 -> 174.4453`
+- 分析：
+  - 这是负样本。
+  - 相比 `CAN207`：
+    - `first: 0.0046875 -> 0.0021484`
+    - `last: 0.0646484 -> 0.0445313`
+    - `max: 0.0646484 -> 0.0445313`
+  - 放慢 release ramp 没有保护 catch，反而降低初始和末点评估。
+  - 说明当前失败不是 support 撤离太快；继续沿 ramp 放慢方向没有依据。
+- 下一轮建议：
+  - 回退 `release_ramp_sec` 到 `0.40625`。
+  - 保留 `CAN207` 几何 best。
+  - 下一步转向 can 初始姿态/quat 的小步变量，而不是继续改 reward 或平移。
+
+
+### CAN212: keep CAN207 geometry and yaw the can initial orientation by +5 degrees
+- 代码改动：
+  - 回退 `CAN211` 的 release ramp：
+    - `release_ramp_sec: 0.45625 -> 0.40625`
+  - 保持 `CAN207` 当前 best 几何：
+    - `support_pos=[0.004041, -0.040830, 0.104628]`
+    - `cube_pos=[0.004041, -0.040830, 0.128128]`
+  - 只做 can 初始姿态变量：
+    - `_spawn_quat: [0.707715, -0.007412, 0.706458, 0.000577]`
+    - `-> [0.707017, -0.038220, 0.705463, 0.031447]`
+  - 该 quaternion 等价于在当前 can 姿态上绕世界 z 轴 yaw `+5°`。
+  - reward、action scale、pre-grasp、release/probe/clear depth 都保持不变。
+- 训练命令：
+  - `CAN212_probe_CAN207geom_quatyawplus5_current_handgeom_CAN184ckpt_512`
+  - base checkpoint:
+    - `/home/ll/SRTP/Aero-Hand/logs/AeroCanGraspV2Force-20260426-030125-CAN184_probe_drop01725_512/checkpoints/000001064960`
+- smoke test：
+  - CPU smoke passed
+  - 输出确认：
+    - `spawn_quat=[0.707017, -0.038220, 0.705463, 0.031447]`
+    - `release_ramp_sec=0.40625`
+    - `support_pos=[0.004041, -0.04083, 0.104628]`
+    - `cube_pos=[0.004041, -0.04083, 0.128128]`
+- 修改原因：
+  - `CAN208` 渲染显示 can 轴线/外侧接触形态仍让物体从手内滑出。
+  - x/y/support-z 平移分支已收口，因此转向 can 初始姿态，检查圆柱轴线相对食指/拇指的角度是否影响 seating。
+- 预期效果：
+  - 若 can 初始轴线导致外侧滑出，`+5°` yaw 应在不改 reward 的前提下提高 `CAN207 last=0.06465s`。
+- 实际效果：
+  - `first=0.005273438, last=0.098632812, max=0.098632812, best_step=1064960`
+  - `drop=1.0 -> 1.0`
+  - `lift_success=0.0 -> 0.0`
+  - `index_wrap_contact=39.7695 -> 0.0039`
+  - `thumb_wrap_contact=160.5195 -> 186.2656`
+  - `middle_wrap_contact=169.0391 -> 178.6953`
+  - `joint_palm_contact=142.9023 -> 174.4727`
+- 分析：
+  - 这是当前 fixed-physics rebaseline 的最好短探测。
+  - 相比 `CAN207`：
+    - `first: 0.0046875 -> 0.0052734`
+    - `last: 0.0646484 -> 0.0986328`
+    - `max: 0.0646484 -> 0.0986328`
+  - yaw +5 明显延长短暂 catch，说明 can 初始姿态是有效变量。
+  - 但 `drop=1.0/lift_success=0` 未变，末点食指仍几乎为 0，当前还不是稳定 closure。
+- 下一轮建议：
+  - 沿同一变量继续趋势测试：
+    - can initial yaw `+10°`
+  - 若 `+10°` 继续提升，再渲染检查是否从外侧/palm catch 变成更有效 cradle。
+  - 若 `+10°` 退化，则回到 `+5°` 并试更细的 `+7.5°` 或反向小步。
+
+### CAN213: keep CAN207 geometry and yaw the can initial orientation by +10 degrees
+- 代码改动：
+  - 保持 `CAN207` 当前 best 几何：
+    - `support_pos=[0.004041, -0.040830, 0.104628]`
+    - `cube_pos=[0.004041, -0.040830, 0.128128]`
+  - 保持 `CAN207/CAN212` release 时序：
+    - `release_ramp_sec=0.40625`
+  - 只继续 can 初始姿态变量：
+    - `_spawn_quat: [0.707017, -0.038220, 0.705463, 0.031447]`
+    - `-> [0.704972, -0.068956, 0.703124, 0.062256]`
+  - 该 quaternion 等价于在原 CAN207 can 姿态上绕世界 z 轴 yaw `+10°`。
+  - reward、action scale、pre-grasp、release/probe/clear depth 都保持不变。
+- 训练命令：
+  - `CAN213_probe_CAN207geom_quatyawplus10_current_handgeom_CAN184ckpt_512`
+  - base checkpoint:
+    - `/home/ll/SRTP/Aero-Hand/logs/AeroCanGraspV2Force-20260426-030125-CAN184_probe_drop01725_512/checkpoints/000001064960`
+- smoke test：
+  - CPU smoke passed
+  - 输出确认：
+    - `spawn_quat=[0.704972, -0.068956, 0.703124, 0.062256]`
+    - `release_ramp_sec=0.40625`
+    - `support_pos=[0.004041, -0.04083, 0.104628]`
+    - `cube_pos=[0.004041, -0.04083, 0.128128]`
+- 修改原因：
+  - `CAN212` 的 `+5°` yaw 已经把 `contact_duration_sec last/max` 从 `CAN207 0.06465s` 抬到 `0.09863s`。
+  - 沿同一单变量继续测试 `+10°`，判断初始轴线是否仍在改善 support clear 后的短暂 catch。
+- 预期效果：
+  - 若 yaw 方向正确，`+10°` 应进一步超过 `CAN212 last=0.09863s`。
+- 实际效果：
+  - `first=0.008007813, last=0.118554689, max=0.118554689, best_step=1064960`
+  - `drop=1.0 -> 1.0`
+  - `lift_success=0.0 -> 0.0`
+  - `index_wrap_contact=31.7695 -> 0.0`
+  - `thumb_wrap_contact=143.6679 -> 185.0977`
+  - `middle_wrap_contact=170.5195 -> 179.7227`
+  - `joint_palm_contact=129.2422 -> 174.8008`
+  - `normal_force_mean=8.7584 -> 14.5500`
+  - `slip_event=0.0391 -> 0.6484`
+- 分析：
+  - `+10°` 继续刷新当前 fixed-physics rebaseline：
+    - `CAN207 last/max=0.06465s`
+    - `CAN212 last/max=0.09863s`
+    - `CAN213 last/max=0.11855s`
+  - 这说明 can 初始 yaw 是当前最有效的几何变量。
+  - 但量级仍只有约 `0.12s`，且 `drop=1.0/lift_success=0` 没变；末点评估中食指 wrap contact 为 0，thumb/middle/joint-palm 接触占主导，`slip_event` 反而上升。
+  - 因此当前几何关系还没有满足“可稳定闭合”的条件；直接迭代 reward 仍有较大风险，会强化 thumb/palm 外侧短暂 catch。
+- 下一轮建议：
+  - 先不要把主线切到 reward sweep。
+  - 沿 yaw 分支继续一个受控点，例如 can initial yaw `+15°`；如果继续提升，再渲染 `CAN213/CAN214` 对比，判断是否真的进入手内 cradle。
+  - 只有当固定几何下出现至少秒级、且末点保留 index/thumb/middle 多指包裹的 unsupported contact，再开始做小幅 reward shaping。
+
+### CAN214: keep CAN207 geometry and yaw the can initial orientation by +15 degrees
+- 代码改动：
+  - 保持 `CAN207` 当前 best 几何：
+    - `support_pos=[0.004041, -0.040830, 0.104628]`
+    - `cube_pos=[0.004041, -0.040830, 0.128128]`
+  - 保持 release/probe/clear 时序：
+    - `release_ramp_sec=0.40625`
+    - `probe_drop_m=0.01725`
+    - `clear_drop_m=0.055`
+  - 只继续 can 初始姿态变量：
+    - `_spawn_quat: [0.704972, -0.068956, 0.703124, 0.062256]`
+    - `-> [0.701586, -0.099560, 0.699447, 0.092947]`
+  - 该 quaternion 等价于在原 CAN207 can 姿态上绕世界 z 轴 yaw `+15°`。
+  - reward、action scale、pre-grasp 都保持不变。
+- 训练命令：
+  - `CAN214_probe_CAN207geom_quatyawplus15_current_handgeom_CAN184ckpt_512`
+  - base checkpoint:
+    - `/home/ll/SRTP/Aero-Hand/logs/AeroCanGraspV2Force-20260426-030125-CAN184_probe_drop01725_512/checkpoints/000001064960`
+- smoke test：
+  - CPU smoke passed
+  - 输出确认：
+    - `spawn_quat=[0.701586, -0.099560, 0.699447, 0.092947]`
+    - `release_ramp_sec=0.40625`
+    - `probe_drop_m=0.01725`
+    - `clear_drop_m=0.055`
+    - `support_pos=[0.004041, -0.04083, 0.104628]`
+    - `cube_pos=[0.004041, -0.04083, 0.128128]`
+- 修改原因：
+  - `CAN212/CAN213` 均显示 yaw 正方向能改善 `contact_duration_sec last/max`。
+  - 继续做 `+15°` 单变量测试，判断这个趋势是否还没到峰值。
+- 预期效果：
+  - 若 yaw 仍在改善 seating，`+15°` 应超过 `CAN213 last=0.11855s`，且不要进一步污染接触形态。
+- 实际效果：
+  - `first=0.011328125, last=0.134179696, max=0.134179696, best_step=1064960`
+  - `drop=1.0 -> 1.0`
+  - `lift_success=0.0 -> 0.0`
+  - `index_wrap_contact=22.4570 -> 0.0`
+  - `thumb_wrap_contact=132.2617 -> 185.0977`
+  - `middle_wrap_contact=171.2695 -> 180.6523`
+  - `joint_palm_contact=119.3672 -> 173.9570`
+  - `normal_force_mean=8.9117 -> 14.3392`
+  - `slip_event=0.0508 -> 0.2148`
+- 分析：
+  - `+15°` 继续刷新当前 fixed-physics rebaseline：
+    - `CAN207 last/max=0.06465s`
+    - `CAN212 last/max=0.09863s`
+    - `CAN213 last/max=0.11855s`
+    - `CAN214 last/max=0.13418s`
+  - 这是正样本，说明 yaw 变量还没有收口。
+  - 但末点食指接触仍为 0，`drop/lift_success` 仍未改善，当前仍不是稳定 unsupported closure。
+  - 与 `CAN213` 相比，`slip_event` 降低，说明 `+15°` 比 `+10°` 稍干净，但 thumb/middle/joint-palm 仍占主导。
+- 下一轮建议：
+  - 继续沿 yaw 分支做一个受控点：
+    - can initial yaw `+20°`
+  - 若 `+20°` 继续提高，再渲染当前 yaw 最优点；若退化，则回到 `+15°` 并试 `+17.5°` 或转向与 yaw 相关的轻微 x/y 复合微调。
+  - reward 仍不进入主线，直到末点出现多指包裹和至少秒级 unsupported contact。
+
+### CAN215: keep CAN207 geometry and yaw the can initial orientation by +20 degrees
+- 代码改动：
+  - 保持 `CAN207` 当前 best 几何：
+    - `support_pos=[0.004041, -0.040830, 0.104628]`
+    - `cube_pos=[0.004041, -0.040830, 0.128128]`
+  - 保持 release/probe/clear/reward/action/pre-grasp 全部不变。
+  - 只继续 can 初始姿态变量：
+    - `_spawn_quat: [0.701586, -0.099560, 0.699447, 0.092947]`
+    - `-> [0.696863, -0.129975, 0.694439, 0.123462]`
+  - 该 quaternion 等价于在原 CAN207 can 姿态上绕世界 z 轴 yaw `+20°`。
+- 训练命令：
+  - `CAN215_probe_CAN207geom_quatyawplus20_current_handgeom_CAN184ckpt_512`
+  - base checkpoint:
+    - `/home/ll/SRTP/Aero-Hand/logs/AeroCanGraspV2Force-20260426-030125-CAN184_probe_drop01725_512/checkpoints/000001064960`
+- smoke test：
+  - CPU smoke passed
+  - 输出确认：
+    - `spawn_quat=[0.696863, -0.129975, 0.694439, 0.123462]`
+    - `release_ramp_sec=0.40625`
+    - `probe_drop_m=0.01725`
+    - `clear_drop_m=0.055`
+    - `support_pos=[0.004041, -0.04083, 0.104628]`
+    - `cube_pos=[0.004041, -0.04083, 0.128128]`
+- 修改原因：
+  - `CAN214` 的 `+15°` 继续刷新 `contact_duration_sec`，说明 yaw 分支还没有到峰值。
+  - 继续用 `+20°` 检查是否仍改善 seating/handover。
+- 预期效果：
+  - 如果 yaw 趋势继续有效，`+20°` 应超过 `CAN214 last=0.13418s`。
+- 实际效果：
+  - `first=0.011328125, last=0.157421887, max=0.157421887, best_step=1064960`
+  - `drop=1.0 -> 1.0`
+  - `lift_success=0.0 -> 0.0`
+  - `index_wrap_contact=20.1523 -> 0.0`
+  - `thumb_wrap_contact=130.0859 -> 181.7891`
+  - `middle_wrap_contact=170.2617 -> 177.5703`
+  - `joint_palm_contact=114.7773 -> 170.9883`
+  - `normal_force_mean=9.2670 -> 13.0155`
+  - `slip_event=0.0625 -> 0.2852`
+- 分析：
+  - `+20°` 继续刷新当前 fixed-physics rebaseline：
+    - `CAN214 last/max=0.13418s`
+    - `CAN215 last/max=0.15742s`
+  - 相比 `CAN214`，末点时长提高，`normal_force_mean` 下降，说明不是单纯靠更大挤压力换来短时接触。
+  - 但 `drop/lift_success` 仍没有改善，末点食指仍为 0，接触形态仍未变成稳定多指 closure。
+  - 当前结论仍是“yaw 有效但未满足 reward 迭代前提”。
+- 下一轮建议：
+  - 继续沿 yaw 分支做 `+25°`。
+  - 如果 `+25°` 继续提升，再考虑渲染当前最优 yaw，以确认视觉上是否进入手内 cradle；若退化，则回到 `+20°` 并在 `+17.5~22.5°` 做细扫。
+
+### CAN216: keep CAN207 geometry and yaw the can initial orientation by +25 degrees
+- 代码改动：
+  - 保持 `CAN207` 当前 best 几何：
+    - `support_pos=[0.004041, -0.040830, 0.104628]`
+    - `cube_pos=[0.004041, -0.040830, 0.128128]`
+  - 保持 release/probe/clear/reward/action/pre-grasp 全部不变。
+  - 只继续 can 初始姿态变量：
+    - `_spawn_quat: [0.696863, -0.129975, 0.694439, 0.123462]`
+    - `-> [0.690815, -0.160142, 0.688108, 0.153741]`
+  - 该 quaternion 等价于在原 CAN207 can 姿态上绕世界 z 轴 yaw `+25°`。
+- 训练命令：
+  - `CAN216_probe_CAN207geom_quatyawplus25_current_handgeom_CAN184ckpt_512`
+  - base checkpoint:
+    - `/home/ll/SRTP/Aero-Hand/logs/AeroCanGraspV2Force-20260426-030125-CAN184_probe_drop01725_512/checkpoints/000001064960`
+- smoke test：
+  - CPU smoke passed
+  - 输出确认：
+    - `spawn_quat=[0.690815, -0.160142, 0.688108, 0.153741]`
+    - `release_ramp_sec=0.40625`
+    - `probe_drop_m=0.01725`
+    - `clear_drop_m=0.055`
+    - `support_pos=[0.004041, -0.04083, 0.104628]`
+    - `cube_pos=[0.004041, -0.04083, 0.128128]`
+- 修改原因：
+  - `CAN215` 的 `+20°` 继续提升到 `0.15742s`，需要确认 yaw 峰值是否还在更大角度。
+- 预期效果：
+  - 如果 yaw 峰值还没过，`+25°` 应继续超过 `CAN215 last=0.15742s`，且不应破坏初始食指接入。
+- 实际效果：
+  - `first=0.007421875, last=0.138476580, max=0.138476580, best_step=1064960`
+  - `drop=1.0 -> 1.0`
+  - `lift_success=0.0 -> 0.0`
+  - `index_wrap_contact=2.7539 -> 0.0`
+  - `thumb_wrap_contact=69.8555 -> 172.4336`
+  - `middle_wrap_contact=170.1836 -> 177.2031`
+  - `joint_palm_contact=56.1875 -> 164.1328`
+  - `normal_force_mean=9.7482 -> 13.2855`
+  - `slip_event=0.0234 -> 0.7773`
+- 分析：
+  - 这是 yaw 分支的负样本，说明 `+25°` 已经越过有效窗口：
+    - `CAN215 last/max=0.15742s`
+    - `CAN216 last/max=0.13848s`
+  - 首点也从 `CAN215 0.01133s` 降到 `0.00742s`。
+  - 初始 `index_wrap_contact` 从 `20.15` 降到 `2.75`，说明角度过大直接破坏食指接入。
+  - `slip_event` 明显上升，接触形态更脏。
+- 下一轮建议：
+  - 回到当前 yaw 峰值附近，不继续加大角度。
+  - 先试 `+22.5°` 细扫；如果仍低于 `CAN215`，就固定 `+20°` 为当前 yaw best 并渲染检查形态。
+
+### CAN217: fine sweep can initial yaw at +22.5 degrees
+- 代码改动：
+  - 保持 `CAN207` 当前 best 几何：
+    - `support_pos=[0.004041, -0.040830, 0.104628]`
+    - `cube_pos=[0.004041, -0.040830, 0.128128]`
+  - 保持 release/probe/clear/reward/action/pre-grasp 全部不变。
+  - 回到 yaw 峰值附近做细扫：
+    - `_spawn_quat: [0.690815, -0.160142, 0.688108, 0.153741]`
+    - `-> [0.694004, -0.145093, 0.691438, 0.138634]`
+  - 该 quaternion 等价于在原 CAN207 can 姿态上绕世界 z 轴 yaw `+22.5°`。
+- 训练命令：
+  - `CAN217_probe_CAN207geom_quatyawplus22p5_current_handgeom_CAN184ckpt_512`
+  - base checkpoint:
+    - `/home/ll/SRTP/Aero-Hand/logs/AeroCanGraspV2Force-20260426-030125-CAN184_probe_drop01725_512/checkpoints/000001064960`
+- smoke test：
+  - CPU smoke passed
+  - 输出确认：
+    - `spawn_quat=[0.694004, -0.145093, 0.691438, 0.138634]`
+    - `release_ramp_sec=0.40625`
+    - `support_pos=[0.004041, -0.04083, 0.104628]`
+    - `cube_pos=[0.004041, -0.04083, 0.128128]`
+- 修改原因：
+  - `CAN216 +25°` 退化，说明 yaw 大角度已过峰。
+  - 在 `+20°` 与 `+25°` 中点做细扫，判断峰值是否在 `+20°` 右侧。
+- 预期效果：
+  - 如果峰值在 `+20°~25°` 之间，`+22.5°` 应接近或超过 `CAN215 last=0.15742s`，且比 `+25°` 更少 slip。
+- 实际效果：
+  - `first=0.012890625, last=0.140429690, max=0.140429690, best_step=1064960`
+  - `drop=1.0 -> 1.0`
+  - `lift_success=0.0 -> 0.0`
+  - `index_wrap_contact=15.3203 -> 0.0`
+  - `thumb_wrap_contact=124.2539 -> 189.2227`
+  - `middle_wrap_contact=170.1523 -> 183.0273`
+  - `joint_palm_contact=107.1406 -> 173.4453`
+  - `normal_force_mean=9.4617 -> 13.2578`
+  - `slip_event=0.0469 -> 0.0039`
+- 分析：
+  - `+22.5°` 没超过 `CAN215 +20°`：
+    - `CAN215 last/max=0.15742s`
+    - `CAN217 last/max=0.14043s`
+  - 它比 `+25°` 干净，`slip_event` 很低，但真实主指标仍低于 `+20°`。
+  - 当前 yaw 峰值应固定在 `+20°` 附近；继续往更大 yaw 扫没有依据。
+  - 末点食指接触仍为 0，因此仍不能进入 reward sweep。
+- 下一轮建议：
+  - 回到 `CAN215 +20°` 作为当前 best。
+  - 渲染当前 best yaw 的 side/palm collision rollout，确认 `0.157s` 是不是仍然外侧/palm catch；如果视觉仍偏外，则下一步围绕 `+20°` 做很小 x/y 复合微调，而不是动 reward。
+
+### CAN218: render current yaw best CAN215 (+20 degrees)
+- 代码改动：
+  - 回到当前 yaw best：
+    - `_spawn_quat=[0.696863, -0.129975, 0.694439, 0.123462]`
+  - 保持 `CAN207` 当前 best 几何：
+    - `support_pos=[0.004041, -0.040830, 0.104628]`
+    - `cube_pos=[0.004041, -0.040830, 0.128128]`
+  - 其他 release/probe/clear/reward/action/pre-grasp 全部不变。
+- 渲染命令：
+  - side:
+    - `CAN218_render_side_CAN215yaw20best_currentcfg`
+    - `--num_timesteps=0 --episode_length=240 --num_videos=1 --camera=side --render_mode=overlay --render_collision_debug=True`
+  - palm:
+    - `CAN218_render_palm_CAN215yaw20best_currentcfg`
+    - `--num_timesteps=0 --episode_length=240 --num_videos=1 --camera=palm --render_mode=overlay --render_collision_debug=True`
+  - base checkpoint:
+    - `/home/ll/SRTP/Aero-Hand/logs/AeroCanGraspV2Force-20260426-030125-CAN184_probe_drop01725_512/checkpoints/000001064960`
+- smoke test：
+  - CPU smoke passed
+  - 输出确认：
+    - `spawn_quat=[0.696863, -0.129975, 0.694439, 0.123462]`
+    - `release_ramp_sec=0.40625`
+    - `support_pos=[0.004041, -0.04083, 0.104628]`
+    - `cube_pos=[0.004041, -0.04083, 0.128128]`
+- 输出文件：
+  - side collision:
+    - `/home/ll/SRTP/Aero-Hand/logs/AeroCanGraspV2Force-20260506-232053-CAN218_render_side_CAN215yaw20best_currentcfg/rollout0_collision_debug.mp4`
+  - palm collision:
+    - `/home/ll/SRTP/Aero-Hand/logs/AeroCanGraspV2Force-20260506-232144-CAN218_render_palm_CAN215yaw20best_currentcfg/rollout0_collision_debug.mp4`
+  - 抽帧：
+    - `tempvideo/CAN218_side_frames/frame_001.png` ... `frame_007.png`
+    - `tempvideo/CAN218_palm_frames/frame_001.png` ... `frame_007.png`
+- 观察结果：
+  - release 前 can 比 `CAN208` 更接近手内，但仍偏外侧。
+  - 食指在 can 上方/外侧，没有形成持续压掌；末点 `index_wrap_contact=0` 与画面一致。
+  - support clear 后 can 很快离开手内空间，手仍闭合但物体已经不在有效 cradle 中。
+- 分析：
+  - `CAN215 +20°` 的 `0.157s` 仍是短暂外侧/palm catch，不是稳定 unsupported closure。
+  - yaw 确实改善了 seating，但没有解决食指参与不足。
+  - 当前仍不应进入 reward sweep；奖励会倾向强化已有 thumb/middle/joint-palm 短接触。
+- 下一轮建议：
+  - 保持 `+20°` yaw。
+  - 围绕当前 yaw best 做小幅平移复合微调，优先试 can/support `x -0.5mm`，检查是否能把 can 再送入食指压掌路径，同时不过度重现 `CAN204 x-8mm` 的退化。
+
+### CAN219: keep yaw +20 degrees and shift can/support x -0.5mm
+- 代码改动：
+  - 保持当前 yaw best：
+    - `_spawn_quat=[0.696863, -0.129975, 0.694439, 0.123462]`
+  - 在 `CAN215` 几何上只做一个平移微调：
+    - `support_pos=[0.004041, -0.040830, 0.104628]`
+    - `-> [0.003541, -0.040830, 0.104628]`
+    - `cube_pos=[0.004041, -0.040830, 0.128128]`
+    - `-> [0.003541, -0.040830, 0.128128]`
+  - release/probe/clear/reward/action/pre-grasp 全部不变。
+- 训练命令：
+  - `CAN219_probe_yaw20_xminus0p5mm_current_handgeom_CAN184ckpt_512`
+  - base checkpoint:
+    - `/home/ll/SRTP/Aero-Hand/logs/AeroCanGraspV2Force-20260426-030125-CAN184_probe_drop01725_512/checkpoints/000001064960`
+- smoke test：
+  - CPU smoke passed
+  - 输出确认：
+    - `spawn_quat=[0.696863, -0.129975, 0.694439, 0.123462]`
+    - `support_pos=[0.003541, -0.04083, 0.104628]`
+    - `cube_pos=[0.003541, -0.04083, 0.128128]`
+- 修改原因：
+  - `CAN218` 渲染显示 can 仍偏外侧，食指没有持续压掌。
+  - 在 yaw best 上做很小 x 负向移动，检查是否能把 can 更送入食指路径，同时避开 `CAN204 x-8mm` 的大幅退化。
+- 预期效果：
+  - 若 can 仍偏外，`x -0.5mm` 应超过或至少接近 `CAN215 last=0.15742s`，并改善食指接触。
+- 实际效果：
+  - `first=0.011328125, last=0.155664086, max=0.155664086, best_step=1064960`
+  - `drop=1.0 -> 1.0`
+  - `lift_success=0.0 -> 0.0`
+  - `index_wrap_contact=15.6836 -> 0.0`
+  - `thumb_wrap_contact=129.5273 -> 179.7656`
+  - `middle_wrap_contact=170.2422 -> 179.1719`
+  - `joint_palm_contact=113.6250 -> 169.4570`
+  - `normal_force_mean=9.4291 -> 13.3929`
+  - `slip_event=0.0508 -> 0.3203`
+- 分析：
+  - `x -0.5mm` 没有超过 `CAN215`：
+    - `CAN215 last/max=0.15742s`
+    - `CAN219 last/max=0.15566s`
+  - 差距很小，但没有改善食指末点接触，说明继续沿 x 负向没有证据。
+  - 当前 best 仍是 `CAN215 yaw +20°, x=0.004041`。
+- 下一轮建议：
+  - 回到 `CAN215` x，并试反向 `x +0.5mm`。
+  - 如果 `x +0.5mm` 也不能超过 `CAN215`，x 微调分支收口，转向 yaw best 下的 y 微调。
+
+### CAN220: keep yaw +20 degrees and shift can/support x +0.5mm
+- 代码改动：
+  - 保持当前 yaw best：
+    - `_spawn_quat=[0.696863, -0.129975, 0.694439, 0.123462]`
+  - 从 `CAN215` 几何反向做 x 微调：
+    - `support_pos=[0.004041, -0.040830, 0.104628]`
+    - `-> [0.004541, -0.040830, 0.104628]`
+    - `cube_pos=[0.004041, -0.040830, 0.128128]`
+    - `-> [0.004541, -0.040830, 0.128128]`
+  - release/probe/clear/reward/action/pre-grasp 全部不变。
+- 训练命令：
+  - `CAN220_probe_yaw20_xplus0p5mm_current_handgeom_CAN184ckpt_512`
+  - base checkpoint:
+    - `/home/ll/SRTP/Aero-Hand/logs/AeroCanGraspV2Force-20260426-030125-CAN184_probe_drop01725_512/checkpoints/000001064960`
+- smoke test：
+  - CPU smoke passed
+  - 输出确认：
+    - `spawn_quat=[0.696863, -0.129975, 0.694439, 0.123462]`
+    - `support_pos=[0.004541, -0.04083, 0.104628]`
+    - `cube_pos=[0.004541, -0.04083, 0.128128]`
+- 修改原因：
+  - `CAN219 x -0.5mm` 未超过 `CAN215`。
+  - 用同等幅度反向微调，确认 `CAN215` x 是否已经位于局部峰值。
+- 预期效果：
+  - 若 `CAN215` x 偏深，`x +0.5mm` 应超过 `CAN215 last=0.15742s`。
+- 实际效果：
+  - `first=0.011523437, last=0.130078137, max=0.130078137, best_step=1064960`
+  - `drop=1.0 -> 1.0`
+  - `lift_success=0.0 -> 0.0`
+  - `index_wrap_contact=17.5586 -> 0.0`
+  - `thumb_wrap_contact=127.7422 -> 181.3516`
+  - `middle_wrap_contact=170.4258 -> 176.4180`
+  - `joint_palm_contact=112.8164 -> 172.9375`
+  - `normal_force_mean=9.1587 -> 13.4864`
+  - `slip_event=0.0586 -> 0.6250`
+- 分析：
+  - `x +0.5mm` 明显低于 `CAN215`：
+    - `CAN215 last/max=0.15742s`
+    - `CAN220 last/max=0.13008s`
+  - `x -0.5mm` 只是略低，`x +0.5mm` 明显退化，说明当前 x 的有效窗口偏窄，且不应朝正向走。
+  - 两个 x 微调都没有恢复末点食指接触，x 分支暂时收口。
+- 下一轮建议：
+  - 回到 `CAN215` x：
+    - `support_pos.x=cube_pos.x=0.004041`
+  - 保持 yaw `+20°`，转向 y 方向半毫米微调，优先试 `y -0.5mm`，检查是否能把 can 从外侧短 catch 推向掌内 cradle。
+
+### CAN221: keep yaw +20 degrees and shift can/support y -0.5mm
+- 代码改动：
+  - 保持当前 yaw best：
+    - `_spawn_quat=[0.696863, -0.129975, 0.694439, 0.123462]`
+  - 回到 `CAN215` x，并只做 y 微调：
+    - `support_pos=[0.004041, -0.040830, 0.104628]`
+    - `-> [0.004041, -0.041330, 0.104628]`
+    - `cube_pos=[0.004041, -0.040830, 0.128128]`
+    - `-> [0.004041, -0.041330, 0.128128]`
+  - release/probe/clear/reward/action/pre-grasp 全部不变。
+- 训练命令：
+  - `CAN221_probe_yaw20_yminus0p5mm_current_handgeom_CAN184ckpt_512`
+  - base checkpoint:
+    - `/home/ll/SRTP/Aero-Hand/logs/AeroCanGraspV2Force-20260426-030125-CAN184_probe_drop01725_512/checkpoints/000001064960`
+- smoke test：
+  - CPU smoke passed
+  - 输出确认：
+    - `spawn_quat=[0.696863, -0.129975, 0.694439, 0.123462]`
+    - `support_pos=[0.004041, -0.04133, 0.104628]`
+    - `cube_pos=[0.004041, -0.04133, 0.128128]`
+- 修改原因：
+  - `CAN218` 渲染显示 can 仍偏外侧短 catch。
+  - x 微调已收口，因此在 yaw best 上试 y 半毫米，看是否能把 can 送入掌内 cradle。
+- 预期效果：
+  - 若 y deeper 是有效方向，应超过 `CAN215 last=0.15742s`，并最好改善食指接触或降低 slip。
+- 实际效果：
+  - `first=0.009960938, last=0.157617196, max=0.157617196, best_step=1064960`
+  - `drop=1.0 -> 1.0`
+  - `lift_success=0.0 -> 0.0`
+  - `index_wrap_contact=17.6953 -> 0.0`
+  - `thumb_wrap_contact=129.3242 -> 185.3438`
+  - `middle_wrap_contact=170.3008 -> 180.2148`
+  - `joint_palm_contact=113.8164 -> 174.5898`
+  - `normal_force_mean=9.2429 -> 13.7977`
+  - `slip_event=0.0352 -> 0.2930`
+- 分析：
+  - `CAN221` 以极小幅度刷新 `CAN215`：
+    - `CAN215 last/max=0.1574219s`
+    - `CAN221 last/max=0.1576172s`
+  - 但提升只有约 `0.0002s`，首点更低，末点食指仍为 0，因此不能把它视作强方向。
+  - 当前 best 可暂记为 `CAN221`，但它仍是短暂外侧/palm catch。
+- 下一轮建议：
+  - 不直接继续加大 y 负向，先做反向 `y +0.5mm` 括号测试。
+  - 若反向明显退化，再考虑 `y -1.0mm`；若反向更好，则 y 方向重新判定。
+
+### CAN222: keep yaw +20 degrees and shift can/support y +0.5mm
+- 代码改动：
+  - 保持当前 yaw best：
+    - `_spawn_quat=[0.696863, -0.129975, 0.694439, 0.123462]`
+  - 回到 `CAN215` x，并做 y 反向半毫米括号测试：
+    - `support_pos=[0.004041, -0.040830, 0.104628]`
+    - `-> [0.004041, -0.040330, 0.104628]`
+    - `cube_pos=[0.004041, -0.040830, 0.128128]`
+    - `-> [0.004041, -0.040330, 0.128128]`
+  - release/probe/clear/reward/action/pre-grasp 全部不变。
+- 训练命令：
+  - `CAN222_probe_yaw20_yplus0p5mm_current_handgeom_CAN184ckpt_512`
+  - base checkpoint:
+    - `/home/ll/SRTP/Aero-Hand/logs/AeroCanGraspV2Force-20260426-030125-CAN184_probe_drop01725_512/checkpoints/000001064960`
+- smoke test：
+  - CPU smoke passed
+  - 输出确认：
+    - `spawn_quat=[0.696863, -0.129975, 0.694439, 0.123462]`
+    - `support_pos=[0.004041, -0.04033, 0.104628]`
+    - `cube_pos=[0.004041, -0.04033, 0.128128]`
+- 修改原因：
+  - `CAN221 y -0.5mm` 只极弱改善末点，先用反向 y+ 半毫米验证 y 方向是否真的有趋势。
+- 预期效果：
+  - 如果 `CAN221` 的提升只是噪声，`y +0.5mm` 可能接近或超过它；如果 y+ 明显退化，则 y- 方向更可信。
+- 实际效果：
+  - `first=0.013476563, last=0.066601560, max=0.066601560, best_step=1064960`
+  - `drop=1.0 -> 1.0`
+  - `lift_success=0.0 -> 0.0`
+  - `index_wrap_contact=13.7422 -> 0.0`
+  - `thumb_wrap_contact=127.6211 -> 179.7422`
+  - `middle_wrap_contact=170.8398 -> 174.2344`
+  - `joint_palm_contact=112.2148 -> 170.1367`
+  - `normal_force_mean=9.3804 -> 13.5108`
+  - `slip_event=0.0664 -> 0.3711`
+- 分析：
+  - `y +0.5mm` 明显退化：
+    - `CAN221 last/max=0.15762s`
+    - `CAN222 last/max=0.06660s`
+  - 虽然 `CAN222` 首点更高，但末点大幅下降，说明更浅 y 会破坏 handover retention。
+  - 当前 y 分支方向应优先看 `y -`，但仍需确认 `y -1.0mm` 是否继续改善还是过头。
+- 下一轮建议：
+  - 保持 yaw `+20°` 与 x best。
+  - 试 `y -1.0mm`；若低于 `CAN221`，就固定 `CAN221 y -0.5mm` 为当前几何 best 并渲染。
+
+### CAN223: keep yaw +20 degrees and shift can/support y -1.0mm
+- 代码改动：
+  - 保持当前 yaw best：
+    - `_spawn_quat=[0.696863, -0.129975, 0.694439, 0.123462]`
+  - 保持 x best，并继续 y 负向：
+    - `support_pos=[0.004041, -0.040830, 0.104628]`
+    - `-> [0.004041, -0.041830, 0.104628]`
+    - `cube_pos=[0.004041, -0.040830, 0.128128]`
+    - `-> [0.004041, -0.041830, 0.128128]`
+  - release/probe/clear/reward/action/pre-grasp 全部不变。
+- 训练命令：
+  - `CAN223_probe_yaw20_yminus1mm_current_handgeom_CAN184ckpt_512`
+  - base checkpoint:
+    - `/home/ll/SRTP/Aero-Hand/logs/AeroCanGraspV2Force-20260426-030125-CAN184_probe_drop01725_512/checkpoints/000001064960`
+- smoke test：
+  - CPU smoke passed
+  - 输出确认：
+    - `spawn_quat=[0.696863, -0.129975, 0.694439, 0.123462]`
+    - `support_pos=[0.004041, -0.04183, 0.104628]`
+    - `cube_pos=[0.004041, -0.04183, 0.128128]`
+- 修改原因：
+  - `CAN222 y +0.5mm` 明显退化，`CAN221 y -0.5mm` 是当前最好的 y 点。
+  - 用 `y -1.0mm` 检查 y 负向是否还能继续提升。
+- 预期效果：
+  - 如果 y 负向趋势真实且未过峰，`y -1.0mm` 应超过 `CAN221 last=0.15762s`。
+- 实际效果：
+  - `first=0.013671876, last=0.148632824, max=0.148632824, best_step=1064960`
+  - `drop=1.0 -> 1.0`
+  - `lift_success=0.0 -> 0.0`
+  - `index_wrap_contact=15.8477 -> 0.0`
+  - `thumb_wrap_contact=127.5391 -> 181.2383`
+  - `middle_wrap_contact=170.6875 -> 178.8633`
+  - `joint_palm_contact=111.9805 -> 169.3047`
+  - `normal_force_mean=9.2623 -> 12.8221`
+  - `slip_event=0.0547 -> 0.1563`
+- 分析：
+  - `y -1.0mm` 低于 `CAN221 y -0.5mm`：
+    - `CAN221 last/max=0.15762s`
+    - `CAN223 last/max=0.14863s`
+  - y 分支峰值暂定在 `-0.5mm`，但提升幅度仍极小。
+  - 末点食指仍为 0，当前仍不是稳定 closure。
+- 下一轮建议：
+  - 回到 `CAN221` 几何：
+    - `support_pos=[0.004041, -0.041330, 0.104628]`
+    - `cube_pos=[0.004041, -0.041330, 0.128128]`
+  - 渲染当前 best，确认它是否仍是外侧/palm catch。
+  - 若渲染仍显示食指不参与，下一步应尝试 very small pre-grasp/action-space 食指接入变量，而不是 reward。
+
+### CAN224: render current geometry best CAN221
+- 代码改动：
+  - 回到当前 geometry best：
+    - `_spawn_quat=[0.696863, -0.129975, 0.694439, 0.123462]`
+    - `support_pos=[0.004041, -0.041330, 0.104628]`
+    - `cube_pos=[0.004041, -0.041330, 0.128128]`
+  - release/probe/clear/reward/action/pre-grasp 全部不变。
+- 渲染命令：
+  - side:
+    - `CAN224_render_side_CAN221best_currentcfg`
+    - `--num_timesteps=0 --episode_length=240 --num_videos=1 --camera=side --render_mode=overlay --render_collision_debug=True`
+  - palm:
+    - `CAN224_render_palm_CAN221best_currentcfg`
+    - `--num_timesteps=0 --episode_length=240 --num_videos=1 --camera=palm --render_mode=overlay --render_collision_debug=True`
+  - base checkpoint:
+    - `/home/ll/SRTP/Aero-Hand/logs/AeroCanGraspV2Force-20260426-030125-CAN184_probe_drop01725_512/checkpoints/000001064960`
+- smoke test：
+  - CPU smoke passed
+  - 输出确认：
+    - `spawn_quat=[0.696863, -0.129975, 0.694439, 0.123462]`
+    - `support_pos=[0.004041, -0.04133, 0.104628]`
+    - `cube_pos=[0.004041, -0.04133, 0.128128]`
+- 输出文件：
+  - side collision:
+    - `/home/ll/SRTP/Aero-Hand/logs/AeroCanGraspV2Force-20260507-001520-CAN224_render_side_CAN221best_currentcfg/rollout0_collision_debug.mp4`
+  - palm collision:
+    - `/home/ll/SRTP/Aero-Hand/logs/AeroCanGraspV2Force-20260507-001610-CAN224_render_palm_CAN221best_currentcfg/rollout0_collision_debug.mp4`
+  - 抽帧：
+    - `tempvideo/CAN224_side_frames/frame_001.png` ... `frame_007.png`
+    - `tempvideo/CAN224_palm_frames/frame_001.png` ... `frame_007.png`
+- 观察结果：
+  - 画面与 `CAN218` 很接近。
+  - can release 前仍在手外侧/掌侧短暂被夹住；clear 后很快从有效手内空间离开。
+  - 食指在 can 上方/外侧闭合，未形成持续压掌；末点 `index_wrap_contact=0` 与画面一致。
+- 分析：
+  - `CAN221` 的极小指标提升不是形态级别改善。
+  - 当前仍不是 reward 可以放大的稳定 closure。
+  - 下一步应保持几何 best，改 very small reset/action-space 食指接入变量，验证是否能恢复末点食指参与。
+- 下一轮建议：
+  - 保持 `CAN221` 几何。
+  - 只把 reset pre-grasp 的 index MCP 从 `0.3400` 小幅提高到 `0.3450`，检查是否能增加食指参与；不要改 reward。
+
+### CAN225: keep CAN221 geometry and slightly increase reset index MCP
+- 代码改动：
+  - 保持当前 geometry best：
+    - `_spawn_quat=[0.696863, -0.129975, 0.694439, 0.123462]`
+    - `support_pos=[0.004041, -0.041330, 0.104628]`
+    - `cube_pos=[0.004041, -0.041330, 0.128128]`
+  - 只做一个 reset 手形变量：
+    - `_pre_grasp_pose[0] index MCP: 0.3400 -> 0.3450`
+  - release/probe/clear/reward/action scale 全部不变。
+- 训练命令：
+  - `CAN225_probe_CAN221geom_indexmcp0345_current_handgeom_CAN184ckpt_512`
+  - base checkpoint:
+    - `/home/ll/SRTP/Aero-Hand/logs/AeroCanGraspV2Force-20260426-030125-CAN184_probe_drop01725_512/checkpoints/000001064960`
+- smoke test：
+  - CPU smoke passed
+  - 输出确认：
+    - `pre_grasp_index=[0.3450, 0.3145]`
+    - `spawn_quat=[0.696863, -0.129975, 0.694439, 0.123462]`
+    - `support_pos=[0.004041, -0.04133, 0.104628]`
+    - `cube_pos=[0.004041, -0.04133, 0.128128]`
+- 修改原因：
+  - `CAN224` 渲染显示食指没有持续压掌。
+  - 在不改 reward 的前提下，先试 very small reset index MCP 接入，检查能否恢复食指参与。
+- 预期效果：
+  - 如果食指只差一点进入，index MCP +0.005 应提升 `index_wrap_contact` 并至少不降低 `CAN221 last=0.15762s`。
+- 实际效果：
+  - `first=0.017382812, last=0.155664071, max=0.155664071, best_step=1064960`
+  - `drop=1.0 -> 1.0`
+  - `lift_success=0.0 -> 0.0`
+  - `index_wrap_contact=16.6602 -> 0.0`
+  - `thumb_wrap_contact=127.9375 -> 184.3438`
+  - `middle_wrap_contact=170.5195 -> 175.0820`
+  - `joint_palm_contact=112.4883 -> 171.1602`
+  - `normal_force_mean=9.2709 -> 12.9315`
+  - `slip_event=0.0938 -> 0.3164`
+- 分析：
+  - 这不是有效改动。
+  - 首点明显提高，说明 reset 食指更早接触到了 can。
+  - 但末点低于 `CAN221`，并且末点食指仍为 0；增加 MCP 没有形成 retention，反而略伤 handover。
+  - 继续加大 MCP 没有依据。
+- 下一轮建议：
+  - 回退 index MCP 到 `0.3400`。
+  - 仍保持 `CAN221` geometry best，改试更小的 index PIP/fingertip curl：
+    - `_pre_grasp_pose[1]: 0.3145 -> 0.3195`
+  - 目的不是加大夹紧奖励，而是检查 fingertip wrap 是否能保住 release 后食指接触。
+
+### CAN226: keep CAN221 geometry and slightly increase reset index PIP (partial)
+- 代码改动：
+  - 保持当前 geometry best：
+    - `_spawn_quat=[0.696863, -0.129975, 0.694439, 0.123462]`
+    - `support_pos=[0.004041, -0.041330, 0.104628]`
+    - `cube_pos=[0.004041, -0.041330, 0.128128]`
+  - 回退 `CAN225` 的 index MCP：
+    - `_pre_grasp_pose[0]: 0.3450 -> 0.3400`
+  - 只做 index PIP/fingertip curl：
+    - `_pre_grasp_pose[1]: 0.3145 -> 0.3195`
+  - release/probe/clear/reward/action scale 全部不变。
+- 训练命令：
+  - `CAN226_probe_CAN221geom_indexpip03195_current_handgeom_CAN184ckpt_512`
+  - base checkpoint:
+    - `/home/ll/SRTP/Aero-Hand/logs/AeroCanGraspV2Force-20260426-030125-CAN184_probe_drop01725_512/checkpoints/000001064960`
+- smoke test：
+  - CPU smoke passed
+  - 输出确认：
+    - `pre_grasp_index=[0.3400, 0.3195]`
+    - `spawn_quat=[0.696863, -0.129975, 0.694439, 0.123462]`
+    - `support_pos=[0.004041, -0.04133, 0.104628]`
+    - `cube_pos=[0.004041, -0.04133, 0.128128]`
+- 运行状态：
+  - 本轮进程异常退出，只写出首个 eval；没有完整 `last/max` 结论。
+- partial metrics：
+  - `first=0.010351563`
+  - `drop=1.0`
+  - `lift_success=0.0`
+  - `index_wrap_contact=17.2344`
+  - `thumb_wrap_contact=129.0430`
+  - `middle_wrap_contact=170.5156`
+  - `joint_palm_contact=113.3164`
+  - `normal_force_mean=9.2494`
+  - `slip_event=0.0469`
+- partial 分析：
+  - 首点仅略高于 `CAN221 first=0.00996s`，但低于 `CAN225 first=0.01738s`，没有显示强初始改善。
+  - 由于没有末点，不能判断 retention。
+- 下一轮建议：
+  - 为避免用 partial 做结论，重跑同一设置一次，记录为 `CAN226_retry`。
+
+### CAN226_retry: complete retry of index PIP +0.005
+- 代码改动：
+  - 同 `CAN226`：
+    - `support_pos=[0.004041, -0.041330, 0.104628]`
+    - `cube_pos=[0.004041, -0.041330, 0.128128]`
+    - `_spawn_quat=[0.696863, -0.129975, 0.694439, 0.123462]`
+    - `_pre_grasp_pose[0:2]=[0.3400, 0.3195]`
+  - reward/action scale/release/probe/clear 不变。
+- 训练命令：
+  - `CAN226_retry_probe_CAN221geom_indexpip03195_current_handgeom_CAN184ckpt_512`
+  - base checkpoint:
+    - `/home/ll/SRTP/Aero-Hand/logs/AeroCanGraspV2Force-20260426-030125-CAN184_probe_drop01725_512/checkpoints/000001064960`
+- 实际效果：
+  - `first=0.011523437, last=0.155664086, max=0.155664086, best_step=1064960`
+  - `drop=1.0 -> 1.0`
+  - `lift_success=0.0 -> 0.0`
+  - `index_wrap_contact=16.9727 -> 0.0`
+  - `thumb_wrap_contact=129.2773 -> 179.6680`
+  - `middle_wrap_contact=170.4258 -> 178.8516`
+  - `joint_palm_contact=113.8750 -> 169.4688`
+  - `normal_force_mean=9.2468 -> 13.3821`
+  - `slip_event=0.0469 -> 0.2969`
+- 分析：
+  - 完整 retry 低于 `CAN221 last/max=0.15762s`。
+  - PIP curl 没有恢复末点食指接触，不能作为主线。
+  - `CAN225/CAN226` 说明 reset 食指姿态能影响首点，但不能解决 release 后 retention。
+- 下一轮建议：
+  - 回退 index PIP 到 `0.3145`。
+  - 保持 `CAN221` geometry best。
+  - 试非常小的 index action-scale 微增：
+    - `action_scale[2]: 0.22 -> 0.225`
+  - 这是控制行程变量，不是 reward；若仍不改善，食指单变量分支收口。
+
+### CAN227: keep CAN221 geometry and increase index action scale to 0.225 (aborted)
+- 代码改动：
+  - 回退 `CAN226` 的 index PIP：
+    - `_pre_grasp_pose[1]: 0.3195 -> 0.3145`
+  - 保持当前 geometry best：
+    - `_spawn_quat=[0.696863, -0.129975, 0.694439, 0.123462]`
+    - `support_pos=[0.004041, -0.041330, 0.104628]`
+    - `cube_pos=[0.004041, -0.041330, 0.128128]`
+  - 只做控制行程变量：
+    - `action_scale[2]: 0.22 -> 0.225`
+  - reward/release/probe/clear 不变。
+- 训练命令：
+  - `CAN227_probe_CAN221geom_indexscale0225_current_handgeom_CAN184ckpt_512`
+  - base checkpoint:
+    - `/home/ll/SRTP/Aero-Hand/logs/AeroCanGraspV2Force-20260426-030125-CAN184_probe_drop01725_512/checkpoints/000001064960`
+- smoke test：
+  - CPU smoke passed
+  - 输出确认：
+    - `action_scale=[0.07, 0.255, 0.225, 0.22, 0.24, 0.082]`
+    - `pre_grasp_index=[0.3400, 0.3145]`
+    - `support_pos=[0.004041, -0.04133, 0.104628]`
+    - `cube_pos=[0.004041, -0.04133, 0.128128]`
+- 运行状态：
+  - 进程异常提前退出，`metrics.csv` 为空；没有可用 eval。
+- 下一轮建议：
+  - 重跑同一设置一次，记录为 `CAN227_retry`。
+  - 若 retry 仍早退，则暂停该控制变量并先检查训练稳定性。
+
+### CAN227_retry: complete retry of index action-scale 0.225
+- 代码改动：
+  - 同 `CAN227`：
+    - `action_scale[2]: 0.22 -> 0.225`
+    - `_pre_grasp_pose[0:2]=[0.3400, 0.3145]`
+    - `_spawn_quat=[0.696863, -0.129975, 0.694439, 0.123462]`
+    - `support_pos=[0.004041, -0.041330, 0.104628]`
+    - `cube_pos=[0.004041, -0.041330, 0.128128]`
+- 训练命令：
+  - `CAN227_retry_probe_CAN221geom_indexscale0225_current_handgeom_CAN184ckpt_512`
+  - base checkpoint:
+    - `/home/ll/SRTP/Aero-Hand/logs/AeroCanGraspV2Force-20260426-030125-CAN184_probe_drop01725_512/checkpoints/000001064960`
+- 实际效果：
+  - `first=0.011328125, last=0.100390635, max=0.100390635, best_step=1064960`
+  - `drop=1.0 -> 1.0`
+  - `lift_success=0.0 -> 0.0`
+  - `index_wrap_contact=17.4844 -> 0.0`
+  - `thumb_wrap_contact=128.2578 -> 183.4609`
+  - `middle_wrap_contact=170.1641 -> 182.3867`
+  - `joint_palm_contact=113.1641 -> 168.1875`
+  - `normal_force_mean=9.2196 -> 14.0530`
+  - `slip_event=0.0195 -> 0.0273`
+- 分析：
+  - 这是明确负样本：
+    - `CAN221 last/max=0.15762s`
+    - `CAN227_retry last/max=0.10039s`
+  - action-scale 微增让末点时长大幅下降，且仍未恢复 index 末点接触。
+  - 食指单变量的 reset MCP、reset PIP、action scale 都不能解决 handover retention。
+- 下一轮建议：
+  - 回退 `action_scale[2]` 到 `0.22`。
+  - 保持 `CAN221` geometry best。
+  - 若仍尝试控制变量，应改 nominal ctrl，而不是 action scale：先小幅提高 index nominal ctrl `0.74 -> 0.76`，检查是否能让 rollout 中食指更靠近 can。
+
+### CAN228: keep CAN221 geometry and increase index nominal ctrl to 0.76
+- 代码改动：
+  - 回退 `CAN227` 的 action scale：
+    - `action_scale[2]: 0.225 -> 0.22`
+  - 保持当前 geometry best：
+    - `_spawn_quat=[0.696863, -0.129975, 0.694439, 0.123462]`
+    - `support_pos=[0.004041, -0.041330, 0.104628]`
+    - `cube_pos=[0.004041, -0.041330, 0.128128]`
+  - 只做 nominal control 变量：
+    - `_default_ctrl[2]: 0.74 -> 0.76`
+    - `_lifted_grasp_ctrl[2]: 0.74 -> 0.76`
+  - reward/release/probe/clear 不变。
+- 训练命令：
+  - `CAN228_probe_CAN221geom_indexctrl076_current_handgeom_CAN184ckpt_512`
+  - base checkpoint:
+    - `/home/ll/SRTP/Aero-Hand/logs/AeroCanGraspV2Force-20260426-030125-CAN184_probe_drop01725_512/checkpoints/000001064960`
+- smoke test：
+  - CPU smoke passed
+  - 输出确认：
+    - `action_scale=[0.07, 0.255, 0.22, 0.22, 0.24, 0.082]`
+    - `default_ctrl=[1.18, 0.36, 0.76, 0.78, 0.72, 0.52]`
+    - `pre_grasp_index=[0.3400, 0.3145]`
+    - `support_pos=[0.004041, -0.04133, 0.104628]`
+    - `cube_pos=[0.004041, -0.04133, 0.128128]`
+- 修改原因：
+  - reset index MCP/PIP 和 action-scale 都没有恢复末点食指接触。
+  - 试更保守的 nominal ctrl 偏置，看 rollout 中的 index 是否能更靠近 can。
+- 预期效果：
+  - 如果策略只差 nominal index closure，`index ctrl=0.76` 应接近或超过 `CAN221 last=0.15762s`，并改善食指接触。
+- 实际效果：
+  - `first=0.012695313, last=0.104687512, max=0.104687512, best_step=1064960`
+  - `drop=1.0 -> 1.0`
+  - `lift_success=0.0 -> 0.0`
+  - `index_wrap_contact=22.3945 -> 0.0`
+  - `thumb_wrap_contact=124.8047 -> 182.7422`
+  - `middle_wrap_contact=170.4570 -> 182.3203`
+  - `joint_palm_contact=110.2461 -> 167.6602`
+  - `normal_force_mean=9.1575 -> 13.6619`
+  - `slip_event=0.0625 -> 0.0273`
+- 分析：
+  - 这是明确负样本：
+    - `CAN221 last/max=0.15762s`
+    - `CAN228 last/max=0.10469s`
+  - index 首点接触增加，但末点仍为 0，且真实时长明显下降。
+  - 食指控制单变量暂时收口。
+- 下一轮建议：
+  - 回退 index nominal ctrl 到 `0.74`。
+  - 保持 `CAN221` geometry best。
+  - 尝试很小的 thumb flex nominal 下调：
+    - `_default_ctrl[1]: 0.36 -> 0.34`
+    - `_lifted_grasp_ctrl[1]: 0.36 -> 0.34`
+  - 目的不是奖励压制 thumb，而是检查当前 thumb/palm dirty catch 是否因 thumb 外推过强而破坏 handover。
+
+### CAN229: keep CAN221 geometry and reduce thumb flex nominal ctrl to 0.34
+- 代码改动：
+  - 回退 `CAN228` 的 index nominal ctrl：
+    - `_default_ctrl[2]: 0.76 -> 0.74`
+    - `_lifted_grasp_ctrl[2]: 0.76 -> 0.74`
+  - 保持当前 geometry best：
+    - `_spawn_quat=[0.696863, -0.129975, 0.694439, 0.123462]`
+    - `support_pos=[0.004041, -0.041330, 0.104628]`
+    - `cube_pos=[0.004041, -0.041330, 0.128128]`
+  - 只做 thumb flex nominal control 变量：
+    - `_default_ctrl[1]: 0.36 -> 0.34`
+    - `_lifted_grasp_ctrl[1]: 0.36 -> 0.34`
+  - reward/release/probe/clear 不变。
+- 训练命令：
+  - `CAN229_probe_CAN221geom_thumbflexctrl034_current_handgeom_CAN184ckpt_512`
+  - base checkpoint:
+    - `/home/ll/SRTP/Aero-Hand/logs/AeroCanGraspV2Force-20260426-030125-CAN184_probe_drop01725_512/checkpoints/000001064960`
+- smoke test：
+  - CPU smoke passed
+  - 输出确认：
+    - `default_ctrl=[1.18, 0.34, 0.74, 0.78, 0.72, 0.52]`
+    - `action_scale=[0.07, 0.255, 0.22, 0.22, 0.24, 0.082]`
+    - `support_pos=[0.004041, -0.04133, 0.104628]`
+    - `cube_pos=[0.004041, -0.04133, 0.128128]`
+- 修改原因：
+  - `CAN224` 渲染和指标显示 thumb/middle/joint-palm dirty catch 主导，食指末点为 0。
+  - 用 thumb flex 下调检查是否可以减少 thumb/palm 外推，让 can 不被脏接触挤出。
+- 预期效果：
+  - 若 thumb 外推过强是问题，`thumb_flex=0.34` 应降低 dirty contact/slip，并最好不低于 `CAN221 last=0.15762s`。
+- 实际效果：
+  - `first=0.002343750, last=0.119140632, max=0.119140632, best_step=1064960`
+  - `drop=1.0 -> 1.0`
+  - `lift_success=0.0 -> 0.0`
+  - `index_wrap_contact=30.8242 -> 0.0859`
+  - `thumb_wrap_contact=105.8555 -> 177.8633`
+  - `middle_wrap_contact=169.1758 -> 182.0508`
+  - `joint_palm_contact=92.9375 -> 160.6406`
+  - `normal_force_mean=8.6303 -> 11.9472`
+  - `slip_event=0.0078 -> 0.0`
+- 分析：
+  - 主指标明显低于 `CAN221`，所以 `0.34` 不是当前 best。
+  - 但这是少数能让末点 `index_wrap_contact` 非零、同时降低 `normal_force_mean/slip_event` 的方向。
+  - 说明 thumb flex 下调过头会损失初始 catch，但方向可能有清洁接触信号。
+- 下一轮建议：
+  - 做中点：
+    - `_default_ctrl[1]=_lifted_grasp_ctrl[1]=0.35`
+  - 如果 `0.35` 能保留 `CAN221` 时长同时改善 index/slip，再考虑围绕 thumb flex 细扫；否则回到 `0.36`。
+
+### CAN230: keep CAN221 geometry and set thumb flex nominal ctrl to 0.35
+- 代码改动：
+  - 保持当前 geometry best：
+    - `_spawn_quat=[0.696863, -0.129975, 0.694439, 0.123462]`
+    - `support_pos=[0.004041, -0.041330, 0.104628]`
+    - `cube_pos=[0.004041, -0.041330, 0.128128]`
+  - thumb flex nominal control 取中点：
+    - `_default_ctrl[1]: 0.34 -> 0.35`
+    - `_lifted_grasp_ctrl[1]: 0.34 -> 0.35`
+  - reward/release/probe/clear 不变。
+- 训练命令：
+  - `CAN230_probe_CAN221geom_thumbflexctrl035_current_handgeom_CAN184ckpt_512`
+  - base checkpoint:
+    - `/home/ll/SRTP/Aero-Hand/logs/AeroCanGraspV2Force-20260426-030125-CAN184_probe_drop01725_512/checkpoints/000001064960`
+- smoke test：
+  - CPU smoke passed
+  - 输出确认：
+    - `default_ctrl=[1.18, 0.35, 0.74, 0.78, 0.72, 0.52]`
+    - `support_pos=[0.004041, -0.04133, 0.104628]`
+    - `cube_pos=[0.004041, -0.04133, 0.128128]`
+- 修改原因：
+  - `CAN229 thumb_flex=0.34` 明显降低 force/slip 且给出一点末点 index 接触，但主指标下降太多。
+  - 用 `0.35` 检查是否能在 cleaner contact 与 duration 之间取得更好折中。
+- 预期效果：
+  - 若 thumb flex 下调方向有效但 `0.34` 过头，`0.35` 应接近 `CAN221 last=0.15762s`，并降低 force/slip。
+- 实际效果：
+  - `first=0.007617188, last=0.154687509, max=0.154687509, best_step=1064960`
+  - `drop=1.0 -> 1.0`
+  - `lift_success=0.0 -> 0.0`
+  - `index_wrap_contact=24.0625 -> 0.0`
+  - `thumb_wrap_contact=117.6523 -> 186.0195`
+  - `middle_wrap_contact=169.6250 -> 181.2930`
+  - `joint_palm_contact=104.2266 -> 173.1523`
+  - `normal_force_mean=8.9156 -> 12.2742`
+  - `slip_event=0.0508 -> 0.0195`
+- 分析：
+  - `0.35` 接近但仍低于 `CAN221`：
+    - `CAN221 last/max=0.15762s`
+    - `CAN230 last/max=0.15469s`
+  - 它确实降低了 force/slip，但没有恢复末点食指接触。
+  - 因此 thumb flex 下调不是主指标突破，但有 cleaner-contact 次级线索。
+- 下一轮建议：
+  - 试更靠近原 best 的细点 `thumb_flex=0.355`。
+  - 如果仍低于 `CAN221`，就回到 `0.36`；不要为了 cleaner but shorter catch 改 reward。
+
+### CAN231: keep CAN221 geometry and set thumb flex nominal ctrl to 0.355
+- 代码改动：
+  - 保持当前 geometry best：
+    - `_spawn_quat=[0.696863, -0.129975, 0.694439, 0.123462]`
+    - `support_pos=[0.004041, -0.041330, 0.104628]`
+    - `cube_pos=[0.004041, -0.041330, 0.128128]`
+  - thumb flex nominal control 细扫：
+    - `_default_ctrl[1]: 0.35 -> 0.355`
+    - `_lifted_grasp_ctrl[1]: 0.35 -> 0.355`
+  - reward/release/probe/clear 不变。
+- 训练命令：
+  - `CAN231_probe_CAN221geom_thumbflexctrl0355_current_handgeom_CAN184ckpt_512`
+  - base checkpoint:
+    - `/home/ll/SRTP/Aero-Hand/logs/AeroCanGraspV2Force-20260426-030125-CAN184_probe_drop01725_512/checkpoints/000001064960`
+- smoke test：
+  - CPU smoke passed
+  - 输出确认：
+    - `default_ctrl=[1.18, 0.355, 0.74, 0.78, 0.72, 0.52]`
+    - `support_pos=[0.004041, -0.04133, 0.104628]`
+    - `cube_pos=[0.004041, -0.04133, 0.128128]`
+- 实际效果：
+  - `first=0.007812500, last=0.151171893, max=0.151171893, best_step=1064960`
+  - `drop=1.0 -> 1.0`
+  - `lift_success=0.0 -> 0.0`
+  - `index_wrap_contact=20.4727 -> 0.0`
+  - `thumb_wrap_contact=121.8867 -> 184.5547`
+  - `middle_wrap_contact=170.5000 -> 180.7266`
+  - `joint_palm_contact=107.8750 -> 173.4883`
+  - `normal_force_mean=9.0464 -> 13.1728`
+  - `slip_event=0.0273 -> 0.1367`
+- 分析：
+  - `0.355` 仍低于 `CAN221` 和 `CAN230`：
+    - `CAN221 last/max=0.15762s`
+    - `CAN230 last/max=0.15469s`
+    - `CAN231 last/max=0.15117s`
+  - thumb flex 下调分支能降低 force/slip，但不能提高真实 unsupported contact duration，也不能保持末点食指接触。
+  - 该分支不作为主线。
+- 下一轮建议：
+  - 回到 thumb flex `0.36`。
+  - 保持 `CAN221` geometry best。
+  - 转向 release/clear 几何变量，先把 `clear_drop_m: 0.055 -> 0.050`，检查当前 short catch 是否被 support clear 过猛打散。
+
+### CAN232: keep CAN221 geometry and reduce clear_drop_m to 0.050
+- 代码改动：
+  - 回到 thumb flex nominal best：
+    - `_default_ctrl[1]=_lifted_grasp_ctrl[1]=0.36`
+  - 保持当前 geometry best：
+    - `_spawn_quat=[0.696863, -0.129975, 0.694439, 0.123462]`
+    - `support_pos=[0.004041, -0.041330, 0.104628]`
+    - `cube_pos=[0.004041, -0.041330, 0.128128]`
+  - 只做 clear 几何变量：
+    - `clear_drop_m: 0.055 -> 0.050`
+  - reward/action/probe/release ramp 不变。
+- 训练命令：
+  - `CAN232_probe_CAN221geom_cleardrop050_current_handgeom_CAN184ckpt_512`
+  - base checkpoint:
+    - `/home/ll/SRTP/Aero-Hand/logs/AeroCanGraspV2Force-20260426-030125-CAN184_probe_drop01725_512/checkpoints/000001064960`
+- smoke test：
+  - CPU smoke passed
+  - 输出确认：
+    - `clear_drop_m=0.050`
+    - `default_ctrl=[1.18, 0.36, 0.74, 0.78, 0.72, 0.52]`
+    - `support_pos=[0.004041, -0.04133, 0.104628]`
+    - `cube_pos=[0.004041, -0.04133, 0.128128]`
+- 修改原因：
+  - 当前 best 仍是 release 后短 catch，检查 clear 阶段是否过猛打散 handover。
+- 预期效果：
+  - 如果 clear 过猛，较小 `clear_drop_m=0.050` 应提高或至少维持 `CAN221 last=0.15762s`。
+- 实际效果：
+  - `first=0.009960937, last=0.024218751, max=0.024218751, best_step=1064960`
+  - `drop=1.0 -> 1.0`
+  - `lift_success=0.0 -> 0.0`
+  - `index_wrap_contact=17.1055 -> 0.0`
+  - `thumb_wrap_contact=128.1133 -> 178.9883`
+  - `middle_wrap_contact=170.1875 -> 164.1445`
+  - `joint_palm_contact=112.7734 -> 159.8516`
+  - `normal_force_mean=9.2395 -> 12.2015`
+  - `slip_event=0.0508 -> 0.1367`
+- 分析：
+  - 这是强负样本：
+    - `CAN221 last/max=0.15762s`
+    - `CAN232 last/max=0.02422s`
+  - clear_drop 变小没有保护 handover，反而让 duration 近乎回到低值。
+  - support_released 末点也下降，说明 clear 过浅更可能增加 support 干扰/依赖。
+- 下一轮建议：
+  - 不保留 `clear_drop_m=0.050`。
+  - 做反向括号测试：
+    - `clear_drop_m: 0.055 -> 0.060`
+  - 如果 `0.060` 也退化，clear_drop 分支收口并回到 `0.055`。
+
+### CAN233: keep CAN221 geometry and increase clear_drop_m to 0.060
+- 代码改动：
+  - 保持当前 geometry best：
+    - `_spawn_quat=[0.696863, -0.129975, 0.694439, 0.123462]`
+    - `support_pos=[0.004041, -0.041330, 0.104628]`
+    - `cube_pos=[0.004041, -0.041330, 0.128128]`
+  - 回到 thumb flex nominal best：
+    - `_default_ctrl[1]=_lifted_grasp_ctrl[1]=0.36`
+  - 只做 clear 几何变量：
+    - `clear_drop_m: 0.055 -> 0.060`
+  - reward/action/probe/release ramp 不变。
+- 训练命令：
+  - `CAN233_probe_CAN221geom_cleardrop060_current_handgeom_CAN184ckpt_512`
+  - base checkpoint:
+    - `/home/ll/SRTP/Aero-Hand/logs/AeroCanGraspV2Force-20260426-030125-CAN184_probe_drop01725_512/checkpoints/000001064960`
+- smoke test：
+  - CPU smoke passed
+  - 输出确认：
+    - `clear_drop_m=0.060`
+    - `default_ctrl=[1.18, 0.36, 0.74, 0.78, 0.72, 0.52]`
+    - `support_pos=[0.004041, -0.04133, 0.104628]`
+    - `cube_pos=[0.004041, -0.04133, 0.128128]`
+- 修改原因：
+  - `CAN232 clear_drop=0.050` 强退化，说明 clear 过浅更可能增加 support 干扰。
+  - 做反向括号测试，检查更深 clear 是否有助于更快脱离 support。
+- 预期效果：
+  - 若 clear 过浅是问题，`0.060` 应超过 `CAN221 last=0.15762s`。
+- 实际效果：
+  - `first=0.012500000, last=0.162109405, max=0.162109405, best_step=1064960`
+  - `drop=1.0 -> 1.0`
+  - `lift_success=0.0 -> 0.0`
+  - `index_wrap_contact=16.3633 -> 0.0`
+  - `thumb_wrap_contact=128.3438 -> 180.2070`
+  - `middle_wrap_contact=170.4727 -> 178.1289`
+  - `joint_palm_contact=113.1797 -> 173.0977`
+  - `normal_force_mean=9.2622 -> 14.3621`
+  - `slip_event=0.0586 -> 1.0234`
+  - `support_released=9.6719 -> 9.2070`
+- 分析：
+  - `0.060` 刷新主指标：
+    - `CAN221 last/max=0.15762s`
+    - `CAN233 last/max=0.16211s`
+  - 但代价很明显：
+    - `slip_event` 升到 `1.0234`
+    - `normal_force_mean` 上升
+    - `support_released` 末点较低
+    - 末点食指仍为 0
+  - 这更像是延长了脏 catch，而不是形成稳定 closure。
+  - 不能直接进入 reward；否则会强化这种 dirty handover。
+- 下一轮建议：
+  - 做中点 `clear_drop_m=0.0575`。
+  - 若中点接近 `0.162s` 且 slip/support_released 更干净，再保留为下一轮几何候选；否则回到 `0.055` 或只把 `0.060` 作为 dirty positive 线索。
+
+### CAN234: keep CAN221 geometry and set clear_drop_m to 0.0575
+- 代码改动：
+  - 保持当前 geometry：
+    - `_spawn_quat=[0.696863, -0.129975, 0.694439, 0.123462]`
+    - `support_pos=[0.004041, -0.041330, 0.104628]`
+    - `cube_pos=[0.004041, -0.041330, 0.128128]`
+  - clear_drop 中点：
+    - `clear_drop_m: 0.060 -> 0.0575`
+  - reward/action/probe/release ramp 不变。
+- 训练命令：
+  - `CAN234_probe_CAN221geom_cleardrop0575_current_handgeom_CAN184ckpt_512`
+  - base checkpoint:
+    - `/home/ll/SRTP/Aero-Hand/logs/AeroCanGraspV2Force-20260426-030125-CAN184_probe_drop01725_512/checkpoints/000001064960`
+- smoke test：
+  - CPU smoke passed
+  - 输出确认：
+    - `clear_drop_m=0.0575`
+    - `support_pos=[0.004041, -0.04133, 0.104628]`
+    - `cube_pos=[0.004041, -0.04133, 0.128128]`
+- 修改原因：
+  - `CAN233 clear_drop=0.060` 刷新 duration，但 slip/force/support 指标变脏。
+  - 用中点检查是否能保留 duration，同时减少 dirty handover。
+- 预期效果：
+  - `0.0575` 应接近 `CAN233 last=0.16211s`，且比 `CAN233` 的 `slip_event=1.0234` 更干净。
+- 实际效果：
+  - `first=0.010742188, last=0.119335942, max=0.119335942, best_step=1064960`
+  - `drop=1.0 -> 1.0`
+  - `lift_success=0.0 -> 0.0`
+  - `index_wrap_contact=17.0742 -> 0.0`
+  - `thumb_wrap_contact=127.9336 -> 187.8320`
+  - `middle_wrap_contact=170.4609 -> 182.0352`
+  - `joint_palm_contact=112.4883 -> 173.7109`
+  - `normal_force_mean=9.2496 -> 13.9714`
+  - `slip_event=0.0430 -> 0.0117`
+- 分析：
+  - `0.0575` 明显低于 `0.060`，没有保住 duration：
+    - `CAN233 last/max=0.16211s`
+    - `CAN234 last/max=0.11934s`
+  - 它更干净，但主指标不足。
+  - 当前 `clear_drop=0.060` 是 dirty positive，不能直接当成功结构，但值得渲染确认具体形态。
+- 下一轮建议：
+  - 回到 `clear_drop_m=0.060`。
+  - 渲染 `CAN233` 当前 best，判断 `0.162s` 是否仍只是 thumb/palm 外侧 catch。
+
+### CAN235: render CAN233 clear_drop=0.060 current best
+- 代码状态：
+  - 回到 `CAN233` 当前 best：
+    - `clear_drop_m=0.060`
+    - `_spawn_quat=[0.696863, -0.129975, 0.694439, 0.123462]`
+    - `support_pos=[0.004041, -0.041330, 0.104628]`
+    - `cube_pos=[0.004041, -0.041330, 0.128128]`
+    - `_default_ctrl[1]=_lifted_grasp_ctrl[1]=0.36`
+  - reward/action/probe/release ramp 不变。
+- 渲染命令：
+  - `CAN235_render_side_CAN233best_cleardrop060_currentcfg`
+  - `CAN235_render_palm_CAN233best_cleardrop060_currentcfg`
+  - checkpoint:
+    - `/home/ll/SRTP/Aero-Hand/logs/AeroCanGraspV2Force-20260507-015208-CAN233_probe_CAN221geom_cleardrop060_current_handgeom_CAN184ckpt_512/checkpoints/000001064960`
+- 渲染输出：
+  - `/home/ll/SRTP/Aero-Hand/logs/AeroCanGraspV2Force-20260507-021225-CAN235_render_side_CAN233best_cleardrop060_currentcfg/rollout0_collision_debug.mp4`
+  - `/home/ll/SRTP/Aero-Hand/logs/AeroCanGraspV2Force-20260507-021317-CAN235_render_palm_CAN233best_cleardrop060_currentcfg/rollout0_collision_debug.mp4`
+- 复核帧：
+  - `tempvideo/CAN235_side_frames/frame_001.png`
+  - `tempvideo/CAN235_side_frames/frame_004.png`
+  - `tempvideo/CAN235_side_frames/frame_007.png`
+  - `tempvideo/CAN235_palm_frames/frame_001.png`
+  - `tempvideo/CAN235_palm_frames/frame_004.png`
+  - `tempvideo/CAN235_palm_frames/frame_007.png`
+- 实际观察：
+  - early/mid 阶段 can 位于手掌外侧和 support 侧，被拇指/掌部/中指外侧短暂夹住。
+  - 食指没有形成末端包覆；final 帧 can 已经从手中脱出。
+  - 形态与 `CAN233` 指标一致：
+    - `index_wrap_contact` 末点为 0
+    - `slip_event` 高
+    - `support_released` 末点偏低
+- 分析：
+  - `CAN233 last/max=0.16211s` 是当前主指标 best，但不是可作为 reward 强化目标的稳定 unsupported closure。
+  - 这个结果更像 dirty thumb/palm catch 延长，而不是食指压向手掌、拇指下托的目标形态。
+  - 当前不能进入 reward 迭代，否则会强化外侧脏承接。
+- 下一轮建议：
+  - 保留 `clear_drop_m=0.060` 作为 dirty positive 线索。
+  - 在该几何上只改 release/handover 的一个窄变量，优先尝试轻微放慢 release ramp：
+    - `release_ramp_sec: 0.40625 -> 0.43125`
+  - 目标是降低 slip / support 依赖，同时检查是否能接近 `CAN233 last=0.16211s`。
+
+### CAN236: keep CAN233 geometry and slow release_ramp_sec to 0.43125
+- 代码改动：
+  - 保持 `CAN233` geometry / clear best：
+    - `clear_drop_m=0.060`
+    - `_spawn_quat=[0.696863, -0.129975, 0.694439, 0.123462]`
+    - `support_pos=[0.004041, -0.041330, 0.104628]`
+    - `cube_pos=[0.004041, -0.041330, 0.128128]`
+  - 单变量修改：
+    - `release_ramp_sec: 0.40625 -> 0.43125`
+  - reward/action/probe/ctrl 不变。
+- 训练命令：
+  - first attempt:
+    - `CAN236_probe_CAN233geom_ramp043125_current_handgeom_CAN184ckpt_512`
+  - retry:
+    - `CAN236_retry_probe_CAN233geom_ramp043125_current_handgeom_CAN184ckpt_512`
+  - base checkpoint:
+    - `/home/ll/SRTP/Aero-Hand/logs/AeroCanGraspV2Force-20260426-030125-CAN184_probe_drop01725_512/checkpoints/000001064960`
+- smoke test：
+  - CPU smoke passed
+  - 输出确认：
+    - `release_ramp_sec=0.43125`
+    - `clear_drop_m=0.060`
+    - `probe_drop_m=0.01725`
+    - `support_pos=[0.004041, -0.041330, 0.104628]`
+    - `spawn_pos=[0.004041, -0.041330, 0.128128]`
+- 修改原因：
+  - `CAN233` 刷新 duration 但 render 显示为 dirty thumb/palm catch，且 `slip_event=1.0234`、`support_released=9.2070`。
+  - 尝试轻微放慢 support clear，观察是否能减少 slip/support 干扰，同时保留 duration。
+- 预期效果：
+  - 若 CAN233 的 dirty catch 来自 clear 太急，`0.43125` 应降低 slip 并接近 `CAN233 last=0.16211s`。
+- 实际效果：
+  - first attempt 是 partial，只落初始 eval：
+    - `rows=1`
+    - `contact first/last/max=0.002343750 at step 0`
+    - 无训练后 eval / checkpoint，不作为完整结论。
+  - retry 完整：
+    - `first=0.003125000, last=0.019726563, max=0.019726563, best_step=1064960`
+    - `drop=1.0 -> 1.0`
+    - `lift_success=0.0 -> 0.0`
+    - `index_wrap_contact=17.7695 -> 0.0`
+    - `thumb_wrap_contact=128.1992 -> 180.4531`
+    - `middle_wrap_contact=170.6328 -> 167.1172`
+    - `joint_palm_contact=112.7969 -> 165.0430`
+    - `normal_force_mean=9.2277 -> 12.8657`
+    - `slip_event=0.0156 -> 0.1758`
+    - `support_released=9.1211 -> 6.3047`
+    - `episode_reward=13915.4844 -> 17663.7402`
+- 分析：
+  - 这是强负样本：
+    - `CAN233 last/max=0.16211s`
+    - `CAN236_retry last/max=0.01973s`
+  - 虽然 slip 低于 CAN233，但 duration 崩掉，`support_released` 末点也更低。
+  - 轻微放慢 ramp 没有稳定 handover，反而加重 support 依赖/干扰。
+  - 继续不应进入 reward：几何/释放还没形成稳定 unsupported closure，且食指末点仍为 0。
+- 下一轮建议：
+  - 不保留 `release_ramp_sec=0.43125`。
+  - 回到 `0.40625`，做反向括号测试：
+    - `release_ramp_sec: 0.40625 -> 0.38125`
+  - 如果更快 ramp 也退化，则 ramp 分支收口，回到 `0.40625` 并改别的 release/clear 变量。
+
+### CAN237: keep CAN233 geometry and speed release_ramp_sec to 0.38125
+- 代码改动：
+  - 保持 `CAN233` geometry / clear best：
+    - `clear_drop_m=0.060`
+    - `_spawn_quat=[0.696863, -0.129975, 0.694439, 0.123462]`
+    - `support_pos=[0.004041, -0.041330, 0.104628]`
+    - `cube_pos=[0.004041, -0.041330, 0.128128]`
+  - 单变量修改：
+    - `release_ramp_sec: 0.40625 -> 0.38125`
+  - reward/action/probe/ctrl 不变。
+- 训练命令：
+  - `CAN237_probe_CAN233geom_ramp038125_current_handgeom_CAN184ckpt_512`
+  - base checkpoint:
+    - `/home/ll/SRTP/Aero-Hand/logs/AeroCanGraspV2Force-20260426-030125-CAN184_probe_drop01725_512/checkpoints/000001064960`
+- smoke test：
+  - CPU smoke passed
+  - 输出确认：
+    - `release_ramp_sec=0.38125`
+    - `clear_drop_m=0.060`
+    - `probe_drop_m=0.01725`
+    - `probe_hold_sec=0.3`
+    - `release_ready_sec=0.2`
+- 修改原因：
+  - `CAN236_retry` 说明更慢 ramp 是强负样本，并降低 `support_released`。
+  - 做反向括号测试，检查更快 release 是否减少 support 干扰和 dirty slip。
+- 预期效果：
+  - 若 CAN233 主要受 support 依赖/脏滑移影响，更快 ramp 应降低 `slip_event`、提高 `support_released`，并尽量保持 `contact_duration_sec`。
+- 实际效果：
+  - `first=0.013085938, last=0.113085940, max=0.113085940, best_step=1064960`
+  - `drop=1.0 -> 1.0`
+  - `lift_success=0.0 -> 0.0`
+  - `index_wrap_contact=17.3125 -> 0.0391`
+  - `thumb_wrap_contact=128.0781 -> 188.9844`
+  - `middle_wrap_contact=170.3633 -> 183.1836`
+  - `joint_palm_contact=112.9961 -> 171.1797`
+  - `normal_force_mean=9.2407 -> 12.5021`
+  - `slip_event=0.0703 -> 0.0`
+  - `support_released=9.7305 -> 17.4727`
+  - `episode_reward=13907.5918 -> 18355.0781`
+- 分析：
+  - 主指标退化：
+    - `CAN233 last/max=0.16211s`
+    - `CAN237 last/max=0.11309s`
+  - 但接触形态指标明显更干净：
+    - `slip_event` 从 CAN233 的 `1.0234` 降到 `0.0`
+    - `support_released` 从 `9.2070` 升到 `17.4727`
+    - `normal_force_mean` 下降
+    - `index_wrap_contact` 末点不再完全为 0，但仍很弱。
+  - 这说明更快 ramp 有清洁化作用，但过快会牺牲 duration。
+  - 仍不能进入 reward 迭代：`drop=1.0`、`lift_success=0.0`，末端 closure 还不足。
+- 下一轮建议：
+  - 做 ramp 中点：
+    - `release_ramp_sec: 0.38125 -> 0.39375`
+  - 目标是在 `CAN233 duration` 和 `CAN237 cleaner handover` 之间找折中点。
+
+### CAN238: keep CAN233 geometry and test release_ramp_sec midpoint 0.39375
+- 代码改动：
+  - 保持 `CAN233` geometry / clear best：
+    - `clear_drop_m=0.060`
+    - `_spawn_quat=[0.696863, -0.129975, 0.694439, 0.123462]`
+    - `support_pos=[0.004041, -0.041330, 0.104628]`
+    - `cube_pos=[0.004041, -0.041330, 0.128128]`
+  - 单变量修改：
+    - `release_ramp_sec: 0.38125 -> 0.39375`
+  - reward/action/probe/ctrl 不变。
+- 训练命令：
+  - `CAN238_probe_CAN233geom_ramp039375_current_handgeom_CAN184ckpt_512`
+  - base checkpoint:
+    - `/home/ll/SRTP/Aero-Hand/logs/AeroCanGraspV2Force-20260426-030125-CAN184_probe_drop01725_512/checkpoints/000001064960`
+- smoke test：
+  - CPU smoke passed
+  - 输出确认：
+    - `release_ramp_sec=0.39375`
+    - `clear_drop_m=0.060`
+    - `probe_drop_m=0.01725`
+    - `probe_hold_sec=0.3`
+    - `release_ready_sec=0.2`
+- 修改原因：
+  - `CAN237 ramp=0.38125` 比 CAN233 干净，但 duration 退化。
+  - 用中点检查是否能保留一部分 clean handover，同时恢复 duration。
+- 预期效果：
+  - `last` 应高于 `CAN237 0.11309s`，并尽量接近 `CAN233 0.16211s`；slip/support 应比 CAN233 干净。
+- 实际效果：
+  - `first=0.011132812, last=0.100390635, max=0.100390635, best_step=1064960`
+  - `drop=1.0 -> 1.0`
+  - `lift_success=0.0 -> 0.0`
+  - `index_wrap_contact=16.6719 -> 0.0`
+  - `thumb_wrap_contact=128.4766 -> 188.8086`
+  - `middle_wrap_contact=170.6484 -> 183.6562`
+  - `joint_palm_contact=113.5586 -> 172.0312`
+  - `normal_force_mean=9.2466 -> 13.3668`
+  - `slip_event=0.0312 -> 0.0`
+  - `support_released=9.5820 -> 17.4609`
+  - `episode_reward=13938.6553 -> 18449.9531`
+- 分析：
+  - 中点没有恢复 duration：
+    - `CAN233 last/max=0.16211s`
+    - `CAN237 last/max=0.11309s`
+    - `CAN238 last/max=0.10039s`
+  - 虽然 `slip_event=0`、`support_released=17.46`，但末点食指又回到 0，且接触时长比 CAN237 更低。
+  - ramp 分支结论：
+    - `0.43125` 太慢，强负样本。
+    - `0.38125/0.39375` 更干净但不能保住 duration。
+    - `0.40625` 仍是当前 duration best，但 dirty。
+  - 仍不能改 reward：当前最好的 duration 仍只有 `0.162s`，render 已证实不是稳定 unsupported closure。
+- 下一轮建议：
+  - 回到 `release_ramp_sec=0.40625`。
+  - 只改 probe/clear 过渡的一个变量：
+    - `probe_hold_sec: 0.30 -> 0.25`
+  - 目标是在不改变 ramp 深度/速度的情况下略早进入 clear，检查是否能提高 `support_released` 并降低 dirty slip，同时不显著损失 CAN233 的 duration。
+
+### CAN239: keep CAN233 geometry/ramp and shorten probe_hold_sec to 0.25
+- 代码改动：
+  - 回到 `CAN233` ramp：
+    - `release_ramp_sec=0.40625`
+  - 保持 `CAN233` geometry / clear best：
+    - `clear_drop_m=0.060`
+    - `_spawn_quat=[0.696863, -0.129975, 0.694439, 0.123462]`
+    - `support_pos=[0.004041, -0.041330, 0.104628]`
+    - `cube_pos=[0.004041, -0.041330, 0.128128]`
+  - 单变量修改：
+    - `probe_hold_sec: 0.30 -> 0.25`
+  - reward/action/probe_drop/ctrl 不变。
+- 训练命令：
+  - `CAN239_probe_CAN233geom_probehold025_current_handgeom_CAN184ckpt_512`
+  - base checkpoint:
+    - `/home/ll/SRTP/Aero-Hand/logs/AeroCanGraspV2Force-20260426-030125-CAN184_probe_drop01725_512/checkpoints/000001064960`
+- smoke test：
+  - CPU smoke passed
+  - 输出确认：
+    - `release_ramp_sec=0.40625`
+    - `probe_drop_m=0.01725`
+    - `clear_drop_m=0.060`
+    - `probe_hold_sec=0.25`
+    - `release_ready_sec=0.2`
+- 修改原因：
+  - ramp 分支显示更快 clear 更干净但 duration 不够。
+  - 尝试不改变 ramp 本身，只略早从 probe 进入 clear，保留 CAN233 的 ramp/clear depth。
+- 预期效果：
+  - `last` 应接近 `CAN233 0.16211s`，同时 `slip_event/support_released` 应比 CAN233 更干净。
+- 实际效果：
+  - `first=0.011718750, last=0.149023443, max=0.149023443, best_step=1064960`
+  - `drop=1.0 -> 1.0`
+  - `lift_success=0.0 -> 0.0`
+  - `index_wrap_contact=16.4609 -> 0.0`
+  - `thumb_wrap_contact=128.5781 -> 176.0195`
+  - `middle_wrap_contact=170.6367 -> 177.9648`
+  - `joint_palm_contact=113.0938 -> 159.4844`
+  - `normal_force_mean=9.2590 -> 12.6342`
+  - `slip_event=0.0820 -> 0.0664`
+  - `support_released=10.1680 -> 14.3867`
+  - `episode_reward=13916.1680 -> 17488.9688`
+- 分析：
+  - `probe_hold=0.25` 没有刷新主指标，但明显比 ramp-fast 分支更接近 CAN233：
+    - `CAN233 last/max=0.16211s`
+    - `CAN239 last/max=0.14902s`
+  - 同时它比 CAN233 干净很多：
+    - `slip_event: 1.0234 -> 0.0664`
+    - `support_released: 9.2070 -> 14.3867`
+    - `normal_force_mean` 降低
+  - 末点食指仍为 0，说明还不是目标 closure。
+  - 这是 probe_hold 分支的有用折中样本，值得继续 bracket。
+- 下一轮建议：
+  - 做 `probe_hold_sec` 中点：
+    - `0.25 -> 0.275`
+  - 目标是在保留 CAN239 clean handover 的同时恢复 CAN233 的 duration。
+
+### CAN240: keep CAN233 geometry/ramp and test probe_hold_sec midpoint 0.275
+- 代码改动：
+  - 保持 `CAN239` 的 CAN233 geometry/ramp：
+    - `release_ramp_sec=0.40625`
+    - `clear_drop_m=0.060`
+    - `_spawn_quat=[0.696863, -0.129975, 0.694439, 0.123462]`
+    - `support_pos=[0.004041, -0.041330, 0.104628]`
+    - `cube_pos=[0.004041, -0.041330, 0.128128]`
+  - 单变量修改：
+    - `probe_hold_sec: 0.25 -> 0.275`
+  - reward/action/probe_drop/ctrl 不变。
+- 训练命令：
+  - `CAN240_probe_CAN233geom_probehold0275_current_handgeom_CAN184ckpt_512`
+  - base checkpoint:
+    - `/home/ll/SRTP/Aero-Hand/logs/AeroCanGraspV2Force-20260426-030125-CAN184_probe_drop01725_512/checkpoints/000001064960`
+- smoke test：
+  - CPU smoke passed
+  - 输出确认：
+    - `release_ramp_sec=0.40625`
+    - `probe_drop_m=0.01725`
+    - `clear_drop_m=0.060`
+    - `probe_hold_sec=0.275`
+    - `release_ready_sec=0.2`
+- 修改原因：
+  - `CAN239 probe_hold=0.25` 比 CAN233 干净但 duration 稍低。
+  - 用 `0.275` 检查是否能恢复 CAN233 的 duration，同时保留较低 slip。
+- 预期效果：
+  - `last` 应高于 `CAN239 0.14902s` 并接近 `CAN233 0.16211s`，且 `slip_event` 维持低位。
+- 实际效果：
+  - `first=0.011718750, last=0.133789062, max=0.133789062, best_step=1064960`
+  - `drop=1.0 -> 1.0`
+  - `lift_success=0.0 -> 0.0`
+  - `index_wrap_contact=17.5977 -> 0.0`
+  - `thumb_wrap_contact=128.5508 -> 184.1875`
+  - `middle_wrap_contact=170.1133 -> 181.7031`
+  - `joint_palm_contact=113.4375 -> 171.8164`
+  - `normal_force_mean=9.2173 -> 14.2620`
+  - `slip_event=0.0586 -> 0.1719`
+  - `support_released=9.6211 -> 13.8047`
+  - `episode_reward=13956.2695 -> 18421.2168`
+- 分析：
+  - `0.275` 没有恢复 duration，反而低于 `CAN239`：
+    - `CAN239 last/max=0.14902s`
+    - `CAN240 last/max=0.13379s`
+  - clean 指标也比 CAN239 变差：
+    - `slip_event 0.0664 -> 0.1719`
+    - `normal_force_mean 12.6342 -> 14.2620`
+  - 当前 probe_hold 分支的最好折中是 `0.25`，不是中点。
+  - 仍不能进入 reward：末点食指为 0，drop 仍 1.0，visual 还需确认 clean 指标是否对应真实几何改善。
+- 下一轮建议：
+  - 回到 `probe_hold_sec=0.25`。
+  - 渲染 `CAN239` checkpoint，确认低 slip / 高 support_released 是否对应更干净 handover，而不是另一个短暂外侧 catch。
+
+### CAN241: render CAN239 probe_hold=0.25 clean-tradeoff candidate
+- 代码状态：
+  - 回到 `CAN239` 参数：
+    - `release_ramp_sec=0.40625`
+    - `probe_hold_sec=0.25`
+    - `clear_drop_m=0.060`
+    - `_spawn_quat=[0.696863, -0.129975, 0.694439, 0.123462]`
+    - `support_pos=[0.004041, -0.041330, 0.104628]`
+    - `cube_pos=[0.004041, -0.041330, 0.128128]`
+- 渲染命令：
+  - `CAN241_render_side_CAN239probehold025_currentcfg`
+  - `CAN241_render_palm_CAN239probehold025_currentcfg`
+  - checkpoint:
+    - `/home/ll/SRTP/Aero-Hand/logs/AeroCanGraspV2Force-20260507-025320-CAN239_probe_CAN233geom_probehold025_current_handgeom_CAN184ckpt_512/checkpoints/000001064960`
+  - render flags:
+    - `--num_timesteps=0 --episode_length=240 --num_videos=1 --render_mode=overlay --render_collision_debug=True`
+- 渲染输出：
+  - `/home/ll/SRTP/Aero-Hand/logs/AeroCanGraspV2Force-20260507-031321-CAN241_render_side_CAN239probehold025_currentcfg/rollout0_collision_debug.mp4`
+  - `/home/ll/SRTP/Aero-Hand/logs/AeroCanGraspV2Force-20260507-031411-CAN241_render_palm_CAN239probehold025_currentcfg/rollout0_collision_debug.mp4`
+- 复核帧：
+  - `tempvideo/CAN241_side_frames/frame_001.png`
+  - `tempvideo/CAN241_side_frames/frame_004.png`
+  - `tempvideo/CAN241_side_frames/frame_007.png`
+  - `tempvideo/CAN241_palm_frames/frame_001.png`
+  - `tempvideo/CAN241_palm_frames/frame_004.png`
+  - `tempvideo/CAN241_palm_frames/frame_007.png`
+- 实际观察：
+  - early/mid 阶段仍然是 can 位于手掌外侧/support 侧，主要被拇指、掌部和外侧手指短暂夹住。
+  - final 帧 can 已脱出。
+  - 食指没有形成末端包覆，视觉上没有从外侧 catch 变为目标的指腹-掌心 cradle。
+- 分析：
+  - CAN239 的 `slip_event=0.0664`、`support_released=14.3867` 代表的是更少滑移/更早 clear，不代表真实 closure 已经解决。
+  - 渲染确认 CAN239 仍是短暂外侧承接，不应改 reward 强化。
+  - 下一步应回到几何/姿态，让 can 更进入指腹包覆区，而不是继续围绕同一 dirty pose 调 reward。
+- 下一轮建议：
+  - 保留 `probe_hold_sec=0.25` 作为 cleaner handover scaffold。
+  - 在当前 `CAN239` clean scaffold 上做小姿态变量：
+    - `_spawn_quat: +20° -> +22.5°`
+  - 依据：
+    - 旧 `CAN217 +22.5°` 比 `+20°` duration 低，但 slip 很低。
+    - 当前 `clear_drop=0.060 + probe_hold=0.25` 比旧 scaffold 更干净，值得复测 +22.5° 是否能把 can 旋进包覆区。
+
+### CAN242: keep CAN239 scaffold and yaw can to +22.5 degrees
+- 代码改动：
+  - 保持 `CAN239` cleaner scaffold：
+    - `release_ramp_sec=0.40625`
+    - `probe_hold_sec=0.25`
+    - `clear_drop_m=0.060`
+    - `support_pos=[0.004041, -0.041330, 0.104628]`
+    - `cube_pos=[0.004041, -0.041330, 0.128128]`
+  - 单变量修改：
+    - `_spawn_quat: [0.696863, -0.129975, 0.694439, 0.123462]`
+    - `-> [0.694004, -0.145093, 0.691438, 0.138634]`
+  - 该 quaternion 等价于在原 CAN207 姿态上 yaw `+22.5°`。
+  - reward/action/probe_drop/ctrl 不变。
+- 训练命令：
+  - `CAN242_probe_CAN239scaffold_quatyawplus22p5_current_handgeom_CAN184ckpt_512`
+  - base checkpoint:
+    - `/home/ll/SRTP/Aero-Hand/logs/AeroCanGraspV2Force-20260426-030125-CAN184_probe_drop01725_512/checkpoints/000001064960`
+- smoke test：
+  - CPU smoke passed
+  - 输出确认：
+    - `release_ramp_sec=0.40625`
+    - `probe_drop_m=0.01725`
+    - `clear_drop_m=0.060`
+    - `probe_hold_sec=0.25`
+    - `spawn_quat=[0.694004, -0.145093, 0.691438, 0.138634]`
+- 修改原因：
+  - CAN241 render 显示 CAN239 仍是外侧 catch。
+  - 旧 `CAN217 +22.5°` 在旧 scaffold 上 duration 较低但 slip 很低，当前 cleaner scaffold 下复测它是否能让 can 更靠近包覆区。
+- 预期效果：
+  - 如果 +22.5° 与 CAN239 scaffold 互补，应保持或超过 `CAN239 last=0.14902s`，同时保留低 slip，并提高末点食指接触。
+- 实际效果：
+  - `first=0.013085938, last=0.128906265, max=0.128906265, best_step=1064960`
+  - `drop=1.0 -> 1.0`
+  - `lift_success=0.0 -> 0.0`
+  - `index_wrap_contact=9.5078 -> 0.0117`
+  - `thumb_wrap_contact=117.3242 -> 189.1172`
+  - `middle_wrap_contact=170.5586 -> 182.9648`
+  - `joint_palm_contact=99.8633 -> 172.2031`
+  - `normal_force_mean=9.6000 -> 12.6793`
+  - `slip_event=0.0430 -> 0.0`
+  - `support_released=11.1562 -> 16.7617`
+  - `episode_reward=12468.6074 -> 18412.5137`
+- 分析：
+  - 主指标低于 CAN239：
+    - `CAN239 last/max=0.14902s`
+    - `CAN242 last/max=0.12891s`
+  - +22.5° 的清洁化趋势仍在：
+    - `slip_event=0`
+    - `support_released=16.7617`
+  - 但它没有提高稳定 contact duration；末点食指只有 `0.0117`，仍不足。
+  - 旧 `CAN217 +22.5°` 的结论没有被当前 scaffold 改写；yaw > +20° 仍不是主线。
+- 下一轮建议：
+  - 回到 +20°。
+  - 在 CAN239 scaffold 上做更小的 y 方向几何微调：
+    - `support_pos.y / cube_pos.y: -0.041330 -> -0.041580`
+  - 依据：
+    - 旧 `CAN221 y-0.5mm` 是主线几何 best；
+    - 旧 `CAN223 y-1.0mm` 退化；
+    - 当前可用 `y-0.75mm` 中点复测，目标是让 can 更靠近指腹区而不越过窗口。
+
+### CAN243: keep CAN239 scaffold and move can/support to y-0.75mm
+- 代码改动：
+  - 回到 `CAN239` yaw +20°：
+    - `_spawn_quat=[0.696863, -0.129975, 0.694439, 0.123462]`
+  - 保持 cleaner scaffold：
+    - `release_ramp_sec=0.40625`
+    - `probe_hold_sec=0.25`
+    - `clear_drop_m=0.060`
+  - 单变量修改：
+    - `support_pos.y / cube_pos.y: -0.041330 -> -0.041580`
+  - reward/action/probe_drop/ctrl 不变。
+- 训练命令：
+  - `CAN243_probe_CAN239scaffold_yminus0p75mm_current_handgeom_CAN184ckpt_512`
+  - base checkpoint:
+    - `/home/ll/SRTP/Aero-Hand/logs/AeroCanGraspV2Force-20260426-030125-CAN184_probe_drop01725_512/checkpoints/000001064960`
+- smoke test：
+  - CPU smoke passed
+  - 输出确认：
+    - `release_ramp_sec=0.40625`
+    - `probe_drop_m=0.01725`
+    - `clear_drop_m=0.060`
+    - `probe_hold_sec=0.25`
+    - `support_pos=[0.004041, -0.041580, 0.104628]`
+    - `spawn_pos=[0.004041, -0.041580, 0.128128]`
+    - `spawn_quat=[0.696863, -0.129975, 0.694439, 0.123462]`
+- 修改原因：
+  - 旧 y sweep 显示 `y-0.5mm` 是 best，`y-1.0mm` 退化。
+  - 当前 CAN239 render 仍偏外侧，因此测试中点 `y-0.75mm` 是否能让 can 更进入指腹区。
+- 预期效果：
+  - 若当前 can 仍偏外，`y-0.75mm` 应保持或超过 `CAN239 last=0.14902s`，并提高末点 index/middle/palm contact。
+- 实际效果：
+  - `first=0.012109376, last=0.000000000, max=0.012109376, best_step=0`
+  - `drop=1.0 -> 1.0`
+  - `lift_success=0.0 -> 0.0`
+  - `index_wrap_contact=17.0508 -> 0.0195`
+  - `thumb_wrap_contact=128.2344 -> 178.3516`
+  - `middle_wrap_contact=170.5508 -> 9.8320`
+  - `joint_palm_contact=113.1953 -> 8.3633`
+  - `normal_force_mean=9.2781 -> 9.6484`
+  - `slip_event=0.0430 -> 0.0`
+  - `support_released=9.5469 -> 4.7539`
+  - `episode_reward=13917.5215 -> 4873.3105`
+- 分析：
+  - 这是强负样本：
+    - `CAN239 last/max=0.14902s`
+    - `CAN243 last=0.0s, max at step 0`
+  - y-0.75mm 直接破坏末端 middle/joint palm 接触，说明 y- 方向已经越过窗口。
+  - 旧 `CAN223 y-1.0mm` 退化的结论在当前 scaffold 下更强。
+  - 不保留该几何。
+- 下一轮建议：
+  - 回到 CAN239 的 y-0.5mm。
+  - 做反向小步：
+    - `support_pos.y / cube_pos.y: -0.041330 -> -0.041080`
+  - 目标是检查略向 y+ 回收是否能减少外侧 catch，同时不落入旧 `CAN222 y+0.5mm` 的强退化区。
+
+### CAN244: keep CAN239 scaffold and move can/support to y-0.25mm
+- 代码改动：
+  - 回到 `CAN239` yaw +20° 和 cleaner scaffold：
+    - `_spawn_quat=[0.696863, -0.129975, 0.694439, 0.123462]`
+    - `release_ramp_sec=0.40625`
+    - `probe_hold_sec=0.25`
+    - `clear_drop_m=0.060`
+  - 单变量修改：
+    - `support_pos.y / cube_pos.y: -0.041330 -> -0.041080`
+  - reward/action/probe_drop/ctrl 不变。
+- 训练命令：
+  - `CAN244_probe_CAN239scaffold_yminus0p25mm_current_handgeom_CAN184ckpt_512`
+  - base checkpoint:
+    - `/home/ll/SRTP/Aero-Hand/logs/AeroCanGraspV2Force-20260426-030125-CAN184_probe_drop01725_512/checkpoints/000001064960`
+- smoke test：
+  - CPU smoke passed
+  - 输出确认：
+    - `release_ramp_sec=0.40625`
+    - `probe_drop_m=0.01725`
+    - `clear_drop_m=0.060`
+    - `probe_hold_sec=0.25`
+    - `support_pos=[0.004041, -0.041080, 0.104628]`
+    - `spawn_pos=[0.004041, -0.041080, 0.128128]`
+- 修改原因：
+  - `CAN243 y-0.75mm` 强退化，说明 y- 方向过界。
+  - 反向小步检查 y+ 回收是否能保持 duration 并减轻外侧 catch。
+- 预期效果：
+  - `last` 应接近或超过 CAN239，同时 slip/support 比 CAN233 更干净。
+- 实际效果：
+  - `first=0.012499999, last=0.160156265, max=0.160156265, best_step=1064960`
+  - `drop=1.0 -> 1.0`
+  - `lift_success=0.0 -> 0.0`
+  - `index_wrap_contact=18.7422 -> 0.0`
+  - `thumb_wrap_contact=130.0625 -> 182.6133`
+  - `middle_wrap_contact=170.3125 -> 180.9180`
+  - `joint_palm_contact=114.3008 -> 172.5508`
+  - `normal_force_mean=9.2797 -> 14.0039`
+  - `slip_event=0.0898 -> 0.3203`
+  - `support_released=10.2344 -> 12.1367`
+  - `episode_reward=14045.8887 -> 18455.8047`
+- 分析：
+  - CAN244 没刷新 CAN233 主指标，但非常接近：
+    - `CAN233 last/max=0.16211s`
+    - `CAN244 last/max=0.16016s`
+  - 相比 CAN233，CAN244 更干净：
+    - `slip_event 1.0234 -> 0.3203`
+    - `support_released 9.2070 -> 12.1367`
+  - 相比 CAN239，CAN244 duration 更好但更脏：
+    - `CAN239 last/max=0.14902s, slip=0.0664, support_released=14.3867`
+  - 末点食指仍为 0，视觉上仍需验证。
+  - 这是当前 y 分支的有用折中点。
+- 下一轮建议：
+  - 做 y 中点：
+    - `support_pos.y / cube_pos.y: -0.041080 -> -0.041205`
+  - 目标是在 CAN244 的接近 best duration 与 CAN239 的 clean 指标之间找更好的 tradeoff。
+
+### CAN245: keep CAN239 scaffold and test y midpoint -0.041205
+- 代码改动：
+  - 保持 `CAN239` yaw +20° 和 cleaner scaffold：
+    - `_spawn_quat=[0.696863, -0.129975, 0.694439, 0.123462]`
+    - `release_ramp_sec=0.40625`
+    - `probe_hold_sec=0.25`
+    - `clear_drop_m=0.060`
+  - 单变量修改：
+    - `support_pos.y / cube_pos.y: -0.041080 -> -0.041205`
+  - reward/action/probe_drop/ctrl 不变。
+- 训练命令：
+  - `CAN245_probe_CAN239scaffold_yminus0p375mm_current_handgeom_CAN184ckpt_512`
+  - base checkpoint:
+    - `/home/ll/SRTP/Aero-Hand/logs/AeroCanGraspV2Force-20260426-030125-CAN184_probe_drop01725_512/checkpoints/000001064960`
+- smoke test：
+  - CPU smoke passed
+  - 输出确认：
+    - `release_ramp_sec=0.40625`
+    - `probe_drop_m=0.01725`
+    - `clear_drop_m=0.060`
+    - `probe_hold_sec=0.25`
+    - `support_pos=[0.004041, -0.041205, 0.104628]`
+    - `spawn_pos=[0.004041, -0.041205, 0.128128]`
+- 修改原因：
+  - `CAN244 y=-0.041080` 接近 CAN233 duration，但比 CAN239 更脏。
+  - 中点测试是否能保留 duration，同时回收 slip/support 指标。
+- 预期效果：
+  - `last` 接近 `CAN244 0.16016s`，且 `slip_event` 低于 `CAN244 0.3203`。
+- 实际效果：
+  - `first=0.015820313, last=0.141015649, max=0.141015649, best_step=1064960`
+  - `drop=1.0 -> 1.0`
+  - `lift_success=0.0 -> 0.0`
+  - `index_wrap_contact=12.5703 -> 0.0`
+  - `thumb_wrap_contact=127.6055 -> 186.1875`
+  - `middle_wrap_contact=170.8633 -> 182.1016`
+  - `joint_palm_contact=111.5391 -> 173.3594`
+  - `normal_force_mean=9.4170 -> 13.1228`
+  - `slip_event=0.0664 -> 0.0820`
+  - `support_released=10.2422 -> 14.2617`
+  - `episode_reward=13591.8086 -> 18505.6465`
+- 分析：
+  - CAN245 比 CAN244 干净，但 duration 损失明显：
+    - `CAN244 last/max=0.16016s`
+    - `CAN245 last/max=0.14102s`
+  - 它也低于 CAN239 的 `0.14902s`。
+  - y 中点没有成为更好的 tradeoff；当前可渲染候选应是 CAN244。
+  - 仍不能改 reward：末点食指为 0，视觉尚未确认几何改善。
+- 下一轮建议：
+  - 回到 CAN244：
+    - `support_pos.y / cube_pos.y=-0.041080`
+  - 渲染 CAN244 checkpoint，判断它接近 CAN233 duration 且 slip 较低是否对应真实几何改善。
+
+### CAN246: render CAN244 y=-0.041080 candidate
+- 代码状态：
+  - 回到 CAN244：
+    - `support_pos=[0.004041, -0.041080, 0.104628]`
+    - `cube_pos=[0.004041, -0.041080, 0.128128]`
+    - `_spawn_quat=[0.696863, -0.129975, 0.694439, 0.123462]`
+    - `release_ramp_sec=0.40625`
+    - `probe_hold_sec=0.25`
+    - `clear_drop_m=0.060`
+- 渲染命令：
+  - `CAN246_render_side_CAN244_yminus0p25_currentcfg`
+  - `CAN246_render_palm_CAN244_yminus0p25_currentcfg`
+  - checkpoint:
+    - `/home/ll/SRTP/Aero-Hand/logs/AeroCanGraspV2Force-20260507-033718-CAN244_probe_CAN239scaffold_yminus0p25mm_current_handgeom_CAN184ckpt_512/checkpoints/000001064960`
+  - render flags:
+    - `--num_timesteps=0 --episode_length=240 --num_videos=1 --render_mode=overlay --render_collision_debug=True`
+- 渲染输出：
+  - `/home/ll/SRTP/Aero-Hand/logs/AeroCanGraspV2Force-20260507-035713-CAN246_render_side_CAN244_yminus0p25_currentcfg/rollout0_collision_debug.mp4`
+  - `/home/ll/SRTP/Aero-Hand/logs/AeroCanGraspV2Force-20260507-035803-CAN246_render_palm_CAN244_yminus0p25_currentcfg/rollout0_collision_debug.mp4`
+- 复核帧：
+  - `tempvideo/CAN246_side_frames/frame_001.png`
+  - `tempvideo/CAN246_side_frames/frame_004.png`
+  - `tempvideo/CAN246_side_frames/frame_007.png`
+  - `tempvideo/CAN246_palm_frames/frame_001.png`
+  - `tempvideo/CAN246_palm_frames/frame_004.png`
+  - `tempvideo/CAN246_palm_frames/frame_007.png`
+- 实际观察：
+  - early/mid 阶段 can 仍在手掌外侧/support 侧，主要由 thumb/palm/外侧手指短暂夹住。
+  - final 帧 can 已经脱出并向外掉落。
+  - 食指仍没有末端包覆。
+- 分析：
+  - CAN244 的 `last=0.16016s` 和较低 slip 没有对应真实 closure 改善。
+  - y sweep 只能在 dirty catch 内调 tradeoff，不能解决 can 没进入指腹 cradle 的问题。
+  - 当前仍不能改 reward，否则会强化外侧 catch。
+- 下一轮建议：
+  - 保持 CAN244 的 y/tradeoff scaffold。
+  - 改一个很小的 x 方向变量：
+    - `support_pos.x / cube_pos.x: 0.004041 -> 0.003791`
+  - 依据：
+    - 旧 xminus0.5mm 只略低于 best，说明 x- 小步不是强负方向；
+    - 当前 y/probe scaffold 改变后，x-0.25mm 可能把 can 稍微移入掌心/指腹包覆区。
+
+### CAN247: keep CAN244 scaffold and move can/support x-0.25mm
+- 代码改动：
+  - 保持 CAN244 y/tradeoff scaffold：
+    - `support_pos.y / cube_pos.y=-0.041080`
+    - `_spawn_quat=[0.696863, -0.129975, 0.694439, 0.123462]`
+    - `release_ramp_sec=0.40625`
+    - `probe_hold_sec=0.25`
+    - `clear_drop_m=0.060`
+  - 单变量修改：
+    - `support_pos.x / cube_pos.x: 0.004041 -> 0.003791`
+  - reward/action/probe_drop/ctrl 不变。
+- 训练命令：
+  - `CAN247_probe_CAN244scaffold_xminus0p25mm_current_handgeom_CAN184ckpt_512`
+  - base checkpoint:
+    - `/home/ll/SRTP/Aero-Hand/logs/AeroCanGraspV2Force-20260426-030125-CAN184_probe_drop01725_512/checkpoints/000001064960`
+- smoke test：
+  - CPU smoke passed
+  - 输出确认：
+    - `release_ramp_sec=0.40625`
+    - `probe_drop_m=0.01725`
+    - `clear_drop_m=0.060`
+    - `probe_hold_sec=0.25`
+    - `support_pos=[0.003791, -0.041080, 0.104628]`
+    - `spawn_pos=[0.003791, -0.041080, 0.128128]`
+- 修改原因：
+  - CAN246 render 显示 CAN244 仍是外侧/support 侧 catch。
+  - 旧 xminus0.5mm 不是强负方向；在当前 y/probe scaffold 下尝试更小 x-0.25mm，看是否能稍微移入掌心/指腹区。
+- 预期效果：
+  - 若 x- 方向有助于进入 cradle，`last` 应至少接近 CAN244，且 slip/support 指标不变脏。
+- 实际效果：
+  - `first=0.011132813, last=0.164062500, max=0.164062500, best_step=1064960`
+  - `drop=1.0 -> 1.0`
+  - `lift_success=0.0 -> 0.0`
+  - `index_wrap_contact=16.1836 -> 0.0`
+  - `thumb_wrap_contact=129.6367 -> 184.3711`
+  - `middle_wrap_contact=170.3711 -> 180.4883`
+  - `joint_palm_contact=113.8555 -> 173.6875`
+  - `normal_force_mean=9.3832 -> 14.0500`
+  - `slip_event=0.0391 -> 0.2695`
+  - `support_released=9.9766 -> 12.7109`
+  - `episode_reward=13940.3945 -> 18523.2852`
+- 分析：
+  - CAN247 刷新主指标：
+    - `CAN233 last/max=0.16211s`
+    - `CAN244 last/max=0.16016s`
+    - `CAN247 last/max=0.16406s`
+  - 相比 CAN233，CAN247 明显更干净：
+    - `slip_event 1.0234 -> 0.2695`
+    - `support_released 9.2070 -> 12.7109`
+  - 但末点食指仍为 0，且视觉尚未确认是否仍为外侧 catch。
+  - 当前不能改 reward；必须先渲染 CAN247。
+- 下一轮建议：
+  - 渲染 CAN247 checkpoint 的 side/palm collision debug。
+  - 如果仍外侧 catch，则继续几何；如果视觉上明显进入 cradle，再考虑围绕该 scaffold 做更小的 x/y bracket 或短长训验证。
+
+### CAN248: render CAN247 x-0.25mm current best
+- 代码状态：
+  - `support_pos=[0.003791, -0.041080, 0.104628]`
+  - `cube_pos=[0.003791, -0.041080, 0.128128]`
+  - `_spawn_quat=[0.696863, -0.129975, 0.694439, 0.123462]`
+  - `release_ramp_sec=0.40625`
+  - `probe_hold_sec=0.25`
+  - `clear_drop_m=0.060`
+- 渲染命令：
+  - `CAN248_render_side_CAN247_xminus0p25_currentcfg`
+  - `CAN248_render_palm_CAN247_xminus0p25_currentcfg`
+  - checkpoint:
+    - `/home/ll/SRTP/Aero-Hand/logs/AeroCanGraspV2Force-20260507-040031-CAN247_probe_CAN244scaffold_xminus0p25mm_current_handgeom_CAN184ckpt_512/checkpoints/000001064960`
+  - render flags:
+    - `--num_timesteps=0 --episode_length=240 --num_videos=1 --render_mode=overlay --render_collision_debug=True`
+- 渲染输出：
+  - `/home/ll/SRTP/Aero-Hand/logs/AeroCanGraspV2Force-20260507-041017-CAN248_render_side_CAN247_xminus0p25_currentcfg/rollout0_collision_debug.mp4`
+  - `/home/ll/SRTP/Aero-Hand/logs/AeroCanGraspV2Force-20260507-041109-CAN248_render_palm_CAN247_xminus0p25_currentcfg/rollout0_collision_debug.mp4`
+- 复核帧：
+  - `tempvideo/CAN248_side_frames/frame_001.png`
+  - `tempvideo/CAN248_side_frames/frame_004.png`
+  - `tempvideo/CAN248_side_frames/frame_007.png`
+  - `tempvideo/CAN248_palm_frames/frame_001.png`
+  - `tempvideo/CAN248_palm_frames/frame_004.png`
+  - `tempvideo/CAN248_palm_frames/frame_007.png`
+- 实际观察：
+  - early/mid 阶段仍是 can 位于手掌外侧/support 侧，短暂由 thumb/palm/外侧手指夹住。
+  - final 帧 can 已脱出；没有形成稳定 unsupported cradle。
+  - 食指末端仍没有包覆。
+- 分析：
+  - CAN247 是当前短探测主指标 best，但视觉仍不满足进入 reward 迭代的几何前提。
+  - x-0.25mm 在 dirty catch 内改善了 duration 和 slip，但尚未改变接触类型。
+  - 不能改 reward；继续 x 方向 bracket。
+- 下一轮建议：
+  - 在 CAN247 scaffold 上继续 x- 方向小步：
+    - `support_pos.x / cube_pos.x: 0.003791 -> 0.003541`
+  - 如果 x-0.5mm 退化，则 x 峰值在 0.003791 附近；如果继续提升，再渲染/细扫。
+
+### CAN249: keep CAN247 scaffold and move can/support x-0.5mm
+- 代码改动：
+  - 保持 CAN247 y/probe/clear scaffold：
+    - `support_pos.y / cube_pos.y=-0.041080`
+    - `_spawn_quat=[0.696863, -0.129975, 0.694439, 0.123462]`
+    - `release_ramp_sec=0.40625`
+    - `probe_hold_sec=0.25`
+    - `clear_drop_m=0.060`
+  - 单变量修改：
+    - `support_pos.x / cube_pos.x: 0.003791 -> 0.003541`
+  - reward/action/probe_drop/ctrl 不变。
+- 训练命令：
+  - `CAN249_probe_CAN247scaffold_xminus0p5mm_current_handgeom_CAN184ckpt_512`
+  - base checkpoint:
+    - `/home/ll/SRTP/Aero-Hand/logs/AeroCanGraspV2Force-20260426-030125-CAN184_probe_drop01725_512/checkpoints/000001064960`
+- smoke test：
+  - CPU smoke passed
+  - 输出确认：
+    - `release_ramp_sec=0.40625`
+    - `probe_drop_m=0.01725`
+    - `clear_drop_m=0.060`
+    - `probe_hold_sec=0.25`
+    - `support_pos=[0.003541, -0.041080, 0.104628]`
+    - `spawn_pos=[0.003541, -0.041080, 0.128128]`
+- 修改原因：
+  - CAN247 x-0.25mm 刷新主指标，但 render 仍外侧 catch。
+  - 继续 x- bracket，确认更大 x- 是否进一步改善或越界。
+- 预期效果：
+  - 如果 x- 方向还没过峰，`last` 应超过 CAN247 且 slip/support 不变脏。
+- 实际效果：
+  - `first=0.015234375, last=0.146874994, max=0.146874994, best_step=1064960`
+  - `drop=1.0 -> 1.0`
+  - `lift_success=0.0 -> 0.0`
+  - `index_wrap_contact=16.6094 -> 0.0`
+  - `thumb_wrap_contact=129.9414 -> 182.5977`
+  - `middle_wrap_contact=170.0156 -> 179.1445`
+  - `joint_palm_contact=113.6523 -> 173.3867`
+  - `normal_force_mean=9.4041 -> 14.9935`
+  - `slip_event=0.0547 -> 0.5664`
+  - `support_released=10.4844 -> 10.7383`
+  - `episode_reward=13919.0039 -> 18475.9160`
+- 分析：
+  - x-0.5mm 退化，说明 x- 已过窗口：
+    - `CAN247 last/max=0.16406s`
+    - `CAN249 last/max=0.14687s`
+  - slip/force 也变脏，不能保留。
+  - 当前 x 峰值在 `0.003791` 附近，但仍需检查更保守 x-0.125mm 是否能降低 dirty 指标。
+- 下一轮建议：
+  - 回到 CAN244/CAN247 之间做 x 中点：
+    - `support_pos.x / cube_pos.x: 0.003791 -> 0.003916`
+  - 目标是保持接近 CAN247 的 duration，同时减轻外侧 dirty catch 指标。
+
+### CAN250: keep CAN247 scaffold and test x midpoint 0.003916
+- 代码改动：
+  - 保持 CAN247 y/probe/clear scaffold：
+    - `support_pos.y / cube_pos.y=-0.041080`
+    - `_spawn_quat=[0.696863, -0.129975, 0.694439, 0.123462]`
+    - `release_ramp_sec=0.40625`
+    - `probe_hold_sec=0.25`
+    - `clear_drop_m=0.060`
+  - 单变量修改：
+    - `support_pos.x / cube_pos.x: 0.003791 -> 0.003916`
+  - reward/action/probe_drop/ctrl 不变。
+- 训练命令：
+  - first attempt:
+    - `CAN250_probe_CAN247scaffold_xminus0p125mm_current_handgeom_CAN184ckpt_512`
+  - retry:
+    - `CAN250_retry_probe_CAN247scaffold_xminus0p125mm_current_handgeom_CAN184ckpt_512`
+  - base checkpoint:
+    - `/home/ll/SRTP/Aero-Hand/logs/AeroCanGraspV2Force-20260426-030125-CAN184_probe_drop01725_512/checkpoints/000001064960`
+- smoke test：
+  - CPU smoke passed
+  - 输出确认：
+    - `release_ramp_sec=0.40625`
+    - `probe_drop_m=0.01725`
+    - `clear_drop_m=0.060`
+    - `probe_hold_sec=0.25`
+    - `support_pos=[0.003916, -0.041080, 0.104628]`
+    - `spawn_pos=[0.003916, -0.041080, 0.128128]`
+- 修改原因：
+  - `CAN249 x-0.5mm` 退化，x 峰值在 CAN247 附近。
+  - 测试更保守的 x-0.125mm 是否能降低 dirty 指标并保留 duration。
+- 预期效果：
+  - `last` 接近 CAN247，且 `slip_event` 低于 CAN247。
+- 实际效果：
+  - first attempt 无可用指标：
+    - `metrics.csv` 空文件
+    - 无 checkpoint
+  - retry 完整：
+    - `first=0.009375000, last=0.141406268, max=0.141406268, best_step=1064960`
+    - `drop=1.0 -> 1.0`
+    - `lift_success=0.0 -> 0.0`
+    - `index_wrap_contact=20.5352 -> 0.0`
+    - `thumb_wrap_contact=129.7461 -> 184.6133`
+    - `middle_wrap_contact=170.3281 -> 180.6055`
+    - `joint_palm_contact=114.6445 -> 171.8008`
+    - `normal_force_mean=9.2572 -> 13.2129`
+    - `slip_event=0.0547 -> 0.0664`
+    - `support_released=9.7852 -> 13.8398`
+    - `episode_reward=14160.7861 -> 18359.6680`
+- 分析：
+  - x-0.125mm 确实更干净，但 duration 退化明显：
+    - `CAN247 last/max=0.16406s`
+    - `CAN250_retry last/max=0.14141s`
+  - 不保留 x=0.003916。
+  - 当前 x 位置主线仍是 CAN247 的 `0.003791`。
+  - 因 CAN247 render 仍外侧 catch，下一步不要改 reward；应该在 CAN247 geometry 上再微调 release/probe 过渡。
+- 下一轮建议：
+  - 回到 CAN247 geometry：
+    - `support_pos.x / cube_pos.x=0.003791`
+  - 单变量改 `probe_hold_sec`：
+    - `0.25 -> 0.2375`
+  - 目标是在保留 CAN247 duration 的同时降低 slip。
+
+### CAN251: keep CAN247 geometry and reduce probe_hold_sec to 0.2375
+- 代码改动：
+  - 回到 CAN247 geometry：
+    - `support_pos=[0.003791, -0.041080, 0.104628]`
+    - `cube_pos=[0.003791, -0.041080, 0.128128]`
+    - `_spawn_quat=[0.696863, -0.129975, 0.694439, 0.123462]`
+    - `release_ramp_sec=0.40625`
+    - `clear_drop_m=0.060`
+  - 单变量修改：
+    - `probe_hold_sec: 0.25 -> 0.2375`
+  - reward/action/probe_drop/ctrl 不变。
+- 训练命令：
+  - `CAN251_probe_CAN247geom_probehold02375_current_handgeom_CAN184ckpt_512`
+  - base checkpoint:
+    - `/home/ll/SRTP/Aero-Hand/logs/AeroCanGraspV2Force-20260426-030125-CAN184_probe_drop01725_512/checkpoints/000001064960`
+- smoke test：
+  - CPU smoke passed
+  - 输出确认：
+    - `release_ramp_sec=0.40625`
+    - `probe_drop_m=0.01725`
+    - `clear_drop_m=0.060`
+    - `probe_hold_sec=0.2375`
+    - `support_pos=[0.003791, -0.041080, 0.104628]`
+    - `spawn_pos=[0.003791, -0.041080, 0.128128]`
+- 修改原因：
+  - CAN247 是当前 short-probe duration best，但 render 仍显示外侧 catch。
+  - 尝试略早 clear，看能否降低 dirty slip 而保留 duration。
+- 预期效果：
+  - `last` 接近 CAN247，且 `slip_event` 低于 CAN247。
+- 实际效果：
+  - `first=0.012695312, last=0.063867189, max=0.063867189, best_step=1064960`
+  - `drop=1.0 -> 1.0`
+  - `lift_success=0.0 -> 0.0`
+  - `index_wrap_contact=15.4648 -> 0.0`
+  - `thumb_wrap_contact=129.2383 -> 180.4766`
+  - `middle_wrap_contact=170.1016 -> 169.5273`
+  - `joint_palm_contact=113.6836 -> 166.6680`
+  - `normal_force_mean=9.3622 -> 12.4412`
+  - `slip_event=0.0508 -> 0.2695`
+  - `support_released=9.8945 -> 7.8438`
+  - `episode_reward=13899.4512 -> 17779.7949`
+- 分析：
+  - 这是 probe_hold 下调的强负样本：
+    - `CAN247 last/max=0.16406s`
+    - `CAN251 last/max=0.06387s`
+  - `support_released` 下降，说明过早进入 clear 会破坏当前 handover。
+  - 不保留 `probe_hold_sec=0.2375`。
+  - 当前 short-probe best 仍是 CAN247。
+- 下一轮建议：
+  - 回到 CAN247 参数：
+    - `support_pos=[0.003791, -0.041080, 0.104628]`
+    - `cube_pos=[0.003791, -0.041080, 0.128128]`
+    - `probe_hold_sec=0.25`
+  - 后续若继续，应优先做 CAN247 附近的几何/姿态小步或 render-informed contact scaffold，而不是 reward sweep。

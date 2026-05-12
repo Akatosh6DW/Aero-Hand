@@ -1,0 +1,3 @@
+backup_created_at=20260428_155301
+source_cwd=/home/ll/SRTP/Aero-Hand
+files=right_hand_v2_vertical_bottle.xml,right_hand_v2_vertical_bottle_cube_eval.xml

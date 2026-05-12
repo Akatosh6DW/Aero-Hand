@@ -40,12 +40,12 @@ def default_config() -> config_dict.ConfigDict:
     cfg.support_config.release_ramp_sec = 0.40625
     cfg.support_config.force_release_after_sec = 8.4
     cfg.support_config.release_ready_sec = 0.20
-    cfg.support_config.probe_hold_sec = 0.30
+    cfg.support_config.probe_hold_sec = 0.25
     cfg.support_config.probe_drop_m = 0.01725
-    cfg.support_config.clear_drop_m = 0.055
+    cfg.support_config.clear_drop_m = 0.060
     # Keep the stable CAN79 handover scaffold and only bias the hand shape
     # slightly toward index-led clamp in control space.
-    cfg.support_config.support_pos = [0.010041, -0.040830, 0.106128]
+    cfg.support_config.support_pos = [0.003791, -0.041080, 0.104628]
     cfg.support_config.random_release = False
     cfg.support_config.random_release_min_sec = 4.2
     cfg.support_config.random_release_max_sec = 4.2
@@ -53,7 +53,7 @@ def default_config() -> config_dict.ConfigDict:
     cfg.support_config.min_release_force = 0.125
     cfg.support_config.require_grasp_for_release = True
 
-    cfg.spawn_config.cube_pos = [0.010041, -0.040830, 0.130128]
+    cfg.spawn_config.cube_pos = [0.003791, -0.041080, 0.128128]
     cfg.spawn_config.cube_jitter = [0.0, 0.0, 0.0]
     cfg.spawn_config.support_enabled = True
 
@@ -162,7 +162,7 @@ class CanGraspV2Force(grasp_bottle_v2_force.BottleGraspV2Force):
     ], dtype=np.float32)
     self._lifted_grasp_pose = self._pre_grasp_pose.copy()
     self._spawn_quat = jp.array([
-        0.707715, -0.007412, 0.706458, 0.000577,
+        0.696863, -0.129975, 0.694439, 0.123462,
     ], dtype=jp.float32)
     self._default_ctrl = jp.array([
         1.18, 0.36, 0.74, 0.78, 0.72, 0.52,
